@@ -1,0 +1,39 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Setzt die Basis auf Dunkelgrau (Zinc-950) */
+  background-color: #09090b;
+  color: #ffffff;
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  
+  /* WICHTIG: Hintergrundfarbe erzwingen */
+  background-color: #09090b; 
+  color: white;
+
+  /* App-Feeling: Verhindert Gummiband-Effekt und Textauswahl */
+  overscroll-behavior: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Versteckt Scrollbalken für saubereren Look */
+::-webkit-scrollbar {
+  display: none;
+}
+
+/* Anpassungen für Notches (Kamera-Aussparungen) am Handy */
+.safe-area-top {
+  padding-top: env(safe-area-inset-top);
+}
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}

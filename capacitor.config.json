@@ -1,0 +1,14 @@
+{
+  "appId": "com.highscore.app",
+  "appName": "High Score",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https"
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 2000,
+      "backgroundColor": "#09090b"
+    }
+  }
+}
