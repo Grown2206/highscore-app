@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef, useCallback, createContext, useContext, useMemo } from 'react';
-import { 
-  Leaf, LayoutDashboard, Calendar as CalendarIcon, BarChart3, Trophy, Settings, Smartphone, 
+import {
+  Leaf, LayoutDashboard, Calendar as CalendarIcon, BarChart3, Trophy, Settings, Smartphone,
   Wifi, Zap, Wind, Flame, Star, Clock, Activity, Moon, CalendarDays, Shield, Tag, Gem, TrendingUp, Lock,
   Coins, List, Thermometer, Check, Plus, X, Edit2, Trash2, User, Users, Radio, Scale, WifiOff, RefreshCw,
-  Save, AlertTriangle
+  Save, AlertTriangle, Brain
 } from 'lucide-react';
+import AnalyticsView from './components/AnalyticsView';
 
 // --- KONFIGURATION FÜR PLATTFORMEN ---
 
@@ -609,6 +610,7 @@ function AppLayout({ ctx }) {
       case 'dashboard': return <DashboardView {...ctx} />;
       case 'calendar': return <CalendarView {...ctx} />;
       case 'charts': return <ChartsView {...ctx} />;
+      case 'analytics': return <AnalyticsView {...ctx} />;
       case 'achievements': return <AchievementsView {...ctx} />;
       case 'settings': return <SettingsView {...ctx} liveTemp={ctx.liveData.temp} />;
       default: return null;
@@ -631,6 +633,7 @@ function AppLayout({ ctx }) {
           <NavBtn id="dashboard" icon={<LayoutDashboard/>} label="Dashboard" active={activeTab} set={setActiveTab}/>
           <NavBtn id="calendar" icon={<CalendarIcon/>} label="Tagebuch" active={activeTab} set={setActiveTab}/>
           <NavBtn id="charts" icon={<BarChart3/>} label="Statistik" active={activeTab} set={setActiveTab}/>
+          <NavBtn id="analytics" icon={<Brain/>} label="Analytics" active={activeTab} set={setActiveTab}/>
           <NavBtn id="achievements" icon={<Trophy/>} label="Erfolge" active={activeTab} set={setActiveTab}/>
           <NavBtn id="settings" icon={<Settings/>} label="Einstellungen" active={activeTab} set={setActiveTab}/>
         </nav>
@@ -646,6 +649,7 @@ function AppLayout({ ctx }) {
         <MobNavBtn id="dashboard" icon={<LayoutDashboard/>} active={activeTab} set={setActiveTab}/>
         <MobNavBtn id="calendar" icon={<CalendarIcon/>} active={activeTab} set={setActiveTab}/>
         <MobNavBtn id="charts" icon={<BarChart3/>} active={activeTab} set={setActiveTab}/>
+        <MobNavBtn id="analytics" icon={<Brain/>} active={activeTab} set={setActiveTab}/>
         <MobNavBtn id="achievements" icon={<Trophy/>} active={activeTab} set={setActiveTab}/>
         <MobNavBtn id="settings" icon={<Settings/>} active={activeTab} set={setActiveTab}/>
       </div>
