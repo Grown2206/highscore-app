@@ -1,7 +1,8 @@
-import React, { useMemo } from 'react';
-import { Clock, CalendarDays, DollarSign, TrendingUp } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { Clock, CalendarDays, DollarSign, TrendingUp, BarChart3, Tag, Zap, TrendingDown, Calendar as CalendarIcon } from 'lucide-react';
 
 export default function ChartsView({ historyData, sessionHits, settings }) {
+  const [timeRange, setTimeRange] = useState('30'); // 7, 30, 90 Tage
   const weekStats = useMemo(() => {
      const days = ['So','Mo','Di','Mi','Do','Fr','Sa'];
      const counts = Array(7).fill(0);
@@ -88,9 +89,102 @@ export default function ChartsView({ historyData, sessionHits, settings }) {
 
   const maxCost = Math.max(...costTimeline.map(d => d.cost), 1);
 
+  // Sorten-Statistiken
+  const strainStats = useMemo(() => {
+    const stats = {};
+    sessionHits.forEach(hit => {
+      if (!stats[hit.strainName]) {
+        const strain = settings?.strains?.find(s => s.name === hit.strainName);
+        stats[hit.strainName] = {
+          name: hit.strainName,
+          count: 0,
+          totalCost: 0,
+          strain
+        };
+      }
+      stats[hit.strainName].count++;
+      const price = stats[hit.strainName].strain?.price || hit.strainPrice || 0;
+      stats[hit.strainName].totalCost += (settings?.bowlSize || 0.3) * ((settings?.weedRatio || 80) / 100) * price;
+    });
+    return Object.values(stats).sort((a, b) => b.count - a.count);
+  }, [sessionHits, settings]);
+
+  // Monats-Trend
+  const monthlyTrend = useMemo(() => {
+    const months = {};
+    sessionHits.forEach(hit => {
+      const date = new Date(hit.timestamp);
+      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      if (!months[monthKey]) {
+        months[monthKey] = { month: monthKey, count: 0, cost: 0 };
+      }
+      months[monthKey].count++;
+      const strain = settings?.strains?.find(s => s.name === hit.strainName);
+      const price = strain?.price || hit.strainPrice || 0;
+      months[monthKey].cost += (settings?.bowlSize || 0.3) * ((settings?.weedRatio || 80) / 100) * price;
+    });
+    return Object.values(months).sort((a, b) => a.month.localeCompare(b.month)).slice(-6); // Letzte 6 Monate
+  }, [sessionHits, settings]);
+
+  const maxMonthlyCount = Math.max(...monthlyTrend.map(m => m.count), 1);
+  const maxMonthlyCost = Math.max(...monthlyTrend.map(m => m.cost), 1);
+
+  // Gesamt-Statistiken
+  const totalStats = useMemo(() => {
+    const activeDays = historyData.filter(h => h.count > 0).length;
+    const totalHits = historyData.reduce((sum, h) => h.count, 0);
+    const avgPerDay = activeDays > 0 ? totalHits / activeDays : 0;
+
+    let totalCost = 0;
+    sessionHits.forEach(hit => {
+      const strain = settings?.strains?.find(s => s.name === hit.strainName);
+      const price = strain?.price || hit.strainPrice || 0;
+      totalCost += (settings?.bowlSize || 0.3) * ((settings?.weedRatio || 80) / 100) * price;
+    });
+
+    const totalAmount = totalHits * (settings?.bowlSize || 0.3) * ((settings?.weedRatio || 80) / 100);
+
+    return { activeDays, totalHits, avgPerDay, totalCost, totalAmount };
+  }, [historyData, sessionHits, settings]);
+
   return (
     <div className="space-y-6 animate-in slide-in-from-right-4 pb-20">
-      <h2 className="text-2xl font-bold text-white">Statistik</h2>
+      <div className="flex items-center justify-between">
+        <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+          <BarChart3 className="text-emerald-500" />
+          Statistik
+        </h2>
+      </div>
+
+      {/* Gesamt-Übersicht */}
+      <div className="bg-gradient-to-br from-emerald-900/20 to-zinc-900 border border-emerald-500/30 rounded-2xl p-6">
+        <h3 className="text-sm font-bold text-emerald-400 uppercase mb-4 flex items-center gap-2">
+          <TrendingUp size={16} />
+          Gesamt-Übersicht
+        </h3>
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+          <div className="text-center">
+            <p className="text-4xl font-bold text-emerald-400">{totalStats.totalHits}</p>
+            <p className="text-xs text-zinc-600 uppercase mt-2">Gesamt Hits</p>
+          </div>
+          <div className="text-center">
+            <p className="text-4xl font-bold text-purple-400">{totalStats.activeDays}</p>
+            <p className="text-xs text-zinc-600 uppercase mt-2">Aktive Tage</p>
+          </div>
+          <div className="text-center">
+            <p className="text-4xl font-bold text-lime-400">{totalStats.totalAmount.toFixed(1)}g</p>
+            <p className="text-xs text-zinc-600 uppercase mt-2">Gesamt Menge</p>
+          </div>
+          <div className="text-center">
+            <p className="text-4xl font-bold text-amber-400">{totalStats.totalCost.toFixed(2)}€</p>
+            <p className="text-xs text-zinc-600 uppercase mt-2">Gesamt Kosten</p>
+          </div>
+          <div className="text-center">
+            <p className="text-4xl font-bold text-cyan-400">{totalStats.avgPerDay.toFixed(1)}</p>
+            <p className="text-xs text-zinc-600 uppercase mt-2">Ø pro Tag</p>
+          </div>
+        </div>
+      </div>
       
       <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
          <div className="flex items-center gap-2 mb-4"><Clock size={16} className="text-amber-500"/><h3 className="text-sm font-bold text-zinc-400 uppercase">Tageszeit Aktivität</h3></div>
@@ -117,6 +211,106 @@ export default function ChartsView({ historyData, sessionHits, settings }) {
             ))}
          </div>
       </div>
+
+      {/* Monats-Trend */}
+      {monthlyTrend.length > 0 && (
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <CalendarIcon size={16} className="text-indigo-500"/>
+            <h3 className="text-sm font-bold text-zinc-400 uppercase">Monats-Trend</h3>
+            <span className="text-[10px] text-zinc-600 ml-auto">Letzte 6 Monate</span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Hits pro Monat */}
+            <div>
+              <p className="text-xs text-zinc-600 uppercase font-bold mb-3">Hits</p>
+              <div className="h-32 flex items-end gap-2">
+                {monthlyTrend.map((m, i) => {
+                  const monthName = new Date(m.month + '-01').toLocaleDateString('de-DE', { month: 'short' });
+                  return (
+                    <div key={i} className="flex-1 flex flex-col justify-end items-center gap-2">
+                      <div className="w-full bg-gradient-to-t from-indigo-600 to-indigo-400 rounded-t-lg hover:from-indigo-500 hover:to-indigo-300 transition-colors relative group" style={{ height: `${(m.count / maxMonthlyCount) * 100}%` }}>
+                        {m.count > 0 && (
+                          <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-black text-white text-[9px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 whitespace-nowrap">
+                            {m.count} Hits
+                          </div>
+                        )}
+                      </div>
+                      <span className="text-[10px] text-zinc-500 uppercase">{monthName}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Kosten pro Monat */}
+            <div>
+              <p className="text-xs text-zinc-600 uppercase font-bold mb-3">Kosten</p>
+              <div className="h-32 flex items-end gap-2">
+                {monthlyTrend.map((m, i) => {
+                  const monthName = new Date(m.month + '-01').toLocaleDateString('de-DE', { month: 'short' });
+                  return (
+                    <div key={i} className="flex-1 flex flex-col justify-end items-center gap-2">
+                      <div className="w-full bg-gradient-to-t from-amber-600 to-yellow-400 rounded-t-lg hover:from-amber-500 hover:to-yellow-300 transition-colors relative group" style={{ height: `${(m.cost / maxMonthlyCost) * 100}%` }}>
+                        {m.cost > 0 && (
+                          <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-black text-white text-[9px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 whitespace-nowrap">
+                            {m.cost.toFixed(2)}€
+                          </div>
+                        )}
+                      </div>
+                      <span className="text-[10px] text-zinc-500 uppercase">{monthName}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Sorten-Verteilung */}
+      {strainStats.length > 0 && (
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <Tag size={16} className="text-purple-500"/>
+            <h3 className="text-sm font-bold text-zinc-400 uppercase">Sorten-Verteilung</h3>
+          </div>
+
+          <div className="space-y-3">
+            {strainStats.slice(0, 10).map((strain, i) => {
+              const percentage = (strain.count / sessionHits.length) * 100;
+              return (
+                <div key={i} className="space-y-1">
+                  <div className="flex items-center justify-between text-sm">
+                    <div className="flex items-center gap-2">
+                      <span className="text-zinc-400 font-mono text-xs">#{i + 1}</span>
+                      <span className="text-white font-medium">{strain.name}</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="text-emerald-400 font-bold text-sm">{strain.count}x</span>
+                      <span className="text-amber-400 font-bold text-sm">{strain.totalCost.toFixed(2)}€</span>
+                    </div>
+                  </div>
+                  <div className="h-2 bg-zinc-800 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-purple-500 to-pink-500 rounded-full transition-all"
+                      style={{ width: `${percentage}%` }}
+                    />
+                  </div>
+                  <p className="text-xs text-zinc-600">{percentage.toFixed(1)}% aller Sessions</p>
+                </div>
+              );
+            })}
+          </div>
+
+          {strainStats.length > 10 && (
+            <p className="text-xs text-zinc-600 text-center mt-4">
+              +{strainStats.length - 10} weitere Sorten
+            </p>
+          )}
+        </div>
+      )}
 
       {/* Activity Heatmap */}
       <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">

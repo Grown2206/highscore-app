@@ -1,10 +1,12 @@
 import React, { useState, useRef } from 'react';
-import { Settings, Shield, Tag, Coins, Zap, Edit2, Trash2, Check, Plus, X, Download, Upload, Target, AlertCircle } from 'lucide-react';
+import { Settings, Shield, Tag, Coins, Zap, Edit2, Trash2, Check, Plus, X, Download, Upload, Target, AlertCircle, Database, Trash } from 'lucide-react';
+import { generateTestData, mergeTestData, removeTestData } from '../utils/testDataGenerator';
 
 export default function SettingsView({ settings, setSettings, liveTemp, historyData, setHistoryData, sessionHits, setSessionHits, achievements, setAchievements, goals, setGoals }) {
   const [form, setForm] = useState({ name: '', price: '10', thc: '15' });
   const [editId, setEditId] = useState(null);
   const [exportStatus, setExportStatus] = useState(null);
+  const [testDataStatus, setTestDataStatus] = useState(null);
   const fileInputRef = useRef(null);
 
   const upd = (k, v) => setSettings(p => ({ ...p, [k]: v }));
@@ -81,6 +83,42 @@ export default function SettingsView({ settings, setSettings, liveTemp, historyD
     };
     reader.readAsText(file);
     event.target.value = '';
+  };
+
+  // Testdaten-Funktionen
+  const addTestData = (days = 30) => {
+    try {
+      const testData = generateTestData(days, settings);
+      const merged = mergeTestData(
+        { sessionHits, historyData },
+        testData
+      );
+
+      setSessionHits(merged.sessionHits);
+      setHistoryData(merged.historyData);
+
+      setTestDataStatus({ type: 'success', msg: `${days} Tage Testdaten hinzugefügt!` });
+      setTimeout(() => setTestDataStatus(null), 3000);
+    } catch (e) {
+      setTestDataStatus({ type: 'error', msg: 'Fehler beim Generieren: ' + e.message });
+      setTimeout(() => setTestDataStatus(null), 3000);
+    }
+  };
+
+  const clearTestData = () => {
+    if (!window.confirm('Alle Testdaten (IDs mit "test_") wirklich löschen?')) return;
+
+    try {
+      const cleaned = removeTestData(sessionHits, historyData);
+      setSessionHits(cleaned.sessionHits);
+      setHistoryData(cleaned.historyData);
+
+      setTestDataStatus({ type: 'success', msg: 'Testdaten entfernt!' });
+      setTimeout(() => setTestDataStatus(null), 3000);
+    } catch (e) {
+      setTestDataStatus({ type: 'error', msg: 'Fehler beim Löschen: ' + e.message });
+      setTimeout(() => setTestDataStatus(null), 3000);
+    }
   };
 
   return (
@@ -183,6 +221,65 @@ export default function SettingsView({ settings, setSettings, liveTemp, historyD
               </div>
               <p className="text-[10px] text-zinc-600 mt-2">Erinnerung nach X Tagen ohne Pause</p>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* TESTDATEN */}
+      {settings.adminMode && (
+        <div className="bg-gradient-to-br from-indigo-900/20 to-zinc-900 border border-indigo-500/30 rounded-2xl p-6 space-y-4">
+          <div className="flex items-center gap-2">
+            <Database size={16} className="text-indigo-400"/>
+            <h3 className="text-sm font-bold text-indigo-400 uppercase">Testdaten (Admin)</h3>
+          </div>
+
+          {testDataStatus && (
+            <div className={`p-3 rounded-xl border flex items-center gap-2 text-sm ${testDataStatus.type === 'success' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500' : 'bg-rose-500/10 border-rose-500/20 text-rose-500'}`}>
+              <AlertCircle size={14} />
+              {testDataStatus.msg}
+            </div>
+          )}
+
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+              <button
+                onClick={() => addTestData(7)}
+                className="flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white p-2 rounded-lg transition-colors text-sm font-medium"
+              >
+                <Plus size={16} />
+                7 Tage
+              </button>
+              <button
+                onClick={() => addTestData(30)}
+                className="flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white p-2 rounded-lg transition-colors text-sm font-medium"
+              >
+                <Plus size={16} />
+                30 Tage
+              </button>
+              <button
+                onClick={() => addTestData(90)}
+                className="flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white p-2 rounded-lg transition-colors text-sm font-medium"
+              >
+                <Plus size={16} />
+                90 Tage
+              </button>
+            </div>
+
+            <button
+              onClick={clearTestData}
+              className="w-full flex items-center justify-center gap-2 bg-rose-600 hover:bg-rose-700 text-white p-3 rounded-xl transition-colors font-medium"
+            >
+              <Trash size={18} />
+              Alle Testdaten Löschen
+            </button>
+          </div>
+
+          <div className="bg-indigo-950/30 border border-indigo-500/20 rounded-xl p-3">
+            <p className="text-[10px] text-indigo-300 leading-relaxed">
+              <strong>Hinweis:</strong> Testdaten simulieren realistische Sessions über mehrere Tage.
+              Sie werden mit "test_" IDs markiert und können jederzeit wieder entfernt werden.
+              Perfekt zum Testen der Analytics, Charts und Statistiken!
+            </p>
           </div>
         </div>
       )}
