@@ -1,0 +1,322 @@
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                    HIGH SCORE PRO - ESP32 SCHALTPLAN v6.2                   ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          VOLLSTÄNDIGER AUFBAU                               │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+
+                              ┌───────────────────┐
+                              │   POWER SUPPLY    │
+                              │  (USB 5V / Akku)  │
+                              └─────────┬─────────┘
+                                        │
+                                        ▼
+        ┌───────────────────────────────────────────────────────────┐
+        │                      ESP32 DevKit V1                      │
+        │                                                           │
+        │   ┌─────────────────────────────────────────────────┐   │
+        │   │             Pin-Belegung (links)                │   │
+        │   │                                                 │   │
+        │   │  3.3V  ──┬─────► OLED VCC                      │   │
+        │   │          ├─────► DHT22 VCC                     │   │
+        │   │          └─────► (Pull-up Widerstand)          │   │
+        │   │                                                 │   │
+        │   │  GND   ──┬─────► OLED GND                      │   │
+        │   │          ├─────► DHT22 GND                     │   │
+        │   │          ├─────► Button GND                    │   │
+        │   │          └─────► Buzzer GND                    │   │
+        │   │                                                 │   │
+        │   │  GPIO 21 (SDA) ──────► OLED SDA                │   │
+        │   │  GPIO 22 (SCL) ──────► OLED SCL                │   │
+        │   │  GPIO 4  ────────────► DHT22 DATA              │   │
+        │   │  GPIO 5  ────────────► Button (mit Pull-up)    │   │
+        │   │  GPIO 18 ────────────► Buzzer (+)              │   │
+        │   │                                                 │   │
+        │   └─────────────────────────────────────────────────┘   │
+        └───────────────────────────────────────────────────────────┘
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                        KOMPONENTEN-VERBINDUNGEN                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+╔═══════════════════════════════════════════╗
+║  1. OLED DISPLAY (SSD1306 128x64 I2C)    ║
+╚═══════════════════════════════════════════╝
+
+    SSD1306 Display
+    ┌──────────┐
+    │   VCC    │────────► ESP32 3.3V
+    │   GND    │────────► ESP32 GND
+    │   SCL    │────────► GPIO 22 (I2C Clock)
+    │   SDA    │────────► GPIO 21 (I2C Data)
+    └──────────┘
+
+    Hinweise:
+    - OLED Display mit 0.96" oder 1.3" funktioniert
+    - I2C Adresse üblicherweise 0x3C (manchmal 0x3D)
+    - 128x64 Pixel Auflösung erforderlich
+
+
+╔═══════════════════════════════════════════╗
+║  2. DHT22 TEMPERATURSENSOR (AM2302)       ║
+╚═══════════════════════════════════════════╝
+
+    DHT22 Sensor                           10kΩ Pull-up
+    ┌──────────┐                           Widerstand
+    │  Pin 1   │─ VCC ──────► 3.3V ───┬───────────┐
+    │  Pin 2   │─ DATA ─────► GPIO 4 ─┘           │
+    │  Pin 3   │─ NC (nicht verbunden)            │
+    │  Pin 4   │─ GND ───────► GND                │
+    └──────────┘                                   │
+         │                                         │
+         └─────────────────────────────────────────┘
+
+    Alternative Verkabelung (Modul mit eingebautem Pull-up):
+    ┌──────────┐
+    │  +       │────────► 3.3V
+    │  OUT     │────────► GPIO 4
+    │  -       │────────► GND
+    └──────────┘
+
+    Hinweise:
+    - 10kΩ Pull-up zwischen DATA und VCC ERFORDERLICH (außer bei Modulen)
+    - Kann auch mit 5V betrieben werden (robuster)
+    - Messbereich: -40 bis +80°C
+    - Genauigkeit: ±0.5°C
+
+
+╔═══════════════════════════════════════════╗
+║  3. TASTER (Screen-Wechsel)               ║
+╚═══════════════════════════════════════════╝
+
+    6x6mm Taster
+    ┌──────────┐
+    │    A     │────────► GPIO 5 (interner Pull-up aktiviert)
+    │          │
+    │    B     │────────► GND
+    └──────────┘
+
+    Schematische Darstellung:
+
+    GPIO 5 ─────┬──────┐
+                │      │
+            10kΩ Pull-up (intern aktiviert)
+                │      │
+                └──┤├──┘ Taster (Normal Offen)
+                   │
+                  GND
+
+    Hinweise:
+    - Interner Pull-up wird per Software aktiviert (pinMode INPUT_PULLUP)
+    - Kein externer Widerstand nötig
+    - Entprellen erfolgt in Software (300ms Debounce)
+
+
+╔═══════════════════════════════════════════╗
+║  4. BUZZER (Optional - Akustisch)         ║
+╚═══════════════════════════════════════════╝
+
+    Passiver Buzzer
+    ┌──────────┐
+    │    +     │────────► GPIO 18
+    │    -     │────────► GND
+    └──────────┘
+
+    Mit Transistor (für lautere Töne):
+
+    GPIO 18 ───[1kΩ]───┬───► Basis (2N2222)
+                       │
+                      GND
+
+    3.3V ───► Buzzer (+) ───► Kollektor
+                              │
+                            Emitter ───► GND
+
+    Hinweise:
+    - PASSIVER Buzzer erforderlich (für verschiedene Frequenzen)
+    - Aktiver Buzzer funktioniert nur für einen Ton
+    - Optional: 100Ω Widerstand in Serie zum Leiserschalten
+
+
+╔═══════════════════════════════════════════╗
+║  5. STATUS LED (Optional)                 ║
+╚═══════════════════════════════════════════╝
+
+    LED mit Vorwiderstand
+
+    GPIO 2 ───[220Ω]───►|───► GND
+                      LED
+                    (Grün)
+
+    Berechnung Vorwiderstand:
+    R = (Vcc - Vled) / I
+    R = (3.3V - 2.0V) / 0.015A = 86Ω → 220Ω Standard
+
+    Hinweise:
+    - GPIO 2 hat interne LED auf den meisten ESP32 Boards
+    - Grüne LED: ~2.0V Forward Voltage
+    - Rote LED: ~1.8V Forward Voltage
+    - Max. Strom: 15-20mA
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          BREADBOARD LAYOUT                                  │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+    Power Rails                ESP32              Komponenten
+    ═══════════════════════════════════════════════════════════
+
+    (+) ────────┬───────────► 3.3V
+                │
+                ├──────────► OLED VCC
+                ├──────────► DHT22 VCC
+                │
+    (-) ────────┼───────────► GND
+                │
+                ├──────────► OLED GND
+                ├──────────► DHT22 GND
+                ├──────────► Button Pin B
+                └──────────► Buzzer (-)
+
+    Signal Verbindungen:
+
+    GPIO 21 ───────────────► OLED SDA
+    GPIO 22 ───────────────► OLED SCL
+    GPIO 4  ───────────────► DHT22 DATA
+    GPIO 5  ───────────────► Button Pin A
+    GPIO 18 ───────────────► Buzzer (+)
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                       TYPISCHE FEHLERQUELLEN                                │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+╔═══════════════════════════════════════════════════════════════════════════╗
+║  Problem                    │  Lösung                                     ║
+╠═════════════════════════════╪═════════════════════════════════════════════╣
+║ OLED bleibt schwarz         │ • I2C-Adresse prüfen (0x3C vs 0x3D)        ║
+║                             │ • SDA/SCL vertauscht?                       ║
+║                             │ • VCC an 3.3V (nicht 5V!)                   ║
+╠═════════════════════════════╪═════════════════════════════════════════════╣
+║ DHT22 liefert NaN           │ • 10kΩ Pull-up fehlt!                      ║
+║                             │ • Warte 2s nach Initialisierung             ║
+║                             │ • Richtiger Sensor-Typ (DHT22 nicht DHT11)  ║
+╠═════════════════════════════╪═════════════════════════════════════════════╣
+║ Button reagiert nicht       │ • Pull-up Widerstand fehlt (extern/intern)  ║
+║                             │ • Entprellen prüfen (Code)                  ║
+╠═════════════════════════════╪═════════════════════════════════════════════╣
+║ WiFi verbindet nicht        │ • Passwort min. 8 Zeichen                   ║
+║                             │ • 2.4 GHz WiFi verwenden (nicht 5 GHz)      ║
+╠═════════════════════════════╪═════════════════════════════════════════════╣
+║ ESP32 startet nicht         │ • USB-Kabel für Daten geeignet?             ║
+║                             │ • BOOT-Button beim Upload drücken           ║
+╚═════════════════════════════╧═════════════════════════════════════════════╝
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          STROMVERSORGUNG                                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+Stromverbrauch:
+
+┌─────────────────────────┬──────────────┬─────────────────┐
+│ Komponente              │ Stromaufnahme│ Hinweise        │
+├─────────────────────────┼──────────────┼─────────────────┤
+│ ESP32 (WiFi an)         │ 160-260 mA   │ Peaks bis 500mA │
+│ ESP32 (WiFi aus)        │ 30-80 mA     │ Modem-Sleep     │
+│ OLED Display            │ 10-20 mA     │ Abhängig von    │
+│                         │              │ Helligkeit      │
+│ DHT22                   │ 1-2.5 mA     │ Beim Messen     │
+│ Buzzer                  │ 10-30 mA     │ Nur bei Ton     │
+├─────────────────────────┼──────────────┼─────────────────┤
+│ GESAMT (typisch)        │ 180-310 mA   │                 │
+│ GESAMT (max.)           │ ~600 mA      │ Mit Peaks       │
+└─────────────────────────┴──────────────┴─────────────────┘
+
+Empfohlene Stromquellen:
+- USB 5V (min. 1A) ✓
+- Powerbank (5V, 2A) ✓
+- 18650 Akku mit Step-Up (3.7V → 5V) ✓
+- 3x AA Batterien (4.5V) ⚠️ Nicht empfohlen
+- Solar Panel (5V, 1A+) ✓
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                       BATTERIE-BETRIEB (OPTIONAL)                           │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+Für mobilen Betrieb:
+
+    18650 Li-Ion Akku (3.7V)
+    ┌──────────┐
+    │    +     │───┬───► TP4056 Ladeplatine
+    │    -     │───┘         │
+    └──────────┘             │
+                             ▼
+                        MT3608 Step-Up
+                        (3.7V → 5V)
+                             │
+                             ▼
+                        ESP32 5V Pin
+
+Komponenten:
+- TP4056: Akku-Lademodul mit Schutz (1€)
+- MT3608: Step-Up Wandler (1€)
+- 18650 Akku: 2600-3500mAh (3-5€)
+
+Laufzeit (geschätzt):
+- 2600mAh Akku / 200mA = ~13 Stunden
+- Mit Deep Sleep: 3-5 Tage
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          GEHÄUSE-EMPFEHLUNGEN                               │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+Option 1: 3D-Druck
+- Größe: 80x60x30mm
+- Material: PLA/PETG
+- Kosten: ~2€ Material
+
+Option 2: Hammond 1591XXCBK
+- ABS Kunststoff-Gehäuse
+- Größe: 85x56x25mm
+- Kosten: ~5€
+
+Option 3: Altoids Dose
+- Recycling-Option
+- Größe: 95x60x20mm
+- Kosten: Gratis
+
+Wichtig:
+- Lüftungsschlitze für DHT22!
+- Display-Fenster (Acryl/Plexiglas)
+- Zugang zu USB-Port
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                            EINKAUFSLISTE                                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+Minimal-Setup (~20€):
+☐ ESP32 DevKit V1                    8€
+☐ SSD1306 OLED 128x64                4€
+☐ DHT22 Sensor                       3€
+☐ Taster 6x6mm                       0.50€
+☐ Breadboard + Jumperkabel           3€
+☐ Micro-USB Kabel                    2€
+
+Optional (+10€):
+☐ Buzzer (passiv)                    1€
+☐ LEDs (5 Stück)                     1€
+☐ Widerstände Set                    2€
+☐ Gehäuse                            5€
+☐ 18650 Akku + Ladeplatine          6€
+
+
+═══════════════════════════════════════════════════════════════════════════════
+                            VIEL ERFOLG BEIM AUFBAU!
+═══════════════════════════════════════════════════════════════════════════════
