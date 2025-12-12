@@ -8,6 +8,7 @@ import {
 import AnalyticsView from './components/AnalyticsView';
 import StreaksWidget from './components/StreaksWidget';
 import SessionDetailsModal from './components/SessionDetailsModal';
+import StrainManagementView from './components/StrainManagementView';
 
 // --- KONFIGURATION FÜR PLATTFORMEN ---
 
@@ -631,6 +632,7 @@ function AppLayout({ ctx }) {
     switch(activeTab) {
       case 'dashboard': return <DashboardView {...ctx} />;
       case 'calendar': return <CalendarView {...ctx} />;
+      case 'strains': return <StrainManagementView {...ctx} />;
       case 'charts': return <ChartsView {...ctx} />;
       case 'analytics': return <AnalyticsView {...ctx} />;
       case 'achievements': return <AchievementsView {...ctx} />;
@@ -674,6 +676,7 @@ function AppLayout({ ctx }) {
         <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
           <NavBtn id="dashboard" icon={<LayoutDashboard/>} label="Dashboard" active={activeTab} set={setActiveTab}/>
           <NavBtn id="calendar" icon={<CalendarIcon/>} label="Tagebuch" active={activeTab} set={setActiveTab}/>
+          <NavBtn id="strains" icon={<Tag/>} label="Sorten" active={activeTab} set={setActiveTab}/>
           <NavBtn id="charts" icon={<BarChart3/>} label="Statistik" active={activeTab} set={setActiveTab}/>
           <NavBtn id="analytics" icon={<Brain/>} label="Analytics" active={activeTab} set={setActiveTab}/>
           <NavBtn id="achievements" icon={<Trophy/>} label="Erfolge" active={activeTab} set={setActiveTab}/>
@@ -687,12 +690,12 @@ function AppLayout({ ctx }) {
         </div>
       </aside>
       <main className="flex-1 overflow-y-auto bg-zinc-950 p-4 md:p-8 relative pt-[calc(env(safe-area-inset-top)+1rem)] pb-[calc(env(safe-area-inset-bottom)+5rem)]"><div className="max-w-5xl mx-auto h-full"><Content /></div></main>
-      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-zinc-900/90 backdrop-blur-md border-t border-zinc-800 flex justify-around p-2 pb-[env(safe-area-inset-bottom)] z-50">
+      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-zinc-900/90 backdrop-blur-md border-t border-zinc-800 flex justify-around p-2 pb-[env(safe-area-inset-bottom)] z-50 overflow-x-auto">
         <MobNavBtn id="dashboard" icon={<LayoutDashboard/>} active={activeTab} set={setActiveTab}/>
         <MobNavBtn id="calendar" icon={<CalendarIcon/>} active={activeTab} set={setActiveTab}/>
+        <MobNavBtn id="strains" icon={<Tag/>} active={activeTab} set={setActiveTab}/>
         <MobNavBtn id="charts" icon={<BarChart3/>} active={activeTab} set={setActiveTab}/>
         <MobNavBtn id="analytics" icon={<Brain/>} active={activeTab} set={setActiveTab}/>
-        <MobNavBtn id="achievements" icon={<Trophy/>} active={activeTab} set={setActiveTab}/>
         <MobNavBtn id="settings" icon={<Settings/>} active={activeTab} set={setActiveTab}/>
       </div>
     </div>

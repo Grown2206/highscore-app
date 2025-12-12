@@ -196,7 +196,7 @@ void setupWiFi() {
 void setupServer() {
   // Live Data
   server.on("/api/data", HTTP_GET, []() {
-    StaticJsonDocument<256> doc;
+    JsonDocument doc;
     doc["temp"] = currentTemp;
     doc["today"] = todayHits;
     doc["total"] = totalHits;
@@ -213,7 +213,7 @@ void setupServer() {
 
   // Stats
   server.on("/api/stats", HTTP_GET, []() {
-    StaticJsonDocument<512> doc;
+    JsonDocument doc;
     doc["totalHits"] = totalHits;
     doc["todayHits"] = todayHits;
     doc["currentStreak"] = currentStreak;
@@ -394,7 +394,7 @@ void drawLiveScreen() {
 
   // Fortschrittsbalken wenn inhaling
   if (isInhaling) {
-    int progress = min(72, (millis() - sessionStartTime) / 30);
+    int progress = min(72, (int)((millis() - sessionStartTime) / 30));
     display.fillRect(0, 38, progress, 2, SSD1306_WHITE);
   }
 }
