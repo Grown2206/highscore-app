@@ -3,9 +3,11 @@ import {
   Leaf, LayoutDashboard, Calendar as CalendarIcon, BarChart3, Trophy, Settings, Smartphone,
   Wifi, Zap, Wind, Flame, Star, Clock, Activity, Moon, CalendarDays, Shield, Tag, Gem, TrendingUp, Lock,
   Coins, List, Thermometer, Check, Plus, X, Edit2, Trash2, User, Users, Radio, Scale, WifiOff, RefreshCw,
-  Save, AlertTriangle, Brain
+  Save, AlertTriangle, Brain, Bell
 } from 'lucide-react';
 import AnalyticsView from './components/AnalyticsView';
+import StreaksWidget from './components/StreaksWidget';
+import SessionDetailsModal from './components/SessionDetailsModal';
 
 // --- KONFIGURATION FÜR PLATTFORMEN ---
 
@@ -171,9 +173,9 @@ function HoldButton({ onTrigger, lastHit, active, temp }) {
 
 // --- 4. VIEWS ---
 
-function DashboardView({ liveData, lastHitTime, settings, isGuestMode, setIsGuestMode, guestHits, sessionHits, onManualTrigger, currentStrainId, setCurrentStrainId, isSensorInhaling }) {
+function DashboardView({ liveData, lastHitTime, settings, isGuestMode, setIsGuestMode, guestHits, sessionHits, onManualTrigger, currentStrainId, setCurrentStrainId, isSensorInhaling, historyData, setSelectedSession }) {
   const [timeSince, setTimeSince] = useState("00:00:00");
-  
+
   useEffect(() => {
     if (!lastHitTime) return;
     const iv = setInterval(() => {
@@ -210,6 +212,10 @@ function DashboardView({ liveData, lastHitTime, settings, isGuestMode, setIsGues
         </button>
       </div>
       <HoldButton onTrigger={onManualTrigger} lastHit={timeSince} active={isSensorInhaling} temp={liveData.temp} />
+
+      {/* Streaks Widget */}
+      {!isGuestMode && <StreaksWidget historyData={historyData} sessionHits={sessionHits} />}
+
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
          {isGuestMode ? (
             <div className="col-span-full bg-amber-500/10 border border-amber-500/20 rounded-2xl p-6 text-center">
@@ -232,7 +238,7 @@ function DashboardView({ liveData, lastHitTime, settings, isGuestMode, setIsGues
           <table className="w-full text-left text-xs text-zinc-400">
              <tbody className="divide-y divide-zinc-800">
                {sessionHits.map((hit, i) => (
-                 <tr key={hit.id} className="hover:bg-zinc-800/50">
+                 <tr key={hit.id} className="hover:bg-zinc-800/50 cursor-pointer transition-colors" onClick={() => setSelectedSession(hit)}>
                    <td className="px-4 py-3 font-mono text-zinc-600">#{sessionHits.length - i}</td>
                    <td className="px-4 py-3 text-white">{new Date(hit.timestamp).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</td>
                    <td className="px-4 py-3">{hit.strainName}</td>
@@ -476,6 +482,7 @@ export default function App() {
   const [historyData, setHistoryData] = useLocalStorage('hs_history_v6', []);
   const [sessionHits, setSessionHits] = useLocalStorage('hs_session_hits_v6', []);
   const [achievements, setAchievements] = useLocalStorage('hs_achievements_v6', []);
+  const [goals, setGoals] = useLocalStorage('hs_goals_v6', { dailyLimit: 0, tBreakDays: 0 });
   const [lastActiveDate, setLastActiveDate] = useLocalStorage('hs_last_date', '');
   const [manualOffset, setManualOffset] = useLocalStorage('hs_offset', 0);
   const [lastHitTime, setLastHitTime] = useLocalStorage('hs_last_hit_ts', null);
@@ -490,7 +497,9 @@ export default function App() {
   const [newAchievement, setNewAchievement] = useState(null);
   const [isSensorInhaling, setIsSensorInhaling] = useState(false);
   const [lastError, setLastError] = useState(null);
-  
+  const [selectedSession, setSelectedSession] = useState(null);
+  const [notification, setNotification] = useState(null);
+
   const sensorStartRef = useRef(0);
   const simRef = useRef({ temp: 20, lastTrigger: 0, counts: { today: 0, total: 0 } });
   const prevApiTotalRef = useRef(0);
@@ -527,6 +536,17 @@ export default function App() {
       const n = [...p]; const idx = n.findIndex(d => d.date === todayStr);
       if (idx >= 0) { n[idx].count++; n[idx].strainId = strain.id; }
       else n.push({ date: todayStr, count: 1, strainId: strain.id, note: "" });
+
+      // Check Daily Limit Goal
+      if (goals.dailyLimit > 0 && n[idx >= 0 ? idx : n.length - 1].count >= goals.dailyLimit) {
+        setNotification({
+          type: 'warning',
+          message: `Tägliches Limit erreicht! (${goals.dailyLimit} Hits)`,
+          icon: Bell
+        });
+        setTimeout(() => setNotification(null), 5000);
+      }
+
       return n;
     });
   };
@@ -594,9 +614,11 @@ export default function App() {
   }, [isSimulating, ip, manualOffset, isSensorInhaling, settings.triggerThreshold]);
 
   const ctx = {
-    settings, setSettings, historyData, setHistoryData, sessionHits, setSessionHits, achievements,
-    liveData, currentStrainId, setCurrentStrainId, isGuestMode, setIsGuestMode, guestHits, connected, setConnected,
-    isSimulating, setIsSimulating, newAchievement, isSensorInhaling, ip, setIp, lastError,
+    settings, setSettings, historyData, setHistoryData, sessionHits, setSessionHits,
+    achievements, setAchievements, goals, setGoals, lastHitTime,
+    liveData, currentStrainId, setCurrentStrainId, isGuestMode, setIsGuestMode, guestHits,
+    connected, setConnected, isSimulating, setIsSimulating, newAchievement, isSensorInhaling,
+    ip, setIp, lastError, selectedSession, setSelectedSession, notification,
     onManualTrigger: (d) => registerHit(true, d)
   };
 
@@ -619,6 +641,7 @@ function AppLayout({ ctx }) {
 
   return (
     <div className="flex flex-col md:flex-row h-screen bg-zinc-950 text-zinc-100 font-sans overflow-hidden select-none">
+      {/* Achievement Notification */}
       {ctx.newAchievement && (
         <div className="absolute top-4 left-4 right-4 md:left-1/2 md:-translate-x-1/2 z-[100] animate-in slide-in-from-top-4 fade-in duration-300 pointer-events-none">
            <div className="bg-gradient-to-r from-amber-500 to-yellow-600 text-white px-6 py-4 rounded-2xl shadow-[0_10px_40px_-10px_rgba(245,158,11,0.5)] flex items-center gap-4 border border-yellow-400/50">
@@ -626,6 +649,25 @@ function AppLayout({ ctx }) {
               <div><p className="text-[10px] uppercase font-bold text-yellow-100 tracking-wider">Erfolg Freigeschaltet</p><p className="font-bold text-lg leading-tight">{ctx.newAchievement.title}</p></div>
            </div>
         </div>
+      )}
+
+      {/* Goal/Warning Notification */}
+      {ctx.notification && (
+        <div className="absolute top-20 left-4 right-4 md:left-1/2 md:-translate-x-1/2 z-[100] animate-in slide-in-from-top-4 fade-in duration-300 pointer-events-none">
+           <div className={`px-6 py-4 rounded-2xl shadow-[0_10px_40px_-10px_rgba(245,158,11,0.3)] flex items-center gap-4 border ${
+             ctx.notification.type === 'warning'
+               ? 'bg-gradient-to-r from-orange-500 to-rose-600 border-orange-400/50'
+               : 'bg-gradient-to-r from-blue-500 to-purple-600 border-blue-400/50'
+           } text-white`}>
+              <div className="bg-white/20 p-2 rounded-full"><ctx.notification.icon size={20} /></div>
+              <div><p className="text-[10px] uppercase font-bold opacity-90 tracking-wider">Hinweis</p><p className="font-bold text-lg leading-tight">{ctx.notification.message}</p></div>
+           </div>
+        </div>
+      )}
+
+      {/* Session Details Modal */}
+      {ctx.selectedSession && (
+        <SessionDetailsModal session={ctx.selectedSession} onClose={() => ctx.setSelectedSession(null)} />
       )}
       <aside className="hidden md:flex w-64 bg-zinc-900 border-r border-zinc-800 flex-col shrink-0 z-20 pt-[env(safe-area-inset-top)]">
         <div className="p-6 border-b border-zinc-800 flex items-center gap-3"><div className="bg-emerald-500/10 p-2 rounded-xl border border-emerald-500/20"><Leaf className="w-6 h-6 text-emerald-400" /></div><div><h1 className="font-bold text-lg text-white">High Score</h1><p className="text-xs text-zinc-500">Pro v6.1</p></div></div>
