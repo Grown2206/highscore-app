@@ -1,5 +1,5 @@
 /*
- * HIGH SCORE PRO - ESP32-C3 SENSOR FIRMWARE v6.3
+ * HIGH SCORE PRO - ESP32-C3 SENSOR FIRMWARE v6.4
  * ================================================
  *
  * Optimiert für ESP32-C3 mit 0.42" OLED & DS18B20
@@ -16,6 +16,14 @@
  * - GPIO 9  → Button (optional, interner Pull-up)
  * - GPIO 10 → Buzzer (optional)
  * - GPIO 8  → Onboard LED
+ *
+ * WiFi Setup:
+ * - Ersteinrichtung: ESP32 startet als "HighScore-Setup" Access Point
+ * - Captive Portal öffnet sich automatisch beim Verbinden
+ * - WLAN-Netzwerk auswählen und Passwort eingeben
+ * - Credentials werden im Flash gespeichert
+ * - Bei jedem Start: Verbindung zum gespeicherten Netzwerk
+ * - Reset: Button 5 Sekunden beim Booten halten
  */
 
 #include <WiFi.h>
@@ -27,6 +35,7 @@
 #include <DallasTemperature.h>
 #include <Preferences.h>
 #include <ArduinoJson.h>
+#include <DNSServer.h>
 
 // ===== HARDWARE PINS (ESP32-C3) =====
 #define I2C_SDA 5
@@ -43,12 +52,15 @@
 #define SCREEN_ADDRESS 0x3C
 
 // ===== SETTINGS =====
-const char* ssid = "HighScore";
-const char* password = "weed2024";
-
 #define TEMP_THRESHOLD 50.0
 #define COOLDOWN_TEMP 35.0
 #define SESSION_TIMEOUT 5000
+
+// WiFi Manager
+#define WIFI_TIMEOUT 15000
+#define AP_SSID "HighScore-Setup"
+#define AP_PASSWORD "" // Kein Passwort für Setup
+const byte DNS_PORT = 53;
 
 // Display Screens
 #define NUM_SCREENS 3
@@ -61,6 +73,7 @@ Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 OneWire oneWire(DS18B20_PIN);
 DallasTemperature tempSensor(&oneWire);
 WebServer server(80);
+DNSServer dnsServer;
 Preferences prefs;
 
 // State
@@ -88,7 +101,10 @@ String lastSessionDate = "";
 
 // WiFi
 bool wifiConnected = false;
+bool isAPMode = false;
 IPAddress localIP;
+String savedSSID = "";
+String savedPassword = "";
 
 // Animation
 int animFrame = 0;
@@ -150,6 +166,11 @@ void setup() {
 void loop() {
   server.handleClient();
 
+  // DNS Server für Captive Portal (nur im AP Mode)
+  if (isAPMode) {
+    dnsServer.processNextRequest();
+  }
+
   // Temperatur lesen (DS18B20 braucht Zeit)
   if (millis() - lastTempRead > 500) {
     readTemperature();
@@ -182,60 +203,238 @@ void loop() {
 
 // ===== WIFI =====
 void setupWiFi() {
-  Serial.println("Starting WiFi AP...");
+  // Credentials aus Preferences laden
+  savedSSID = prefs.getString("wifi_ssid", "");
+  savedPassword = prefs.getString("wifi_pass", "");
+
+  // Check for Config Reset (Button 5s beim Boot)
+  bool resetConfig = false;
+  if (digitalRead(BUTTON_PIN) == LOW) {
+    Serial.println("Button pressed - checking for config reset...");
+    display.clearDisplay();
+    display.setCursor(0, 0);
+    display.setTextSize(1);
+    display.println("Hold 5s");
+    display.println("to reset");
+    display.display();
+
+    unsigned long pressStart = millis();
+    while (digitalRead(BUTTON_PIN) == LOW && millis() - pressStart < 5000) {
+      delay(100);
+    }
+
+    if (millis() - pressStart >= 5000) {
+      resetConfig = true;
+      prefs.putString("wifi_ssid", "");
+      prefs.putString("wifi_pass", "");
+      savedSSID = "";
+      savedPassword = "";
+      playTone(2000, 500);
+      Serial.println("WiFi Config Reset!");
+
+      display.clearDisplay();
+      display.setCursor(0, 0);
+      display.println("Config");
+      display.println("Reset!");
+      display.display();
+      delay(2000);
+    }
+  }
+
+  // Versuche Verbindung mit gespeicherten Credentials
+  if (savedSSID.length() > 0 && !resetConfig) {
+    Serial.print("Connecting to: ");
+    Serial.println(savedSSID);
+
+    display.clearDisplay();
+    display.setCursor(0, 0);
+    display.setTextSize(1);
+    display.println("Connect");
+    display.println(savedSSID.substring(0, 10));
+    display.display();
+
+    WiFi.mode(WIFI_STA);
+    WiFi.begin(savedSSID.c_str(), savedPassword.c_str());
+
+    unsigned long startTime = millis();
+    while (WiFi.status() != WL_CONNECTED && millis() - startTime < WIFI_TIMEOUT) {
+      delay(500);
+      Serial.print(".");
+    }
+    Serial.println();
+
+    if (WiFi.status() == WL_CONNECTED) {
+      wifiConnected = true;
+      isAPMode = false;
+      localIP = WiFi.localIP();
+
+      Serial.print("Connected! IP: ");
+      Serial.println(localIP);
+
+      display.clearDisplay();
+      display.setCursor(0, 0);
+      display.println("WiFi OK");
+      display.print(localIP[0]); display.print(".");
+      display.print(localIP[1]); display.print(".");
+      display.println(localIP[2]);
+      display.print("."); display.println(localIP[3]);
+      display.display();
+      delay(3000);
+
+      return;
+    } else {
+      Serial.println("Connection failed - starting AP mode");
+    }
+  }
+
+  // Starte Access Point + Captive Portal
+  startConfigPortal();
+}
+
+void startConfigPortal() {
+  Serial.println("Starting Config Portal...");
+  isAPMode = true;
+  wifiConnected = false;
+
   WiFi.mode(WIFI_AP);
-  WiFi.softAP(ssid, password);
+  WiFi.softAP(AP_SSID, AP_PASSWORD);
   localIP = WiFi.softAPIP();
 
   Serial.print("AP IP: ");
   Serial.println(localIP);
-  wifiConnected = true;
+
+  display.clearDisplay();
+  display.setCursor(0, 0);
+  display.setTextSize(1);
+  display.println("Setup");
+  display.println("WiFi:");
+  display.println(AP_SSID);
+  display.display();
+
+  // DNS Server für Captive Portal
+  dnsServer.start(DNS_PORT, "*", localIP);
+
+  // Config Webserver Routes
+  server.on("/", HTTP_GET, handleConfigRoot);
+  server.on("/scan", HTTP_GET, handleScan);
+  server.on("/save", HTTP_POST, handleSave);
+  server.onNotFound(handleConfigRoot); // Captive Portal redirect
+
+  Serial.println("Config Portal ready!");
+  playTone(1000, 200);
+  delay(100);
+  playTone(1500, 200);
+}
+
+void handleConfigRoot() {
+  String html = "<!DOCTYPE html><html><head>";
+  html += "<meta charset='UTF-8'><meta name='viewport' content='width=device-width,initial-scale=1'>";
+  html += "<title>HighScore WiFi Setup</title>";
+  html += "<style>body{font-family:Arial;max-width:400px;margin:40px auto;padding:20px;background:#0a0a0a;color:#fff;}";
+  html += "h1{color:#10b981;text-align:center;font-size:24px;}";
+  html += "input,select,button{width:100%;padding:12px;margin:8px 0;border:1px solid #333;background:#1a1a1a;color:#fff;border-radius:8px;font-size:16px;}";
+  html += "button{background:#10b981;color:#000;font-weight:bold;cursor:pointer;}";
+  html += "button:hover{background:#059669;}</style></head><body>";
+  html += "<h1>🌿 HighScore</h1><h2 style='text-align:center;color:#666;'>WiFi Setup</h2>";
+  html += "<form action='/save' method='POST'>";
+  html += "<label>Netzwerk:</label><select id='ssid' name='ssid' onchange='document.getElementById(\"psk\").focus()'>";
+
+  // Scan networks
+  int n = WiFi.scanNetworks();
+  for (int i = 0; i < n && i < 15; i++) {
+    html += "<option value='" + WiFi.SSID(i) + "'>" + WiFi.SSID(i) + " (" + WiFi.RSSI(i) + "dBm)</option>";
+  }
+
+  html += "</select>";
+  html += "<label>Passwort:</label><input type='password' id='psk' name='password' placeholder='WLAN Passwort' required>";
+  html += "<button type='submit'>Verbinden</button></form>";
+  html += "<p style='text-align:center;color:#666;font-size:12px;margin-top:30px;'>Nach erfolgreicher Verbindung zeigt das Display die IP-Adresse an.</p>";
+  html += "</body></html>";
+
+  server.send(200, "text/html", html);
+}
+
+void handleScan() {
+  String json = "[";
+  int n = WiFi.scanNetworks();
+  for (int i = 0; i < n; i++) {
+    if (i > 0) json += ",";
+    json += "{\"ssid\":\"" + WiFi.SSID(i) + "\",\"rssi\":" + String(WiFi.RSSI(i)) + "}";
+  }
+  json += "]";
+  server.send(200, "application/json", json);
+}
+
+void handleSave() {
+  String ssid = server.arg("ssid");
+  String password = server.arg("password");
+
+  Serial.println("Saving WiFi config...");
+  Serial.print("SSID: ");
+  Serial.println(ssid);
+
+  prefs.putString("wifi_ssid", ssid);
+  prefs.putString("wifi_pass", password);
+
+  String html = "<!DOCTYPE html><html><head><meta charset='UTF-8'><meta name='viewport' content='width=device-width,initial-scale=1'>";
+  html += "<style>body{font-family:Arial;max-width:400px;margin:40px auto;padding:20px;background:#0a0a0a;color:#fff;text-align:center;}";
+  html += "h1{color:#10b981;}</style></head><body>";
+  html += "<h1>✅ Gespeichert!</h1><p>ESP32 startet neu und verbindet sich mit:<br><strong>" + ssid + "</strong></p>";
+  html += "<p style='color:#666;margin-top:30px;'>Die IP-Adresse wird im Display angezeigt.</p></body></html>";
+
+  server.send(200, "text/html", html);
+
+  delay(2000);
+  ESP.restart();
 }
 
 // ===== HTTP SERVER =====
 void setupServer() {
-  // Live Data
-  server.on("/api/data", HTTP_GET, []() {
-    JsonDocument doc;
-    doc["temp"] = currentTemp;
-    doc["today"] = todayHits;
-    doc["total"] = totalHits;
-    doc["inhaling"] = isInhaling;
-    doc["streak"] = currentStreak;
-    doc["longestStreak"] = longestStreak;
-    doc["lastSession"] = lastSessionTime;
+  // API Routes nur im normalen Modus, nicht im Config Portal
+  if (!isAPMode) {
+    // Live Data
+    server.on("/api/data", HTTP_GET, []() {
+      JsonDocument doc;
+      doc["temp"] = currentTemp;
+      doc["today"] = todayHits;
+      doc["total"] = totalHits;
+      doc["inhaling"] = isInhaling;
+      doc["streak"] = currentStreak;
+      doc["longestStreak"] = longestStreak;
+      doc["lastSession"] = lastSessionTime;
 
-    String output;
-    serializeJson(doc, output);
-    server.sendHeader("Access-Control-Allow-Origin", "*");
-    server.send(200, "application/json", output);
-  });
+      String output;
+      serializeJson(doc, output);
+      server.sendHeader("Access-Control-Allow-Origin", "*");
+      server.send(200, "application/json", output);
+    });
 
-  // Stats
-  server.on("/api/stats", HTTP_GET, []() {
-    JsonDocument doc;
-    doc["totalHits"] = totalHits;
-    doc["todayHits"] = todayHits;
-    doc["currentStreak"] = currentStreak;
-    doc["longestStreak"] = longestStreak;
-    doc["lastSessionDuration"] = lastSessionDuration;
-    doc["lastSessionTemp"] = lastSessionTemp;
-    doc["lastSessionTime"] = lastSessionTime;
-    doc["uptime"] = millis() / 1000;
-    doc["ip"] = localIP.toString();
+    // Stats
+    server.on("/api/stats", HTTP_GET, []() {
+      JsonDocument doc;
+      doc["totalHits"] = totalHits;
+      doc["todayHits"] = todayHits;
+      doc["currentStreak"] = currentStreak;
+      doc["longestStreak"] = longestStreak;
+      doc["lastSessionDuration"] = lastSessionDuration;
+      doc["lastSessionTemp"] = lastSessionTemp;
+      doc["lastSessionTime"] = lastSessionTime;
+      doc["uptime"] = millis() / 1000;
+      doc["ip"] = localIP.toString();
 
-    String output;
-    serializeJson(doc, output);
-    server.sendHeader("Access-Control-Allow-Origin", "*");
-    server.send(200, "application/json", output);
-  });
+      String output;
+      serializeJson(doc, output);
+      server.sendHeader("Access-Control-Allow-Origin", "*");
+      server.send(200, "application/json", output);
+    });
 
-  // Reset Today
-  server.on("/api/reset-today", HTTP_POST, []() {
-    todayHits = 0;
-    server.send(200, "text/plain", "Today reset");
-    playTone(800, 150);
-  });
+    // Reset Today
+    server.on("/api/reset-today", HTTP_POST, []() {
+      todayHits = 0;
+      server.send(200, "text/plain", "Today reset");
+      playTone(800, 150);
+    });
+  }
 
   server.begin();
   Serial.println("HTTP Server started");

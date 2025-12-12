@@ -1,8 +1,8 @@
 import React, { useState, useRef } from 'react';
-import { Settings, Shield, Tag, Coins, Zap, Edit2, Trash2, Check, Plus, X, Download, Upload, Target, AlertCircle, Database, Trash } from 'lucide-react';
+import { Settings, Shield, Tag, Coins, Zap, Edit2, Trash2, Check, Plus, X, Download, Upload, Target, AlertCircle, Database, Trash, Wifi, WifiOff, Radio, Smartphone, RefreshCw } from 'lucide-react';
 import { generateTestData, mergeTestData, removeTestData } from '../utils/testDataGenerator';
 
-export default function SettingsView({ settings, setSettings, liveTemp, historyData, setHistoryData, sessionHits, setSessionHits, achievements, setAchievements, goals, setGoals }) {
+export default function SettingsView({ settings, setSettings, liveTemp, historyData, setHistoryData, sessionHits, setSessionHits, achievements, setAchievements, goals, setGoals, ip, setIp, connected, isSimulating, setIsSimulating, lastError }) {
   const [form, setForm] = useState({ name: '', price: '10', thc: '15' });
   const [editId, setEditId] = useState(null);
   const [exportStatus, setExportStatus] = useState(null);
@@ -156,6 +156,101 @@ export default function SettingsView({ settings, setSettings, liveTemp, historyD
              <span className="absolute right-2 text-[10px] text-zinc-500">Trigger: {settings.triggerThreshold}°C</span>
          </div>
          <input type="range" min="20" max="100" value={settings.triggerThreshold} onChange={e => upd('triggerThreshold', parseFloat(e.target.value))} className="w-full h-2 bg-zinc-800 rounded-lg accent-rose-500"/>
+      </div>
+
+      {/* ESP32 VERBINDUNG */}
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 space-y-4">
+         <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+               {connected ? <Wifi size={16} className="text-emerald-500"/> : <WifiOff size={16} className="text-zinc-500"/>}
+               <h3 className="text-sm font-bold text-zinc-400 uppercase">ESP32 Verbindung</h3>
+            </div>
+            <div className="flex items-center gap-2">
+               <div className={`w-2 h-2 rounded-full ${connected ? 'bg-emerald-500 animate-pulse' : 'bg-zinc-600'}`}/>
+               <span className="text-xs text-zinc-500">{connected ? 'Verbunden' : 'Getrennt'}</span>
+            </div>
+         </div>
+
+         {/* Modus Toggle */}
+         <div className="flex items-center justify-between bg-zinc-950 p-3 rounded-xl border border-zinc-800">
+            <div className="flex items-center gap-2">
+               <Smartphone size={16} className={isSimulating ? "text-blue-500" : "text-emerald-500"}/>
+               <div>
+                  <span className="text-white font-medium text-sm block">{isSimulating ? "Demo Modus" : "Sensor Modus"}</span>
+                  <span className="text-[10px] text-zinc-500">{isSimulating ? "Simulierte Daten" : "Live ESP32 Daten"}</span>
+               </div>
+            </div>
+            <button onClick={() => setIsSimulating(!isSimulating)} className={`w-12 h-6 rounded-full transition-colors relative ${isSimulating ? 'bg-blue-500' : 'bg-emerald-600'}`}>
+               <div className={`w-4 h-4 bg-white rounded-full absolute top-1 transition-all ${isSimulating ? 'left-1' : 'left-7'}`}/>
+            </button>
+         </div>
+
+         {/* IP Konfiguration (nur im Sensor Modus) */}
+         {!isSimulating && (
+            <>
+               <div className="space-y-2">
+                  <label className="text-xs text-zinc-500 uppercase">ESP32 IP-Adresse</label>
+                  <div className="flex gap-2">
+                     <input
+                        type="text"
+                        value={ip}
+                        onChange={(e) => setIp(e.target.value)}
+                        placeholder="192.168.178.XXX"
+                        className="flex-1 bg-zinc-950 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-emerald-500"
+                     />
+                     <button
+                        onClick={() => {
+                           if (navigator.vibrate) navigator.vibrate(20);
+                           // Connection test - wird automatisch durch polling getestet
+                        }}
+                        className="bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 px-3 rounded-lg transition-colors"
+                     >
+                        <RefreshCw size={16} className="text-zinc-400"/>
+                     </button>
+                  </div>
+                  <p className="text-[10px] text-zinc-600">
+                     Format: 192.168.x.x (ohne http://)
+                  </p>
+               </div>
+
+               {/* Status/Error Anzeige */}
+               {lastError && (
+                  <div className="bg-rose-500/10 border border-rose-500/20 rounded-xl p-3 flex items-start gap-2">
+                     <AlertCircle size={14} className="text-rose-500 mt-0.5 flex-shrink-0"/>
+                     <div className="flex-1">
+                        <p className="text-xs font-bold text-rose-500">Verbindungsfehler</p>
+                        <p className="text-[10px] text-rose-400 mt-1">{lastError}</p>
+                     </div>
+                  </div>
+               )}
+
+               {connected && (
+                  <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-3 flex items-start gap-2">
+                     <Wifi size={14} className="text-emerald-500 mt-0.5"/>
+                     <div>
+                        <p className="text-xs font-bold text-emerald-500">Verbunden mit ESP32</p>
+                        <p className="text-[10px] text-emerald-400 mt-1 font-mono">http://{ip}/api/data</p>
+                     </div>
+                  </div>
+               )}
+
+               {/* Hinweis für WiFi-Setup */}
+               <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-3">
+                  <div className="flex items-center gap-2 mb-2">
+                     <Radio size={12} className="text-blue-400"/>
+                     <span className="text-xs font-bold text-blue-400 uppercase">Ersteinrichtung ESP32</span>
+                  </div>
+                  <p className="text-[10px] text-blue-300 leading-relaxed">
+                     <strong>1.</strong> ESP32 einschalten<br/>
+                     <strong>2.</strong> Mit WiFi "HighScore-Setup" verbinden<br/>
+                     <strong>3.</strong> Browser öffnet sich automatisch (oder http://192.168.4.1)<br/>
+                     <strong>4.</strong> Dein WLAN auswählen und Passwort eingeben<br/>
+                     <strong>5.</strong> ESP32 zeigt die IP-Adresse im Display<br/>
+                     <strong>6.</strong> IP hier eingeben und Demo Modus ausschalten
+                  </p>
+               </div>
+            </>
+         )}
       </div>
 
       {/* SORTEN VERWALTUNG */}
