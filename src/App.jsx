@@ -9,6 +9,7 @@ import AnalyticsView from './components/AnalyticsView';
 import StreaksWidget from './components/StreaksWidget';
 import SessionDetailsModal from './components/SessionDetailsModal';
 import StrainManagementView from './components/StrainManagementView';
+import { generateTestData } from './utils/testDataGenerator';
 
 // --- KONFIGURATION FÜR PLATTFORMEN ---
 
@@ -488,6 +489,16 @@ export default function App() {
   const [manualOffset, setManualOffset] = useLocalStorage('hs_offset', 0);
   const [lastHitTime, setLastHitTime] = useLocalStorage('hs_last_hit_ts', null);
   const [ip, setIp] = useLocalStorage('hs_device_ip', '192.168.178.XXX');
+
+  // Automatisch Testdaten hinzufügen wenn keine Daten vorhanden
+  useEffect(() => {
+    if (sessionHits.length === 0 && historyData.length === 0) {
+      console.log('🧪 Keine Daten vorhanden - Generiere 30 Tage Testdaten...');
+      const testData = generateTestData(30, settings);
+      setSessionHits(testData.sessionHits);
+      setHistoryData(testData.historyData);
+    }
+  }, []);  // Nur beim ersten Mount
 
   const [liveData, setLiveData] = useState({ temp: 0, today: 0, total: 0 });
   const [currentStrainId, setCurrentStrainId] = useState(settings.strains[0]?.id || 0);
