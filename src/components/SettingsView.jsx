@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
-import { Settings, Shield, Tag, Coins, Zap, Edit2, Trash2, Check, Plus, X } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { Settings, Shield, Tag, Coins, Zap, Edit2, Trash2, Check, Plus, X, Download, Upload, Target, AlertCircle } from 'lucide-react';
 
-export default function SettingsView({ settings, setSettings, liveTemp }) {
+export default function SettingsView({ settings, setSettings, liveTemp, historyData, setHistoryData, sessionHits, setSessionHits, achievements, setAchievements, goals, setGoals }) {
   const [form, setForm] = useState({ name: '', price: '10', thc: '15' });
   const [editId, setEditId] = useState(null);
+  const [exportStatus, setExportStatus] = useState(null);
+  const fileInputRef = useRef(null);
 
   const upd = (k, v) => setSettings(p => ({ ...p, [k]: v }));
   
@@ -19,6 +21,67 @@ export default function SettingsView({ settings, setSettings, liveTemp }) {
   
   const edit = (s) => { if(navigator.vibrate) navigator.vibrate(20); setForm({ name: s.name, price: s.price, thc: s.thc }); setEditId(s.id); };
   const del = (id) => { if(navigator.vibrate) navigator.vibrate(20); setSettings(p => ({ ...p, strains: p.strains.filter(s => s.id !== id) })); if(editId===id) { setEditId(null); setForm({name:'',price:'10',thc:'15'}); } };
+
+  // Export/Import Funktionen
+  const exportData = () => {
+    try {
+      const exportObj = {
+        version: '6.1',
+        exportDate: new Date().toISOString(),
+        settings,
+        historyData,
+        sessionHits,
+        achievements,
+        goals: goals || []
+      };
+
+      const blob = new Blob([JSON.stringify(exportObj, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `highscore-backup-${new Date().toISOString().split('T')[0]}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+
+      setExportStatus({ type: 'success', msg: 'Daten erfolgreich exportiert!' });
+      setTimeout(() => setExportStatus(null), 3000);
+    } catch (e) {
+      setExportStatus({ type: 'error', msg: 'Export fehlgeschlagen: ' + e.message });
+      setTimeout(() => setExportStatus(null), 3000);
+    }
+  };
+
+  const importData = (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = JSON.parse(e.target.result);
+
+        if (!data.version || !data.settings) {
+          throw new Error('Ungültiges Backup-Format');
+        }
+
+        if (window.confirm('Achtung: Alle aktuellen Daten werden überschrieben. Fortfahren?')) {
+          setSettings(data.settings);
+          setHistoryData(data.historyData || []);
+          setSessionHits(data.sessionHits || []);
+          setAchievements(data.achievements || []);
+          if (setGoals) setGoals(data.goals || []);
+
+          setExportStatus({ type: 'success', msg: 'Daten erfolgreich importiert!' });
+          setTimeout(() => setExportStatus(null), 3000);
+        }
+      } catch (e) {
+        setExportStatus({ type: 'error', msg: 'Import fehlgeschlagen: ' + e.message });
+        setTimeout(() => setExportStatus(null), 3000);
+      }
+    };
+    reader.readAsText(file);
+    event.target.value = '';
+  };
 
   return (
     <div className="space-y-8 animate-in slide-in-from-right-4 pb-20">
@@ -78,6 +141,95 @@ export default function SettingsView({ settings, setSettings, liveTemp }) {
             <button onClick={save} className={`p-2 rounded h-8 w-8 flex items-center justify-center text-white transition-colors ${editId ? 'bg-amber-600' : 'bg-emerald-600'}`}>{editId ? <Check size={14}/> : <Plus size={14}/>}</button>
             {editId && <button onClick={() => { setEditId(null); setForm({name:'',price:'10',thc:'15'}); }} className="bg-zinc-700 p-2 rounded h-8 w-8 flex items-center justify-center text-zinc-400"><X size={14}/></button>}
          </div>
+      </div>
+
+      {/* GOALS / ZIELE */}
+      {setGoals && (
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 space-y-4">
+          <div className="flex items-center gap-2">
+            <Target size={16} className="text-blue-500"/>
+            <h3 className="text-sm font-bold text-zinc-400 uppercase">Ziele</h3>
+          </div>
+
+          <div className="space-y-3">
+            <div className="bg-zinc-950 p-4 rounded-xl border border-zinc-800">
+              <label className="text-xs text-zinc-500 uppercase block mb-2">Tägliches Limit</label>
+              <div className="flex items-center gap-3">
+                <input
+                  type="number"
+                  min="0"
+                  max="50"
+                  value={goals?.dailyLimit || 0}
+                  onChange={(e) => setGoals(p => ({ ...p, dailyLimit: parseInt(e.target.value) || 0 }))}
+                  className="flex-1 bg-zinc-900 border border-zinc-700 rounded p-2 text-white font-mono"
+                />
+                <span className="text-sm text-zinc-500">Hits/Tag</span>
+              </div>
+              <p className="text-[10px] text-zinc-600 mt-2">0 = kein Limit</p>
+            </div>
+
+            <div className="bg-zinc-950 p-4 rounded-xl border border-zinc-800">
+              <label className="text-xs text-zinc-500 uppercase block mb-2">T-Break Erinnerung</label>
+              <div className="flex items-center gap-3">
+                <input
+                  type="number"
+                  min="0"
+                  max="30"
+                  value={goals?.tBreakDays || 0}
+                  onChange={(e) => setGoals(p => ({ ...p, tBreakDays: parseInt(e.target.value) || 0 }))}
+                  className="flex-1 bg-zinc-900 border border-zinc-700 rounded p-2 text-white font-mono"
+                />
+                <span className="text-sm text-zinc-500">Tage</span>
+              </div>
+              <p className="text-[10px] text-zinc-600 mt-2">Erinnerung nach X Tagen ohne Pause</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* EXPORT / IMPORT */}
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 space-y-4">
+        <div className="flex items-center gap-2">
+          <Download size={16} className="text-purple-500"/>
+          <h3 className="text-sm font-bold text-zinc-400 uppercase">Daten-Verwaltung</h3>
+        </div>
+
+        {exportStatus && (
+          <div className={`p-3 rounded-xl border flex items-center gap-2 text-sm ${exportStatus.type === 'success' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500' : 'bg-rose-500/10 border-rose-500/20 text-rose-500'}`}>
+            <AlertCircle size={14} />
+            {exportStatus.msg}
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <button
+            onClick={exportData}
+            className="flex items-center justify-center gap-2 bg-purple-600 hover:bg-purple-700 text-white p-3 rounded-xl transition-colors font-medium"
+          >
+            <Download size={18} />
+            Daten Exportieren
+          </button>
+
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="flex items-center justify-center gap-2 bg-zinc-800 hover:bg-zinc-700 text-white p-3 rounded-xl transition-colors font-medium border border-zinc-700"
+          >
+            <Upload size={18} />
+            Daten Importieren
+          </button>
+        </div>
+
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".json"
+          onChange={importData}
+          className="hidden"
+        />
+
+        <p className="text-[10px] text-zinc-600 leading-relaxed">
+          Sichere deine Daten regelmäßig! Export erstellt eine JSON-Datei mit allen Sessions, Erfolgen und Einstellungen.
+        </p>
       </div>
     </div>
   );
