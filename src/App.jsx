@@ -494,11 +494,16 @@ export default function App() {
   useEffect(() => {
     if (sessionHits.length === 0 && historyData.length === 0) {
       console.log('🧪 Keine Daten vorhanden - Generiere 30 Tage Testdaten...');
-      const testData = generateTestData(30, settings);
-      setSessionHits(testData.sessionHits);
-      setHistoryData(testData.historyData);
+      try {
+        const testData = generateTestData(30, settings);
+        console.log('✅ Testdaten generiert:', testData.sessionHits.length, 'Sessions');
+        setSessionHits(testData.sessionHits);
+        setHistoryData(testData.historyData);
+      } catch (error) {
+        console.error('❌ Fehler beim Generieren der Testdaten:', error);
+      }
     }
-  }, []);  // Nur beim ersten Mount
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [liveData, setLiveData] = useState({ temp: 0, today: 0, total: 0 });
   const [currentStrainId, setCurrentStrainId] = useState(settings.strains[0]?.id || 0);
