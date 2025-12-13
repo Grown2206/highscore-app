@@ -1,7 +1,7 @@
 import React, { useState, memo } from 'react';
-import { Wifi, WifiOff, Smartphone, RefreshCw, AlertCircle, CheckCircle, Radio, Activity, Clock, Thermometer, TrendingUp, Zap } from 'lucide-react';
+import { Wifi, WifiOff, Smartphone, RefreshCw, AlertCircle, CheckCircle, Radio, Activity, Clock, Thermometer, TrendingUp, Zap, Settings as SettingsIcon } from 'lucide-react';
 
-function ESP32DebugView({ ip, setIp, connected, isSimulating, setIsSimulating, lastError, connectionLog, tempHistory, liveData, errorCount }) {
+function ESP32DebugView({ ip, setIp, connected, isSimulating, setIsSimulating, lastError, connectionLog, tempHistory, liveData, errorCount, settings, setSettings }) {
   const [testing, setTesting] = useState(false);
 
   const testConnection = async () => {
@@ -220,6 +220,80 @@ function ESP32DebugView({ ip, setIp, connected, isSimulating, setIsSimulating, l
               Warte auf Daten...
             </div>
           )}
+        </div>
+      </div>
+
+      {/* Kalibrierung */}
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 space-y-4">
+        <div className="flex items-center gap-2">
+          <SettingsIcon size={16} className="text-amber-500"/>
+          <h3 className="text-sm font-bold text-zinc-400 uppercase">Sensor Kalibrierung</h3>
+        </div>
+
+        {/* Live Temperature Bar */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-zinc-500">Aktuelle Temperatur</span>
+            <span className="text-emerald-400 font-bold font-mono">{liveData.temp.toFixed(1)}°C</span>
+          </div>
+
+          <div className="h-12 bg-zinc-950 rounded-lg relative flex items-center px-3 border border-zinc-800 overflow-hidden">
+            {/* Temperature Fill */}
+            <div
+              className="absolute inset-y-0 left-0 bg-gradient-to-r from-emerald-500/20 to-emerald-500/30 transition-all duration-300"
+              style={{width:`${Math.min(100, (liveData.temp / 100) * 100)}%`}}
+            />
+
+            {/* Trigger Line */}
+            <div
+              className="absolute inset-y-0 w-0.5 bg-rose-500 z-10 transition-all duration-300"
+              style={{left:`${(settings.triggerThreshold / 100) * 100}%`}}
+            >
+              <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-rose-500 text-white text-[9px] px-1.5 py-0.5 rounded whitespace-nowrap">
+                Trigger
+              </div>
+            </div>
+
+            {/* Current Temp Marker */}
+            <div
+              className="absolute inset-y-0 w-1 bg-emerald-500 z-20 transition-all duration-300"
+              style={{left:`${Math.min(100, (liveData.temp / 100) * 100)}%`}}
+            />
+
+            <span className="relative z-30 text-sm font-mono font-bold text-white pointer-events-none">
+              {liveData.temp.toFixed(1)}°C
+            </span>
+          </div>
+        </div>
+
+        {/* Trigger Threshold Slider */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-zinc-500">Trigger Schwellwert</span>
+            <span className="text-rose-400 font-bold font-mono">{settings.triggerThreshold}°C</span>
+          </div>
+
+          <input
+            type="range"
+            min="30"
+            max="100"
+            value={settings.triggerThreshold}
+            onChange={e => setSettings(p => ({ ...p, triggerThreshold: parseFloat(e.target.value) }))}
+            className="w-full h-2 bg-zinc-800 rounded-lg accent-rose-500 cursor-pointer"
+          />
+
+          <div className="flex items-center justify-between text-[10px] text-zinc-600">
+            <span>30°C</span>
+            <span>100°C</span>
+          </div>
+        </div>
+
+        {/* Hinweis */}
+        <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3">
+          <p className="text-[10px] text-amber-300 leading-relaxed">
+            <strong>Hinweis:</strong> Der Trigger-Schwellwert bestimmt, ab welcher Temperatur ein Zug erkannt wird.
+            Typische Werte: 50-70°C. Nach einem Hit gibt es einen 10 Sekunden Cooldown.
+          </p>
         </div>
       </div>
 
