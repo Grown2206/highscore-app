@@ -55,6 +55,7 @@
 #define TEMP_THRESHOLD 50.0
 #define COOLDOWN_TEMP 35.0
 #define SESSION_TIMEOUT 5000
+#define DISPLAY_TIMEOUT 20000  // Display nach 20 Sekunden ausschalten
 
 // WiFi Manager
 #define WIFI_TIMEOUT 15000
@@ -92,6 +93,8 @@ int currentScreen = SCREEN_LIVE;
 unsigned long lastScreenChange = 0;
 unsigned long lastButtonPress = 0;
 bool lastButtonState = HIGH;
+bool displayOn = true;
+unsigned long lastActivityTime = 0;
 
 // Session Info
 unsigned long lastSessionDuration = 0;
@@ -159,6 +162,9 @@ void setup() {
   delay(50);
   playTone(1500, 100);
 
+  // Display Activity initialisieren
+  lastActivityTime = millis();
+
   Serial.println("=== READY ===");
 }
 
@@ -189,8 +195,17 @@ void loop() {
     lastScreenChange = millis();
   }
 
+  // Display Timeout Check
+  if (displayOn && (millis() - lastActivityTime > DISPLAY_TIMEOUT)) {
+    displayOn = false;
+    display.ssd1306_command(SSD1306_DISPLAYOFF);
+    Serial.println("Display OFF (timeout)");
+  }
+
   // Display Update
-  updateDisplay();
+  if (displayOn) {
+    updateDisplay();
+  }
 
   // Animation
   if (millis() - lastAnimUpdate > 200) {
@@ -458,6 +473,15 @@ void detectSession() {
     isInhaling = true;
     sessionStartTime = millis();
     digitalWrite(LED_PIN, HIGH);
+
+    // Display reaktivieren bei Sensor-Trigger
+    if (!displayOn) {
+      displayOn = true;
+      display.ssd1306_command(SSD1306_DISPLAYON);
+      Serial.println("Display ON (sensor trigger)");
+    }
+    lastActivityTime = millis();
+
     Serial.println(">>> INHALE START");
   }
 
@@ -471,6 +495,7 @@ void detectSession() {
       registerHit(duration);
     }
 
+    lastActivityTime = millis(); // Activity bei Ende
     Serial.println("<<< INHALE END");
   }
 }
@@ -528,10 +553,20 @@ void handleButton() {
   bool state = digitalRead(BUTTON_PIN);
 
   if (state == LOW && lastButtonState == HIGH && millis() - lastButtonPress > 300) {
-    currentScreen = (currentScreen + 1) % NUM_SCREENS;
+    // Display reaktivieren wenn aus
+    if (!displayOn) {
+      displayOn = true;
+      display.ssd1306_command(SSD1306_DISPLAYON);
+      lastActivityTime = millis();
+      Serial.println("Display ON (button)");
+    } else {
+      // Screen wechseln wenn Display an
+      currentScreen = (currentScreen + 1) % NUM_SCREENS;
+      lastScreenChange = millis();
+      playTone(1200, 30);
+    }
     lastButtonPress = millis();
-    lastScreenChange = millis();
-    playTone(1200, 30);
+    lastActivityTime = millis();
   }
 
   lastButtonState = state;
