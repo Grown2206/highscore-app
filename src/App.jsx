@@ -442,14 +442,77 @@ function AppLayout({ ctx }) {
   const [activeTab, setActiveTab] = useState('dashboard');
   const Content = () => {
     switch(activeTab) {
-      case 'dashboard': return <DashboardView {...ctx} />;
-      case 'calendar': return <CalendarView {...ctx} />;
-      case 'strains': return <StrainManagementView {...ctx} />;
-      case 'charts': return <ChartsView {...ctx} />;
-      case 'analytics': return <AnalyticsView {...ctx} />;
-      case 'achievements': return <AchievementsView {...ctx} />;
-      case 'esp32': return <ESP32DebugView {...ctx} />;
-      case 'settings': return <SettingsView {...ctx} liveTemp={ctx.liveData.temp} />;
+      case 'dashboard':
+        return <DashboardView
+          liveData={ctx.liveData}
+          lastHitTime={ctx.lastHitTime}
+          settings={ctx.settings}
+          isGuestMode={ctx.isGuestMode}
+          setIsGuestMode={ctx.setIsGuestMode}
+          guestHits={ctx.guestHits}
+          sessionHits={ctx.sessionHits}
+          onManualTrigger={ctx.onManualTrigger}
+          currentStrainId={ctx.currentStrainId}
+          setCurrentStrainId={ctx.setCurrentStrainId}
+          isSensorInhaling={ctx.isSensorInhaling}
+        />;
+      case 'calendar':
+        return <CalendarView
+          historyData={ctx.historyData}
+          setHistoryData={ctx.setHistoryData}
+          sessionHits={ctx.sessionHits}
+          settings={ctx.settings}
+        />;
+      case 'strains':
+        return <StrainManagementView
+          settings={ctx.settings}
+          setSettings={ctx.setSettings}
+          sessionHits={ctx.sessionHits}
+        />;
+      case 'charts':
+        return <ChartsView
+          historyData={ctx.historyData}
+          sessionHits={ctx.sessionHits}
+          settings={ctx.settings}
+        />;
+      case 'analytics':
+        return <AnalyticsView
+          historyData={ctx.historyData}
+          sessionHits={ctx.sessionHits}
+          settings={ctx.settings}
+        />;
+      case 'achievements':
+        return <AchievementsView
+          achievements={ctx.achievements}
+        />;
+      case 'esp32':
+        return <ESP32DebugView
+          ip={ctx.ip}
+          setIp={ctx.setIp}
+          connected={ctx.connected}
+          isSimulating={ctx.isSimulating}
+          setIsSimulating={ctx.setIsSimulating}
+          lastError={ctx.lastError}
+          connectionLog={ctx.connectionLog}
+          tempHistory={ctx.tempHistory}
+          liveData={ctx.liveData}
+          errorCount={ctx.errorCount}
+          settings={ctx.settings}
+          setSettings={ctx.setSettings}
+        />;
+      case 'settings':
+        return <SettingsView
+          settings={ctx.settings}
+          setSettings={ctx.setSettings}
+          historyData={ctx.historyData}
+          setHistoryData={ctx.setHistoryData}
+          sessionHits={ctx.sessionHits}
+          setSessionHits={ctx.setSessionHits}
+          achievements={ctx.achievements}
+          setAchievements={ctx.setAchievements}
+          goals={ctx.goals}
+          setGoals={ctx.setGoals}
+        />;
       default: return null;
     }
   };
