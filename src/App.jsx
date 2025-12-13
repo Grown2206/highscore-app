@@ -14,6 +14,7 @@ import ChartsView from './components/ChartsView';
 import SettingsView from './components/SettingsView';
 import DashboardView from './components/DashboardView';
 import AchievementsView from './components/AchievementsView';
+import ESP32DebugView from './components/ESP32DebugView';
 import { generateTestData } from './utils/testDataGenerator';
 
 // --- KONFIGURATION FÜR PLATTFORMEN ---
@@ -219,6 +220,9 @@ export default function App() {
   const [lastError, setLastError] = useState(null);
   const [selectedSession, setSelectedSession] = useState(null);
   const [notification, setNotification] = useState(null);
+  const [connectionLog, setConnectionLog] = useState([]);
+  const [tempHistory, setTempHistory] = useState([]);
+  const [errorCount, setErrorCount] = useState(0);
 
   const sensorStartRef = useRef(0);
   const simRef = useRef({ temp: 20, lastTrigger: 0, counts: { today: 0, total: 0 } });
@@ -280,10 +284,14 @@ export default function App() {
     return temp;
   };
 
-  // NETZWERK POLLING - MIT OPTIMIERUNGEN GEGEN OVERLAPPING
+  // NETZWERK POLLING - MIT OPTIMIERUNGEN + LOGGING
   useEffect(() => {
     let isRunning = false;
-    let errorCount = 0;
+
+    const addLog = (type, message) => {
+      const timestamp = new Date().toLocaleTimeString();
+      setConnectionLog(prev => [{type, message, timestamp}, ...prev].slice(0, 100)); // Max 100 Einträge
+    };
 
     const loop = async () => {
       if (isRunning) return; // Verhindere overlapping requests
@@ -298,14 +306,16 @@ export default function App() {
         setLiveData({ temp: smoothed, today: counts.today + manualOffset, total: counts.total + manualOffset });
         setConnected(true);
         setLastError(null);
-        errorCount = 0;
+        setErrorCount(0);
+
+        // Temperatur-History (alle 2s)
+        setTempHistory(prev => [...prev, {time: Date.now(), temp: smoothed}].slice(-120)); // 4 Minuten bei 2s
       } else {
         try {
           const cleanIp = ip.trim().replace(/^http:\/\//, '').replace(/\/$/, '');
           if (!cleanIp) throw new Error("Keine IP");
 
-          // NEUER ANSATZ: Native HTTP (Capacitor) statt fetch
-          // Funktioniert nur auf dem Gerät, im Browser Fallback
+          const startTime = Date.now();
           let json;
           const url = `http://${cleanIp}/api/data`;
 
@@ -315,52 +325,62 @@ export default function App() {
              json = response.data;
           } else {
              // Browser Fallback (für Entwicklung)
-             const c = new AbortController(); setTimeout(()=>c.abort(), 3000); // Erhöht auf 3s timeout
-             const res = await fetch(url, { signal: c.signal }); // Kein 'mode: cors', Standard lassen
+             const c = new AbortController(); setTimeout(()=>c.abort(), 3000);
+             const res = await fetch(url, { signal: c.signal });
              if(!res.ok) throw new Error(`HTTP ${res.status}`);
              json = await res.json();
           }
+
+          const responseTime = Date.now() - startTime;
 
           if (json.total > prevApiTotalRef.current && prevApiTotalRef.current !== 0 && !isSensorInhaling) registerHit(false, 0);
           prevApiTotalRef.current = json.total;
 
           const smoothed = processTemperature(json.temp);
           setLiveData({ ...json, temp: smoothed, today: json.today + manualOffset, total: json.total + manualOffset });
+
+          // Temperatur-History
+          setTempHistory(prev => [...prev, {time: Date.now(), temp: smoothed}].slice(-120));
+
+          // Success
+          if (!connected) {
+            addLog('success', `Verbunden mit ${cleanIp} (${responseTime}ms)`);
+          }
           setConnected(true);
           setLastError(null);
-          errorCount = 0; // Reset error count on success
+          setErrorCount(0);
         } catch (e) {
-          errorCount++;
+          setErrorCount(prev => prev + 1);
           setConnected(false);
           let msg = e.message;
           if (msg.includes('Failed to fetch') || msg.includes('aborted')) msg = 'Netzwerkfehler (Check WLAN)';
           setLastError(msg);
+          addLog('error', msg);
         }
       }
 
       isRunning = false;
     };
 
-    // Langsameres Polling: 500ms (Demo) / 2000ms (Sensor)
-    // Mit exponential backoff bei Fehlern
+    // Schnelleres Polling für bessere Responsiveness: 400ms (Demo) / 800ms (Sensor)
     const getInterval = () => {
-      const baseInterval = isSimulating ? 500 : 2000;
-      return baseInterval * Math.min(1 + errorCount * 0.5, 3); // Max 3x langsamer bei Fehlern
+      const baseInterval = isSimulating ? 400 : 800;
+      return baseInterval * Math.min(1 + errorCount * 0.3, 4); // Max 4x langsamer bei Fehlern
     };
 
     let iv = setInterval(loop, getInterval());
 
-    // Dynamisches Intervall bei Fehlern
+    // Dynamisches Intervall anpassen
     const recheckInterval = setInterval(() => {
       clearInterval(iv);
       iv = setInterval(loop, getInterval());
-    }, 5000);
+    }, 3000);
 
     return () => {
       clearInterval(iv);
       clearInterval(recheckInterval);
     };
-  }, [isSimulating, ip, manualOffset, isSensorInhaling, settings.triggerThreshold]);
+  }, [isSimulating, ip, manualOffset, isSensorInhaling, settings.triggerThreshold, errorCount, connected]);
 
   const ctx = useMemo(() => ({
     settings, setSettings, historyData, setHistoryData, sessionHits, setSessionHits,
@@ -368,13 +388,15 @@ export default function App() {
     liveData, currentStrainId, setCurrentStrainId, isGuestMode, setIsGuestMode, guestHits,
     connected, setConnected, isSimulating, setIsSimulating, newAchievement, isSensorInhaling,
     ip, setIp, lastError, selectedSession, setSelectedSession, notification,
+    connectionLog, tempHistory, errorCount,
     onManualTrigger: (d) => registerHit(true, d)
   }), [
     settings, setSettings, historyData, setHistoryData, sessionHits, setSessionHits,
     achievements, setAchievements, goals, setGoals, lastHitTime,
     liveData, currentStrainId, setCurrentStrainId, isGuestMode, setIsGuestMode, guestHits,
     connected, setConnected, isSimulating, setIsSimulating, newAchievement, isSensorInhaling,
-    ip, setIp, lastError, selectedSession, setSelectedSession, notification, registerHit
+    ip, setIp, lastError, selectedSession, setSelectedSession, notification,
+    connectionLog, tempHistory, errorCount, registerHit
   ]);
 
   return <AppLayout ctx={ctx} />;
@@ -390,6 +412,7 @@ function AppLayout({ ctx }) {
       case 'charts': return <ChartsView {...ctx} />;
       case 'analytics': return <AnalyticsView {...ctx} />;
       case 'achievements': return <AchievementsView {...ctx} />;
+      case 'esp32': return <ESP32DebugView {...ctx} />;
       case 'settings': return <SettingsView {...ctx} liveTemp={ctx.liveData.temp} />;
       default: return null;
     }
@@ -434,6 +457,7 @@ function AppLayout({ ctx }) {
           <NavBtn id="charts" icon={<BarChart3/>} label="Statistik" active={activeTab} set={setActiveTab}/>
           <NavBtn id="analytics" icon={<Brain/>} label="Analytics" active={activeTab} set={setActiveTab}/>
           <NavBtn id="achievements" icon={<Trophy/>} label="Erfolge" active={activeTab} set={setActiveTab}/>
+          <NavBtn id="esp32" icon={<Radio/>} label="ESP32 Debug" active={activeTab} set={setActiveTab}/>
           <NavBtn id="settings" icon={<Settings/>} label="Einstellungen" active={activeTab} set={setActiveTab}/>
         </nav>
         <div className="p-4 border-t border-zinc-800">
@@ -449,7 +473,7 @@ function AppLayout({ ctx }) {
         <MobNavBtn id="calendar" icon={<CalendarIcon/>} active={activeTab} set={setActiveTab}/>
         <MobNavBtn id="strains" icon={<Tag/>} active={activeTab} set={setActiveTab}/>
         <MobNavBtn id="charts" icon={<BarChart3/>} active={activeTab} set={setActiveTab}/>
-        <MobNavBtn id="analytics" icon={<Brain/>} active={activeTab} set={setActiveTab}/>
+        <MobNavBtn id="esp32" icon={<Radio/>} active={activeTab} set={setActiveTab}/>
         <MobNavBtn id="settings" icon={<Settings/>} active={activeTab} set={setActiveTab}/>
       </div>
     </div>
