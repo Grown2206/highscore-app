@@ -440,82 +440,6 @@ export default function App() {
 
 function AppLayout({ ctx }) {
   const [activeTab, setActiveTab] = useState('dashboard');
-  const Content = () => {
-    switch(activeTab) {
-      case 'dashboard':
-        return <DashboardView
-          liveData={ctx.liveData}
-          lastHitTime={ctx.lastHitTime}
-          settings={ctx.settings}
-          isGuestMode={ctx.isGuestMode}
-          setIsGuestMode={ctx.setIsGuestMode}
-          guestHits={ctx.guestHits}
-          sessionHits={ctx.sessionHits}
-          onManualTrigger={ctx.onManualTrigger}
-          currentStrainId={ctx.currentStrainId}
-          setCurrentStrainId={ctx.setCurrentStrainId}
-          isSensorInhaling={ctx.isSensorInhaling}
-        />;
-      case 'calendar':
-        return <CalendarView
-          historyData={ctx.historyData}
-          setHistoryData={ctx.setHistoryData}
-          sessionHits={ctx.sessionHits}
-          settings={ctx.settings}
-        />;
-      case 'strains':
-        return <StrainManagementView
-          settings={ctx.settings}
-          setSettings={ctx.setSettings}
-          sessionHits={ctx.sessionHits}
-        />;
-      case 'charts':
-        return <ChartsView
-          historyData={ctx.historyData}
-          sessionHits={ctx.sessionHits}
-          settings={ctx.settings}
-        />;
-      case 'analytics':
-        return <AnalyticsView
-          historyData={ctx.historyData}
-          sessionHits={ctx.sessionHits}
-          settings={ctx.settings}
-        />;
-      case 'achievements':
-        return <AchievementsView
-          achievements={ctx.achievements}
-        />;
-      case 'esp32':
-        return <ESP32DebugView
-          ip={ctx.ip}
-          setIp={ctx.setIp}
-          connected={ctx.connected}
-          isSimulating={ctx.isSimulating}
-          setIsSimulating={ctx.setIsSimulating}
-          lastError={ctx.lastError}
-          connectionLog={ctx.connectionLog}
-          tempHistory={ctx.tempHistory}
-          liveData={ctx.liveData}
-          errorCount={ctx.errorCount}
-          settings={ctx.settings}
-          setSettings={ctx.setSettings}
-        />;
-      case 'settings':
-        return <SettingsView
-          settings={ctx.settings}
-          setSettings={ctx.setSettings}
-          historyData={ctx.historyData}
-          setHistoryData={ctx.setHistoryData}
-          sessionHits={ctx.sessionHits}
-          setSessionHits={ctx.setSessionHits}
-          achievements={ctx.achievements}
-          setAchievements={ctx.setAchievements}
-          goals={ctx.goals}
-          setGoals={ctx.setGoals}
-        />;
-      default: return null;
-    }
-  };
 
   return (
     <div className="flex flex-col md:flex-row h-screen bg-zinc-950 text-zinc-100 font-sans overflow-hidden select-none">
@@ -566,12 +490,96 @@ function AppLayout({ ctx }) {
            </div>
         </div>
       </aside>
-      <main className="flex-1 overflow-y-auto bg-zinc-950 p-4 md:p-8 relative pt-[calc(env(safe-area-inset-top)+1rem)] pb-[calc(env(safe-area-inset-bottom)+5rem)]"><div className="max-w-5xl mx-auto h-full"><Content /></div></main>
+      <main className="flex-1 overflow-y-auto bg-zinc-950 p-4 md:p-8 relative pt-[calc(env(safe-area-inset-top)+1rem)] pb-[calc(env(safe-area-inset-bottom)+5rem)]">
+        <div className="max-w-5xl mx-auto h-full">
+          {activeTab === 'dashboard' && (
+            <DashboardView
+              liveData={ctx.liveData}
+              lastHitTime={ctx.lastHitTime}
+              settings={ctx.settings}
+              isGuestMode={ctx.isGuestMode}
+              setIsGuestMode={ctx.setIsGuestMode}
+              guestHits={ctx.guestHits}
+              sessionHits={ctx.sessionHits}
+              onManualTrigger={ctx.onManualTrigger}
+              currentStrainId={ctx.currentStrainId}
+              setCurrentStrainId={ctx.setCurrentStrainId}
+              isSensorInhaling={ctx.isSensorInhaling}
+            />
+          )}
+          {activeTab === 'calendar' && (
+            <CalendarView
+              historyData={ctx.historyData}
+              setHistoryData={ctx.setHistoryData}
+              sessionHits={ctx.sessionHits}
+              settings={ctx.settings}
+            />
+          )}
+          {activeTab === 'strains' && (
+            <StrainManagementView
+              settings={ctx.settings}
+              setSettings={ctx.setSettings}
+              sessionHits={ctx.sessionHits}
+            />
+          )}
+          {activeTab === 'charts' && (
+            <ChartsView
+              historyData={ctx.historyData}
+              sessionHits={ctx.sessionHits}
+              settings={ctx.settings}
+            />
+          )}
+          {activeTab === 'analytics' && (
+            <AnalyticsView
+              historyData={ctx.historyData}
+              sessionHits={ctx.sessionHits}
+              settings={ctx.settings}
+            />
+          )}
+          {activeTab === 'achievements' && (
+            <AchievementsView
+              achievements={ctx.achievements}
+            />
+          )}
+          {activeTab === 'esp32' && (
+            <ESP32DebugView
+              ip={ctx.ip}
+              setIp={ctx.setIp}
+              connected={ctx.connected}
+              isSimulating={ctx.isSimulating}
+              setIsSimulating={ctx.setIsSimulating}
+              lastError={ctx.lastError}
+              connectionLog={ctx.connectionLog}
+              tempHistory={ctx.tempHistory}
+              liveData={ctx.liveData}
+              errorCount={ctx.errorCount}
+              settings={ctx.settings}
+              setSettings={ctx.setSettings}
+            />
+          )}
+          {activeTab === 'settings' && (
+            <SettingsView
+              settings={ctx.settings}
+              setSettings={ctx.setSettings}
+              historyData={ctx.historyData}
+              setHistoryData={ctx.setHistoryData}
+              sessionHits={ctx.sessionHits}
+              setSessionHits={ctx.setSessionHits}
+              achievements={ctx.achievements}
+              setAchievements={ctx.setAchievements}
+              goals={ctx.goals}
+              setGoals={ctx.setGoals}
+            />
+          )}
+        </div>
+      </main>
       <div className="md:hidden fixed bottom-0 left-0 right-0 bg-zinc-900/90 backdrop-blur-md border-t border-zinc-800 flex justify-around p-2 pb-[env(safe-area-inset-bottom)] z-50 overflow-x-auto">
         <MobNavBtn id="dashboard" icon={<LayoutDashboard/>} active={activeTab} set={setActiveTab}/>
         <MobNavBtn id="calendar" icon={<CalendarIcon/>} active={activeTab} set={setActiveTab}/>
         <MobNavBtn id="strains" icon={<Tag/>} active={activeTab} set={setActiveTab}/>
         <MobNavBtn id="charts" icon={<BarChart3/>} active={activeTab} set={setActiveTab}/>
+        <MobNavBtn id="analytics" icon={<Brain/>} active={activeTab} set={setActiveTab}/>
+        <MobNavBtn id="achievements" icon={<Trophy/>} active={activeTab} set={setActiveTab}/>
         <MobNavBtn id="esp32" icon={<Radio/>} active={activeTab} set={setActiveTab}/>
         <MobNavBtn id="settings" icon={<Settings/>} active={activeTab} set={setActiveTab}/>
       </div>
