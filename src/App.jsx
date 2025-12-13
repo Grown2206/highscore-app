@@ -15,6 +15,7 @@ import SettingsView from './components/SettingsView';
 import DashboardView from './components/DashboardView';
 import AchievementsView from './components/AchievementsView';
 import ESP32DebugView from './components/ESP32DebugView';
+import { ALL_ACHIEVEMENTS } from './utils/achievements';
 import { generateTestData } from './utils/testDataGenerator';
 
 // --- KONFIGURATION FÜR PLATTFORMEN ---
@@ -231,11 +232,11 @@ export default function App() {
   const cooldownUntilRef = useRef(0); // Cooldown nach Hit
   const hasTriggeredRef = useRef(false); // Flag ob bereits getriggert
 
-  // ... (ACHIEVEMENT LOGIC & REGISTER HIT LOGIC are same as before, simplified for brevity) ...
+  // Achievement Unlock Logic
   const unlockAchievement = useCallback((id) => {
     setAchievements(prev => {
       if (prev.some(a => a.id === id)) return prev;
-      const def = ACHIEVEMENT_DATA.find(a => a.id === id);
+      const def = ALL_ACHIEVEMENTS.find(a => a.id === id);
       if (!def) return prev;
       const ach = { id: def.id, date: new Date().toISOString() };
       setNewAchievement({ ...def, date: ach.date });
@@ -243,6 +244,106 @@ export default function App() {
       return [...prev, ach];
     });
   }, [setAchievements]);
+
+  // Achievement Check Logic
+  const checkAchievements = useCallback((allHits, allHistory) => {
+    const totalHits = allHits.length;
+    const now = Date.now();
+    const hour = new Date(now).getHours();
+    const minute = new Date(now).getMinutes();
+    const day = new Date(now).getDay();
+    const todayStr = new Date().toISOString().split('T')[0];
+    const todayData = allHistory.find(h => h.date === todayStr);
+    const todayCount = todayData?.count || 0;
+
+    // Basis Erfolge
+    if (totalHits >= 1) unlockAchievement('first_blood');
+    if (totalHits >= 3) unlockAchievement('baby_steps');
+    if (totalHits >= 10) unlockAchievement('getting_started');
+    if (totalHits >= 25) unlockAchievement('committed');
+    if (totalHits >= 50) unlockAchievement('half_century');
+    if (totalHits >= 100) unlockAchievement('century_club');
+    if (totalHits >= 250) unlockAchievement('veteran');
+    if (totalHits >= 500) unlockAchievement('legend');
+    if (totalHits >= 1000) unlockAchievement('ultimate');
+    if (totalHits >= 2500) unlockAchievement('unstoppable');
+
+    // Tages-Erfolge
+    if (todayCount >= 5) unlockAchievement('high_five');
+    if (todayCount >= 10) unlockAchievement('stoner');
+    if (todayCount >= 15) unlockAchievement('party_mode');
+    if (todayCount >= 20) unlockAchievement('insane');
+    if (todayCount >= 30) unlockAchievement('legendary_day');
+    if (todayCount === 1) unlockAchievement('chill_day');
+    if (todayCount === 3) unlockAchievement('balanced');
+    if ((day === 0 || day === 6) && todayCount >= 10) unlockAchievement('weekend_warrior');
+    if (day === 1) unlockAchievement('monday_blues');
+    if (day === 0) unlockAchievement('sunday_driver');
+
+    // Zeit-Erfolge
+    if (hour < 8) unlockAchievement('early_bird');
+    if (hour >= 2 && hour < 5) unlockAchievement('night_owl');
+    if (hour === 16 && minute === 20) unlockAchievement('420');
+    if (hour === 0 && minute === 0) unlockAchievement('midnight_toker');
+    if (hour >= 12 && hour < 13) unlockAchievement('lunch_break');
+    if (hour >= 17 && hour < 19) unlockAchievement('golden_hour');
+
+    // Rapid Fire Checks
+    const recentHits = allHits.filter(h => now - h.timestamp < 5 * 60 * 1000);
+    if (recentHits.length >= 2) unlockAchievement('rapid_fire');
+    const recent15min = allHits.filter(h => now - h.timestamp < 15 * 60 * 1000);
+    if (recent15min.length >= 3) unlockAchievement('hattrick');
+    const recent30min = allHits.filter(h => now - h.timestamp < 30 * 60 * 1000);
+    if (recent30min.length >= 5) unlockAchievement('chain_smoker');
+
+    // Streak Erfolge
+    const sortedHistory = [...allHistory].sort((a, b) => new Date(a.date) - new Date(b.date));
+    let currentStreak = 0;
+    let maxGap = 0;
+    for (let i = sortedHistory.length - 1; i >= 0; i--) {
+      if (sortedHistory[i].count > 0) {
+        currentStreak++;
+        if (i > 0) {
+          const daysDiff = Math.floor((new Date(sortedHistory[i].date) - new Date(sortedHistory[i - 1].date)) / (1000 * 60 * 60 * 24));
+          if (daysDiff > 1) break;
+        }
+      }
+    }
+    if (currentStreak >= 3) unlockAchievement('consistency');
+    if (currentStreak >= 5) unlockAchievement('dedication');
+    if (currentStreak >= 7) unlockAchievement('marathon');
+    if (currentStreak >= 14) unlockAchievement('champion');
+
+    // T-Break
+    if (allHits.length >= 2) {
+      const gap = (allHits[0].timestamp - allHits[1].timestamp) / (1000 * 60 * 60);
+      if (gap >= 24) unlockAchievement('t_break');
+      if (gap >= 120) unlockAchievement('detox_king');
+      if (gap >= 336) unlockAchievement('self_control');
+    }
+
+    // Sorten-Erfolge
+    const uniqueStrains = new Set(allHits.map(h => h.strainName));
+    if (settings.strains.length >= 1) unlockAchievement('first_strain');
+    if (uniqueStrains.size >= 3) unlockAchievement('connoisseur');
+    if (uniqueStrains.size >= 5) unlockAchievement('explorer');
+    if (uniqueStrains.size >= 10) unlockAchievement('collector');
+    if (uniqueStrains.size >= 20) unlockAchievement('master');
+
+    // High Roller
+    const expensiveStrain = allHits.find(h => h.strainPrice > 15);
+    if (expensiveStrain) unlockAchievement('high_roller');
+
+    // Duration Erfolge
+    const lastHit = allHits[0];
+    if (lastHit && lastHit.duration > 5000) unlockAchievement('iron_lung');
+    if (lastHit && lastHit.duration > 10000) unlockAchievement('dragon');
+
+    // Cost Erfolge
+    const totalCost = allHits.reduce((sum, h) => sum + (settings.bowlSize * (settings.weedRatio / 100) * (h.strainPrice || 0)), 0);
+    if (totalCost > 100) unlockAchievement('big_spender');
+
+  }, [unlockAchievement, settings]);
 
   useEffect(() => {
     const todayStr = new Date().toISOString().split('T')[0];
@@ -262,7 +363,19 @@ export default function App() {
     if (isGuestMode) { setGuestHits(p => p + 1); return; }
     const strain = settings.strains.find(s => s.id == currentStrainId) || settings.strains[0] || {name:'?',price:0};
     const newHit = { id: now, timestamp: now, type: isManual ? 'Manuell' : 'Sensor', strainName: strain.name, strainPrice: strain.price, duration };
-    setSessionHits(p => [newHit, ...p]);
+
+    setSessionHits(p => {
+      const updated = [newHit, ...p];
+      // Check Achievements with updated data
+      setTimeout(() => {
+        setHistoryData(hist => {
+          checkAchievements(updated, hist);
+          return hist;
+        });
+      }, 0);
+      return updated;
+    });
+
     setManualOffset(p => p + 1);
     const todayStr = new Date().toISOString().split('T')[0];
     setHistoryData(p => {
@@ -400,7 +513,7 @@ export default function App() {
 
     // Schnelleres Polling für bessere Responsiveness: 400ms (Demo) / 800ms (Sensor)
     const getInterval = () => {
-      const baseInterval = isSimulating ? 400 : 800;
+      const baseInterval = 400; // 400ms für Demo UND Sensor (schnellere Abfrage)
       return baseInterval * Math.min(1 + errorCount * 0.3, 4); // Max 4x langsamer bei Fehlern
     };
 
