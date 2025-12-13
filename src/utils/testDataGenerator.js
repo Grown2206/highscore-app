@@ -150,7 +150,8 @@ export function mergeTestData(existing, testData) {
  * Löscht alle Testdaten (IDs die mit "test_" beginnen)
  */
 export function removeTestData(sessionHits, historyData) {
-  const cleanedSessionHits = sessionHits.filter(h => !h.id.startsWith('test_'));
+  // FIX: ID kann Number oder String sein, konvertiere zu String
+  const cleanedSessionHits = sessionHits.filter(h => !String(h.id).startsWith('test_'));
 
   // Aktualisiere History-Counts
   const historyMap = {};

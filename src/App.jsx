@@ -228,6 +228,8 @@ export default function App() {
   const simRef = useRef({ temp: 20, lastTrigger: 0, counts: { today: 0, total: 0 } });
   const prevApiTotalRef = useRef(0);
   const tempBuffer = useRef([]);
+  const cooldownUntilRef = useRef(0); // Cooldown nach Hit
+  const hasTriggeredRef = useRef(false); // Flag ob bereits getriggert
 
   // ... (ACHIEVEMENT LOGIC & REGISTER HIT LOGIC are same as before, simplified for brevity) ...
   const unlockAchievement = useCallback((id) => {
@@ -250,6 +252,13 @@ export default function App() {
   const registerHit = (isManual, duration) => {
     const now = Date.now();
     setLastHitTime(now);
+
+    // Cooldown setzen: 10 Sekunden nach Hit
+    if (!isManual) {
+      cooldownUntilRef.current = now + 10000; // 10 Sekunden Cooldown
+      hasTriggeredRef.current = false; // Reset Trigger-Flag
+    }
+
     if (isGuestMode) { setGuestHits(p => p + 1); return; }
     const strain = settings.strains.find(s => s.id == currentStrainId) || settings.strains[0] || {name:'?',price:0};
     const newHit = { id: now, timestamp: now, type: isManual ? 'Manuell' : 'Sensor', strainName: strain.name, strainPrice: strain.price, duration };
@@ -279,8 +288,35 @@ export default function App() {
     tempBuffer.current.push(rawTemp);
     if (tempBuffer.current.length > 5) tempBuffer.current.shift();
     const temp = tempBuffer.current.reduce((a,b)=>a+b,0) / tempBuffer.current.length;
-    if (temp >= settings.triggerThreshold && !isSensorInhaling) { setIsSensorInhaling(true); sensorStartRef.current = Date.now(); } 
-    else if (temp < (settings.triggerThreshold - 2) && isSensorInhaling) { setIsSensorInhaling(false); if (Date.now() - sensorStartRef.current > 500) registerHit(false, Date.now() - sensorStartRef.current); }
+    const now = Date.now();
+    const inCooldown = now < cooldownUntilRef.current;
+
+    // Wenn Temperatur über Schwellwert UND kein Cooldown aktiv
+    if (temp >= settings.triggerThreshold && !inCooldown) {
+      if (!hasTriggeredRef.current) {
+        hasTriggeredRef.current = true; // Markiere als getriggert
+        setIsSensorInhaling(true);
+        sensorStartRef.current = now;
+      }
+    }
+    // Wenn Temperatur unter Schwellwert fällt
+    else if (temp < (settings.triggerThreshold - 5)) {
+      // Cooldown beenden wenn Temperatur deutlich unter Schwellwert
+      if (inCooldown && temp < (settings.triggerThreshold - 10)) {
+        cooldownUntilRef.current = 0;
+      }
+
+      // Wenn vorher getriggert wurde, registriere Hit
+      if (hasTriggeredRef.current && isSensorInhaling && !inCooldown) {
+        const duration = now - sensorStartRef.current;
+        if (duration > 500) { // Mindestens 500ms Inhalation
+          registerHit(false, duration);
+        }
+        hasTriggeredRef.current = false;
+      }
+      setIsSensorInhaling(false);
+    }
+
     return temp;
   };
 

@@ -1,11 +1,12 @@
 import React, { useState, useMemo, memo } from 'react';
-import { Plus, Edit2, Trash2, Tag, DollarSign, Leaf, TrendingUp, Star, Save, X, Search } from 'lucide-react';
+import { Plus, Edit2, Trash2, Tag, DollarSign, Leaf, TrendingUp, Star, Save, X, Search, ChevronDown, ChevronUp } from 'lucide-react';
 
 function StrainManagementView({ settings, setSettings, sessionHits }) {
   const [form, setForm] = useState({ name: '', price: '10', thc: '15', type: 'hybrid', notes: '' });
   const [editId, setEditId] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('all');
+  const [formExpanded, setFormExpanded] = useState(false);
 
   // Statistiken pro Sorte berechnen
   const strainStats = useMemo(() => {
@@ -71,6 +72,7 @@ function StrainManagementView({ settings, setSettings, sessionHits }) {
 
     setForm({ name: '', price: '10', thc: '15', type: 'hybrid', notes: '' });
     setEditId(null);
+    setFormExpanded(false);
   };
 
   const edit = (s) => {
@@ -83,6 +85,7 @@ function StrainManagementView({ settings, setSettings, sessionHits }) {
       notes: s.notes || ''
     });
     setEditId(s.id);
+    setFormExpanded(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -104,6 +107,7 @@ function StrainManagementView({ settings, setSettings, sessionHits }) {
   const cancel = () => {
     setEditId(null);
     setForm({ name: '', price: '10', thc: '15', type: 'hybrid', notes: '' });
+    setFormExpanded(false);
   };
 
   const getTypeColor = (type) => {
@@ -132,20 +136,42 @@ function StrainManagementView({ settings, setSettings, sessionHits }) {
       </h2>
 
       {/* Formular zum Hinzufügen/Bearbeiten */}
-      <div className="bg-gradient-to-br from-emerald-900/20 to-zinc-900 border border-emerald-500/30 rounded-2xl p-6 space-y-4">
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-bold text-emerald-400 uppercase flex items-center gap-2">
-            {editId ? <Edit2 size={16} /> : <Plus size={16} />}
-            {editId ? 'Sorte bearbeiten' : 'Neue Sorte'}
-          </h3>
-          {editId && (
-            <button onClick={cancel} className="text-zinc-500 hover:text-zinc-300 transition-colors">
-              <X size={18} />
-            </button>
-          )}
-        </div>
+      <div className="bg-gradient-to-br from-emerald-900/20 to-zinc-900 border border-emerald-500/30 rounded-2xl overflow-hidden">
+        {/* Header - immer sichtbar */}
+        <button
+          onClick={() => setFormExpanded(!formExpanded)}
+          className="w-full p-4 flex items-center justify-between hover:bg-emerald-500/5 transition-colors"
+        >
+          <div className="flex items-center gap-2">
+            <h3 className="text-sm font-bold text-emerald-400 uppercase flex items-center gap-2">
+              {editId ? <Edit2 size={16} /> : <Plus size={16} />}
+              {editId ? 'Sorte bearbeiten' : 'Neue Sorte'}
+            </h3>
+            {editId && (
+              <span className="text-xs bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full">
+                {form.name}
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            {editId && (
+              <button
+                onClick={(e) => { e.stopPropagation(); cancel(); }}
+                className="p-1.5 bg-zinc-800 hover:bg-zinc-700 rounded-lg text-zinc-400 hover:text-white transition-colors"
+              >
+                <X size={16} />
+              </button>
+            )}
+            <div className="text-emerald-500">
+              {formExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+            </div>
+          </div>
+        </button>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Formular - nur wenn expanded */}
+        {formExpanded && (
+          <div className="p-6 pt-0 space-y-4 animate-in slide-in-from-top-2 fade-in duration-200">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
             <label className="text-xs text-zinc-400 uppercase font-bold">Name *</label>
             <input
@@ -206,14 +232,16 @@ function StrainManagementView({ settings, setSettings, sessionHits }) {
           </div>
         </div>
 
-        <button
-          onClick={save}
-          disabled={!form.name}
-          className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:bg-zinc-800 disabled:text-zinc-600 text-white font-bold py-3 rounded-xl transition-colors flex items-center justify-center gap-2"
-        >
-          <Save size={18} />
-          {editId ? 'Aktualisieren' : 'Hinzufügen'}
-        </button>
+            <button
+              onClick={save}
+              disabled={!form.name}
+              className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:bg-zinc-800 disabled:text-zinc-600 text-white font-bold py-3 rounded-xl transition-colors flex items-center justify-center gap-2"
+            >
+              <Save size={18} />
+              {editId ? 'Aktualisieren' : 'Hinzufügen'}
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Filter und Suche */}
