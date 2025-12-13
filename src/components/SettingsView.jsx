@@ -1,28 +1,13 @@
 import React, { useState, useRef, memo } from 'react';
-import { Settings, Shield, Tag, Coins, Zap, Edit2, Trash2, Check, Plus, X, Download, Upload, Target, AlertCircle, Database, Trash, Wifi, WifiOff, Radio, Smartphone, RefreshCw } from 'lucide-react';
+import { Settings, Shield, Download, Upload, Target, AlertCircle, Database, Trash, Scale, Percent } from 'lucide-react';
 import { generateTestData, mergeTestData, removeTestData } from '../utils/testDataGenerator';
 
-function SettingsView({ settings, setSettings, liveTemp, historyData, setHistoryData, sessionHits, setSessionHits, achievements, setAchievements, goals, setGoals, ip, setIp, connected, isSimulating, setIsSimulating, lastError }) {
-  const [form, setForm] = useState({ name: '', price: '10', thc: '15' });
-  const [editId, setEditId] = useState(null);
+function SettingsView({ settings, setSettings, historyData, setHistoryData, sessionHits, setSessionHits, achievements, setAchievements, goals, setGoals }) {
   const [exportStatus, setExportStatus] = useState(null);
   const [testDataStatus, setTestDataStatus] = useState(null);
   const fileInputRef = useRef(null);
 
   const upd = (k, v) => setSettings(p => ({ ...p, [k]: v }));
-  
-  const save = () => {
-    if(!form.name) return;
-    if(navigator.vibrate) navigator.vibrate(50);
-    setSettings(p => {
-        const strain = { id: editId || Date.now(), name: form.name, price: parseFloat(form.price), thc: parseFloat(form.thc) };
-        return { ...p, strains: editId ? p.strains.map(s => s.id === editId ? strain : s) : [...p.strains, strain] };
-    });
-    setForm({ name: '', price: '10', thc: '15' }); setEditId(null);
-  };
-  
-  const edit = (s) => { if(navigator.vibrate) navigator.vibrate(20); setForm({ name: s.name, price: s.price, thc: s.thc }); setEditId(s.id); };
-  const del = (id) => { if(navigator.vibrate) navigator.vibrate(20); setSettings(p => ({ ...p, strains: p.strains.filter(s => s.id !== id) })); if(editId===id) { setEditId(null); setForm({name:'',price:'10',thc:'15'}); } };
 
   // Export/Import Funktionen
   const exportData = () => {
@@ -124,155 +109,39 @@ function SettingsView({ settings, setSettings, liveTemp, historyData, setHistory
   return (
     <div className="space-y-8 animate-in slide-in-from-right-4 pb-20">
       <h2 className="text-2xl font-bold text-white">Einstellungen</h2>
-      
+
       {/* BASIS BERECHNUNG */}
       <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 space-y-6">
-         <h3 className="text-sm font-bold text-zinc-400 uppercase">Basis Berechnung</h3>
+         <h3 className="text-sm font-bold text-zinc-400 uppercase flex items-center gap-2">
+           <Scale size={16}/> Basis Berechnung
+         </h3>
          <div className="space-y-4">
-            <div className="flex justify-between text-xs"><span>Kopfgröße</span><span className="text-emerald-400 font-bold">{settings.bowlSize}g</span></div>
+            <div className="flex justify-between text-xs">
+              <span>Kopfgröße</span>
+              <span className="text-emerald-400 font-bold">{settings.bowlSize}g</span>
+            </div>
             <input type="range" min="0.1" max="1.5" step="0.05" value={settings.bowlSize} onChange={e => upd('bowlSize', parseFloat(e.target.value))} className="w-full h-2 bg-zinc-800 rounded-lg accent-emerald-500"/>
-            <div className="flex justify-between text-xs"><span>Weed Anteil</span><span className="text-lime-400 font-bold">{settings.weedRatio}%</span></div>
+
+            <div className="flex justify-between text-xs mt-4">
+              <span>Weed Anteil</span>
+              <span className="text-lime-400 font-bold">{settings.weedRatio}%</span>
+            </div>
             <input type="range" min="0" max="100" step="5" value={settings.weedRatio} onChange={e => upd('weedRatio', parseFloat(e.target.value))} className="w-full h-2 bg-zinc-800 rounded-lg accent-lime-500"/>
          </div>
+
          <div className="w-full h-px bg-zinc-800"></div>
+
          <div className="flex items-center justify-between pt-2">
            <div>
-             <label className="flex items-center gap-2 text-white font-medium"><Shield size={20} className={settings.adminMode ? "text-rose-500" : "text-zinc-500"} />Admin Modus</label>
-             <p className="text-xs text-zinc-500 mt-1 pl-7">Zeigt Diagnose-Daten im Dashboard.</p>
+             <label className="flex items-center gap-2 text-white font-medium">
+               <Shield size={20} className={settings.adminMode ? "text-rose-500" : "text-zinc-500"} />
+               Admin Modus
+             </label>
+             <p className="text-xs text-zinc-500 mt-1 pl-7">Zeigt Diagnose-Daten und Testdaten-Verwaltung.</p>
            </div>
            <button onClick={() => upd('adminMode', !settings.adminMode)} className={`w-12 h-6 rounded-full transition-colors relative ${settings.adminMode ? 'bg-rose-500' : 'bg-zinc-700'}`}>
               <div className={`w-4 h-4 bg-white rounded-full absolute top-1 transition-all ${settings.adminMode ? 'left-7' : 'left-1'}`}></div>
            </button>
-         </div>
-      </div>
-
-      {/* KALIBRIERUNG */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 space-y-4">
-         <h3 className="text-sm font-bold text-zinc-400 uppercase flex items-center gap-2"><Settings size={14}/> Kalibrierung</h3>
-         <div className="h-10 bg-zinc-950 rounded relative flex items-center px-2 border border-zinc-800 overflow-hidden">
-             <div className="absolute inset-y-0 left-0 bg-emerald-500/20 transition-all" style={{width:`${Math.min(100, liveTemp)}%`}}/>
-             <div className="absolute inset-y-0 w-0.5 bg-rose-500 z-10" style={{left:`${settings.triggerThreshold}%`}}/>
-             <span className="relative z-20 text-xs font-mono font-bold text-white">{liveTemp.toFixed(1)}°C</span>
-             <span className="absolute right-2 text-[10px] text-zinc-500">Trigger: {settings.triggerThreshold}°C</span>
-         </div>
-         <input type="range" min="20" max="100" value={settings.triggerThreshold} onChange={e => upd('triggerThreshold', parseFloat(e.target.value))} className="w-full h-2 bg-zinc-800 rounded-lg accent-rose-500"/>
-      </div>
-
-      {/* ESP32 VERBINDUNG */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 space-y-4">
-         <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-               {connected ? <Wifi size={16} className="text-emerald-500"/> : <WifiOff size={16} className="text-zinc-500"/>}
-               <h3 className="text-sm font-bold text-zinc-400 uppercase">ESP32 Verbindung</h3>
-            </div>
-            <div className="flex items-center gap-2">
-               <div className={`w-2 h-2 rounded-full ${connected ? 'bg-emerald-500 animate-pulse' : 'bg-zinc-600'}`}/>
-               <span className="text-xs text-zinc-500">{connected ? 'Verbunden' : 'Getrennt'}</span>
-            </div>
-         </div>
-
-         {/* Modus Toggle */}
-         <div className="flex items-center justify-between bg-zinc-950 p-3 rounded-xl border border-zinc-800">
-            <div className="flex items-center gap-2">
-               <Smartphone size={16} className={isSimulating ? "text-blue-500" : "text-emerald-500"}/>
-               <div>
-                  <span className="text-white font-medium text-sm block">{isSimulating ? "Demo Modus" : "Sensor Modus"}</span>
-                  <span className="text-[10px] text-zinc-500">{isSimulating ? "Simulierte Daten" : "Live ESP32 Daten"}</span>
-               </div>
-            </div>
-            <button onClick={() => setIsSimulating(!isSimulating)} className={`w-12 h-6 rounded-full transition-colors relative ${isSimulating ? 'bg-blue-500' : 'bg-emerald-600'}`}>
-               <div className={`w-4 h-4 bg-white rounded-full absolute top-1 transition-all ${isSimulating ? 'left-1' : 'left-7'}`}/>
-            </button>
-         </div>
-
-         {/* IP Konfiguration (nur im Sensor Modus) */}
-         {!isSimulating && (
-            <>
-               <div className="space-y-2">
-                  <label className="text-xs text-zinc-500 uppercase">ESP32 IP-Adresse</label>
-                  <div className="flex gap-2">
-                     <input
-                        type="text"
-                        value={ip}
-                        onChange={(e) => setIp(e.target.value)}
-                        placeholder="192.168.178.XXX"
-                        className="flex-1 bg-zinc-950 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-emerald-500"
-                     />
-                     <button
-                        onClick={() => {
-                           if (navigator.vibrate) navigator.vibrate(20);
-                           // Connection test - wird automatisch durch polling getestet
-                        }}
-                        className="bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 px-3 rounded-lg transition-colors"
-                     >
-                        <RefreshCw size={16} className="text-zinc-400"/>
-                     </button>
-                  </div>
-                  <p className="text-[10px] text-zinc-600">
-                     Format: 192.168.x.x (ohne http://)
-                  </p>
-               </div>
-
-               {/* Status/Error Anzeige */}
-               {lastError && (
-                  <div className="bg-rose-500/10 border border-rose-500/20 rounded-xl p-3 flex items-start gap-2">
-                     <AlertCircle size={14} className="text-rose-500 mt-0.5 flex-shrink-0"/>
-                     <div className="flex-1">
-                        <p className="text-xs font-bold text-rose-500">Verbindungsfehler</p>
-                        <p className="text-[10px] text-rose-400 mt-1">{lastError}</p>
-                     </div>
-                  </div>
-               )}
-
-               {connected && (
-                  <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-3 flex items-start gap-2">
-                     <Wifi size={14} className="text-emerald-500 mt-0.5"/>
-                     <div>
-                        <p className="text-xs font-bold text-emerald-500">Verbunden mit ESP32</p>
-                        <p className="text-[10px] text-emerald-400 mt-1 font-mono">http://{ip}/api/data</p>
-                     </div>
-                  </div>
-               )}
-
-               {/* Hinweis für WiFi-Setup */}
-               <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-3">
-                  <div className="flex items-center gap-2 mb-2">
-                     <Radio size={12} className="text-blue-400"/>
-                     <span className="text-xs font-bold text-blue-400 uppercase">Ersteinrichtung ESP32</span>
-                  </div>
-                  <p className="text-[10px] text-blue-300 leading-relaxed">
-                     <strong>1.</strong> ESP32 einschalten<br/>
-                     <strong>2.</strong> Mit WiFi "HighScore-Setup" verbinden<br/>
-                     <strong>3.</strong> Browser öffnet sich automatisch (oder http://192.168.4.1)<br/>
-                     <strong>4.</strong> Dein WLAN auswählen und Passwort eingeben<br/>
-                     <strong>5.</strong> ESP32 zeigt die IP-Adresse im Display<br/>
-                     <strong>6.</strong> IP hier eingeben und Demo Modus ausschalten
-                  </p>
-               </div>
-            </>
-         )}
-      </div>
-
-      {/* SORTEN VERWALTUNG */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 space-y-4">
-         <h3 className="text-sm font-bold text-zinc-400 uppercase flex items-center gap-2"><Tag size={16}/> Sorten</h3>
-         <div className="space-y-2 max-h-48 overflow-y-auto">
-           {settings.strains.map(s => (
-             <div key={s.id} className={`flex items-center justify-between p-3 rounded-xl border ${editId === s.id ? 'bg-amber-500/10 border-amber-500/50' : 'bg-zinc-950 border-zinc-800'}`}>
-                <div><span className="font-bold text-white block text-sm">{s.name}</span><span className="text-[10px] text-zinc-500">{s.price}€/g • {s.thc}% THC</span></div>
-                <div className="flex gap-2">
-                   <button onClick={() => edit(s)} className={`p-2 rounded hover:bg-zinc-800 ${editId === s.id ? 'text-amber-500' : 'text-zinc-600'}`}><Edit2 size={14}/></button>
-                   {settings.strains.length > 1 && <button onClick={() => del(s.id)} className="p-2 rounded hover:bg-rose-900/30 text-zinc-600 hover:text-rose-500"><Trash2 size={14}/></button>}
-                </div>
-             </div>
-           ))}
-         </div>
-         <div className="flex gap-2 items-end bg-zinc-800/50 p-3 rounded-xl border border-zinc-700/50">
-            <div className="flex-1 space-y-1"><label className="text-[9px] text-zinc-500 uppercase">Name</label><input type="text" value={form.name} onChange={e => setForm({...form, name: e.target.value})} className="w-full bg-zinc-950 border border-zinc-700 rounded p-2 text-xs text-white"/></div>
-            <div className="w-16 space-y-1"><label className="text-[9px] text-zinc-500 uppercase">€ / g</label><input type="number" value={form.price} onChange={e => setForm({...form, price: e.target.value})} className="w-full bg-zinc-950 border border-zinc-700 rounded p-2 text-xs text-white"/></div>
-            <div className="w-12 space-y-1"><label className="text-[9px] text-zinc-500 uppercase">THC</label><input type="number" value={form.thc} onChange={e => setForm({...form, thc: e.target.value})} className="w-full bg-zinc-950 border border-zinc-700 rounded p-2 text-xs text-white"/></div>
-            <button onClick={save} className={`p-2 rounded h-8 w-8 flex items-center justify-center text-white transition-colors ${editId ? 'bg-amber-600' : 'bg-emerald-600'}`}>{editId ? <Check size={14}/> : <Plus size={14}/>}</button>
-            {editId && <button onClick={() => { setEditId(null); setForm({name:'',price:'10',thc:'15'}); }} className="bg-zinc-700 p-2 rounded h-8 w-8 flex items-center justify-center text-zinc-400"><X size={14}/></button>}
          </div>
       </div>
 
@@ -320,7 +189,7 @@ function SettingsView({ settings, setSettings, liveTemp, historyData, setHistory
         </div>
       )}
 
-      {/* TESTDATEN */}
+      {/* TESTDATEN (nur im Admin Mode) */}
       {settings.adminMode && (
         <div className="bg-gradient-to-br from-indigo-900/20 to-zinc-900 border border-indigo-500/30 rounded-2xl p-6 space-y-4">
           <div className="flex items-center gap-2">
@@ -341,21 +210,18 @@ function SettingsView({ settings, setSettings, liveTemp, historyData, setHistory
                 onClick={() => addTestData(7)}
                 className="flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white p-2 rounded-lg transition-colors text-sm font-medium"
               >
-                <Plus size={16} />
                 7 Tage
               </button>
               <button
                 onClick={() => addTestData(30)}
                 className="flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white p-2 rounded-lg transition-colors text-sm font-medium"
               >
-                <Plus size={16} />
                 30 Tage
               </button>
               <button
                 onClick={() => addTestData(90)}
                 className="flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white p-2 rounded-lg transition-colors text-sm font-medium"
               >
-                <Plus size={16} />
                 90 Tage
               </button>
             </div>
@@ -426,4 +292,5 @@ function SettingsView({ settings, setSettings, liveTemp, historyData, setHistory
     </div>
   );
 }
+
 export default memo(SettingsView);
