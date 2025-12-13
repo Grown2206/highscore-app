@@ -297,6 +297,79 @@ function ESP32DebugView({ ip, setIp, connected, isSimulating, setIsSimulating, l
         </div>
       </div>
 
+      {/* Stromverbrauch */}
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 space-y-4">
+        <div className="flex items-center gap-2">
+          <Zap size={16} className="text-yellow-500"/>
+          <h3 className="text-sm font-bold text-zinc-400 uppercase">Stromverbrauch (geschätzt)</h3>
+        </div>
+
+        {(() => {
+          // ESP32-C3: ~160mA @ 3.3V = 0.53W (aktiv mit WiFi)
+          // OLED Display: ~20mA @ 3.3V = 0.066W
+          // DS18B20 Sensor: ~1.5mA @ 3.3V = 0.005W
+          // Gesamt aktiv: ~0.6W (~180mA @ 3.3V)
+          const powerActiveW = 0.6; // Watt bei aktiver Verbindung
+          const powerIdleW = 0.05; // Watt bei getrennter Verbindung (nur Sensor)
+          const currentPowerW = connected ? powerActiveW : powerIdleW;
+          const currentMa = connected ? 180 : 15;
+
+          // Kosten berechnen
+          const powerPerDay = currentPowerW * 24; // Wh pro Tag
+          const powerPerYear = powerPerDay * 365 / 1000; // kWh pro Jahr
+          const strompreis = 0.35; // €/kWh (typischer deutscher Preis)
+          const costsPerYear = powerPerYear * strompreis;
+
+          return (
+            <>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="bg-zinc-950 rounded-lg p-3 border border-zinc-800">
+                  <p className="text-[10px] text-zinc-600 uppercase mb-1">Aktuell</p>
+                  <p className="text-lg font-bold text-yellow-400">{currentMa}mA</p>
+                  <p className="text-[9px] text-zinc-600">{currentPowerW.toFixed(2)}W</p>
+                </div>
+
+                <div className="bg-zinc-950 rounded-lg p-3 border border-zinc-800">
+                  <p className="text-[10px] text-zinc-600 uppercase mb-1">Pro Tag</p>
+                  <p className="text-lg font-bold text-amber-400">{powerPerDay.toFixed(1)}</p>
+                  <p className="text-[9px] text-zinc-600">Wh</p>
+                </div>
+
+                <div className="bg-zinc-950 rounded-lg p-3 border border-zinc-800">
+                  <p className="text-[10px] text-zinc-600 uppercase mb-1">Pro Jahr</p>
+                  <p className="text-lg font-bold text-emerald-400">{powerPerYear.toFixed(2)}</p>
+                  <p className="text-[9px] text-zinc-600">kWh</p>
+                </div>
+
+                <div className="bg-zinc-950 rounded-lg p-3 border border-zinc-800">
+                  <p className="text-[10px] text-zinc-600 uppercase mb-1">Kosten/Jahr</p>
+                  <p className="text-lg font-bold text-rose-400">{costsPerYear.toFixed(2)}€</p>
+                  <p className="text-[9px] text-zinc-600">@ 0.35€/kWh</p>
+                </div>
+              </div>
+
+              {/* Status Indicator */}
+              <div className={`rounded-xl p-3 border ${connected ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-zinc-800/50 border-zinc-700'}`}>
+                <div className="flex items-center gap-2">
+                  <div className={`w-2 h-2 rounded-full ${connected ? 'bg-emerald-500 animate-pulse' : 'bg-zinc-600'}`}></div>
+                  <p className="text-xs text-zinc-400">
+                    {connected ? 'Aktiver Betrieb (WiFi + Display + Sensor)' : 'Stand-by Modus (nur Sensor)'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Info */}
+              <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-3">
+                <p className="text-[10px] text-blue-300 leading-relaxed">
+                  <strong>Info:</strong> Schätzung basiert auf ESP32-C3 (160mA), OLED Display (20mA) und DS18B20 Sensor (1.5mA).
+                  Tatsächlicher Verbrauch kann je nach Konfiguration variieren.
+                </p>
+              </div>
+            </>
+          );
+        })()}
+      </div>
+
       {/* Connection Log */}
       <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 space-y-4">
         <div className="flex items-center justify-between">
