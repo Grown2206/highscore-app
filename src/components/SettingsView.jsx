@@ -1,8 +1,8 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, memo } from 'react';
 import { Settings, Shield, Tag, Coins, Zap, Edit2, Trash2, Check, Plus, X, Download, Upload, Target, AlertCircle, Database, Trash, Wifi, WifiOff, Radio, Smartphone, RefreshCw } from 'lucide-react';
 import { generateTestData, mergeTestData, removeTestData } from '../utils/testDataGenerator';
 
-export default function SettingsView({ settings, setSettings, liveTemp, historyData, setHistoryData, sessionHits, setSessionHits, achievements, setAchievements, goals, setGoals, ip, setIp, connected, isSimulating, setIsSimulating, lastError }) {
+function SettingsView({ settings, setSettings, liveTemp, historyData, setHistoryData, sessionHits, setSessionHits, achievements, setAchievements, goals, setGoals, ip, setIp, connected, isSimulating, setIsSimulating, lastError }) {
   const [form, setForm] = useState({ name: '', price: '10', thc: '15' });
   const [editId, setEditId] = useState(null);
   const [exportStatus, setExportStatus] = useState(null);
@@ -426,3 +426,4 @@ export default function SettingsView({ settings, setSettings, liveTemp, historyD
     </div>
   );
 }
+export default memo(SettingsView);

@@ -1,7 +1,7 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, memo } from 'react';
 import { Plus, Edit2, Trash2, Tag, DollarSign, Leaf, TrendingUp, Star, Save, X, Search } from 'lucide-react';
 
-export default function StrainManagementView({ settings, setSettings, sessionHits }) {
+function StrainManagementView({ settings, setSettings, sessionHits }) {
   const [form, setForm] = useState({ name: '', price: '10', thc: '15', type: 'hybrid', notes: '' });
   const [editId, setEditId] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -411,3 +411,5 @@ export default function StrainManagementView({ settings, setSettings, sessionHit
     </div>
   );
 }
+
+export default memo(StrainManagementView);

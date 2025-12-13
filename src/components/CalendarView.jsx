@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, memo } from 'react';
 import { Save, Wind, Scale, Coins, Clock, Tag, TrendingUp, TrendingDown, Minus, Calendar } from 'lucide-react';
 
-export default function CalendarView({ historyData, setHistoryData, sessionHits, settings }) {
+function CalendarView({ historyData, setHistoryData, sessionHits, settings }) {
     const [sel, setSel] = useState(new Date().toISOString().split('T')[0]);
     const [note, setNote] = useState("");
 
@@ -307,3 +307,5 @@ export default function CalendarView({ historyData, setHistoryData, sessionHits,
         </div>
     );
 }
+
+export default memo(CalendarView);

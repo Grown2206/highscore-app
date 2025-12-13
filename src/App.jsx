@@ -280,9 +280,15 @@ export default function App() {
     return temp;
   };
 
-  // NETZWERK POLLING - NEU MIT NATIVE HTTP (Capacitor)
+  // NETZWERK POLLING - MIT OPTIMIERUNGEN GEGEN OVERLAPPING
   useEffect(() => {
+    let isRunning = false;
+    let errorCount = 0;
+
     const loop = async () => {
+      if (isRunning) return; // Verhindere overlapping requests
+      isRunning = true;
+
       if (isSimulating) {
         let { temp, counts } = simRef.current;
         const target = isSensorInhaling ? 220 : 20;
@@ -292,11 +298,12 @@ export default function App() {
         setLiveData({ temp: smoothed, today: counts.today + manualOffset, total: counts.total + manualOffset });
         setConnected(true);
         setLastError(null);
+        errorCount = 0;
       } else {
         try {
           const cleanIp = ip.trim().replace(/^http:\/\//, '').replace(/\/$/, '');
           if (!cleanIp) throw new Error("Keine IP");
-          
+
           // NEUER ANSATZ: Native HTTP (Capacitor) statt fetch
           // Funktioniert nur auf dem Gerät, im Browser Fallback
           let json;
@@ -308,39 +315,67 @@ export default function App() {
              json = response.data;
           } else {
              // Browser Fallback (für Entwicklung)
-             const c = new AbortController(); setTimeout(()=>c.abort(), 2000);
+             const c = new AbortController(); setTimeout(()=>c.abort(), 3000); // Erhöht auf 3s timeout
              const res = await fetch(url, { signal: c.signal }); // Kein 'mode: cors', Standard lassen
              if(!res.ok) throw new Error(`HTTP ${res.status}`);
              json = await res.json();
           }
-          
+
           if (json.total > prevApiTotalRef.current && prevApiTotalRef.current !== 0 && !isSensorInhaling) registerHit(false, 0);
           prevApiTotalRef.current = json.total;
-          
+
           const smoothed = processTemperature(json.temp);
           setLiveData({ ...json, temp: smoothed, today: json.today + manualOffset, total: json.total + manualOffset });
           setConnected(true);
           setLastError(null);
-        } catch (e) { 
+          errorCount = 0; // Reset error count on success
+        } catch (e) {
+          errorCount++;
           setConnected(false);
           let msg = e.message;
-          if (msg.includes('Failed to fetch')) msg = 'Netzwerkfehler (Check WLAN)';
+          if (msg.includes('Failed to fetch') || msg.includes('aborted')) msg = 'Netzwerkfehler (Check WLAN)';
           setLastError(msg);
         }
       }
+
+      isRunning = false;
     };
-    const iv = setInterval(loop, isSimulating ? 200 : 1000);
-    return () => clearInterval(iv);
+
+    // Langsameres Polling: 500ms (Demo) / 2000ms (Sensor)
+    // Mit exponential backoff bei Fehlern
+    const getInterval = () => {
+      const baseInterval = isSimulating ? 500 : 2000;
+      return baseInterval * Math.min(1 + errorCount * 0.5, 3); // Max 3x langsamer bei Fehlern
+    };
+
+    let iv = setInterval(loop, getInterval());
+
+    // Dynamisches Intervall bei Fehlern
+    const recheckInterval = setInterval(() => {
+      clearInterval(iv);
+      iv = setInterval(loop, getInterval());
+    }, 5000);
+
+    return () => {
+      clearInterval(iv);
+      clearInterval(recheckInterval);
+    };
   }, [isSimulating, ip, manualOffset, isSensorInhaling, settings.triggerThreshold]);
 
-  const ctx = {
+  const ctx = useMemo(() => ({
     settings, setSettings, historyData, setHistoryData, sessionHits, setSessionHits,
     achievements, setAchievements, goals, setGoals, lastHitTime,
     liveData, currentStrainId, setCurrentStrainId, isGuestMode, setIsGuestMode, guestHits,
     connected, setConnected, isSimulating, setIsSimulating, newAchievement, isSensorInhaling,
     ip, setIp, lastError, selectedSession, setSelectedSession, notification,
     onManualTrigger: (d) => registerHit(true, d)
-  };
+  }), [
+    settings, setSettings, historyData, setHistoryData, sessionHits, setSessionHits,
+    achievements, setAchievements, goals, setGoals, lastHitTime,
+    liveData, currentStrainId, setCurrentStrainId, isGuestMode, setIsGuestMode, guestHits,
+    connected, setConnected, isSimulating, setIsSimulating, newAchievement, isSensorInhaling,
+    ip, setIp, lastError, selectedSession, setSelectedSession, notification, registerHit
+  ]);
 
   return <AppLayout ctx={ctx} />;
 }
