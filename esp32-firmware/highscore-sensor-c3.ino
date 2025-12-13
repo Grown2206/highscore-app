@@ -565,21 +565,23 @@ void drawLiveScreen() {
   display.setTextSize(1);
   display.print("C");
 
-  // Status Icon rechts oben
+  // Status Icon rechts oben (innerhalb 72px Grenze)
   if (isInhaling) {
     // Pulsierender Punkt
     if (animFrame % 2 == 0) {
-      display.fillCircle(66, 4, 3, SSD1306_WHITE);
+      display.fillCircle(64, 4, 2, SSD1306_WHITE);
     }
   } else {
-    // WiFi Icon (3 Bögen)
-    for (int i = 0; i < 3; i++) {
-      display.drawCircle(66, 10, 3 + i*2, SSD1306_WHITE);
+    // WiFi Icon - simple dot
+    if (wifiConnected) {
+      display.fillCircle(64, 4, 2, SSD1306_WHITE);
+    } else {
+      display.drawCircle(64, 4, 2, SSD1306_WHITE);
     }
   }
 
   // Trennlinie
-  display.drawLine(0, 18, 72, 18, SSD1306_WHITE);
+  display.drawLine(0, 18, 71, 18, SSD1306_WHITE);
 
   // Hits
   display.setTextSize(1);
@@ -593,7 +595,7 @@ void drawLiveScreen() {
 
   // Fortschrittsbalken wenn inhaling
   if (isInhaling) {
-    int progress = min(72, (int)((millis() - sessionStartTime) / 30));
+    int progress = min(71, (int)((millis() - sessionStartTime) / 30));
     display.fillRect(0, 38, progress, 2, SSD1306_WHITE);
   }
 }
@@ -634,18 +636,30 @@ void drawWiFiScreen() {
 
   // Titel
   display.setCursor(0, 0);
-  display.print("WiFi");
-  display.drawLine(0, 9, 72, 9, SSD1306_WHITE);
+  if (isAPMode) {
+    display.print("Setup");
+  } else {
+    display.print("WiFi");
+  }
+  display.drawLine(0, 9, 71, 9, SSD1306_WHITE);
 
-  // SSID
-  display.setCursor(0, 12);
-  display.print("SSID:");
-  display.setCursor(0, 21);
-  display.print(ssid);
-
-  // IP
-  display.setCursor(0, 30);
-  display.print(localIP.toString());
+  if (isAPMode) {
+    // AP Mode
+    display.setCursor(0, 12);
+    display.print(AP_SSID);
+    display.setCursor(0, 21);
+    display.print("192.168.4.1");
+  } else {
+    // Connected Mode
+    display.setCursor(0, 12);
+    if (savedSSID.length() > 10) {
+      display.print(savedSSID.substring(0, 10));
+    } else {
+      display.print(savedSSID);
+    }
+    display.setCursor(0, 21);
+    display.print(localIP.toString());
+  }
 }
 
 // ===== BOOT SCREEN =====
@@ -655,7 +669,7 @@ void showBootScreen() {
   display.setCursor(6, 5);
   display.print("HIGHSCORE");
   display.setCursor(12, 18);
-  display.print("PRO v6.3");
+  display.print("PRO v6.4");
   display.setCursor(6, 30);
   display.print("ESP32-C3");
   display.display();
