@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Zap, Flame } from 'lucide-react';
 
-export default function HoldButton({ onTrigger, lastHit, active, flame }) {
+export default function HoldButton({ onTrigger, onHoldStart, onHoldEnd, lastHit, active, flame }) {
   const [holding, setHolding] = useState(false);
   const [prog, setProg] = useState(0);
   const startRef = useRef(0);
@@ -22,18 +22,20 @@ export default function HoldButton({ onTrigger, lastHit, active, flame }) {
     reqRef.current = requestAnimationFrame(loop);
   };
 
-  const start = () => { 
-    if(navigator.vibrate) navigator.vibrate(30); 
-    setHolding(true); 
-    startAnim(); 
+  const start = () => {
+    if(navigator.vibrate) navigator.vibrate(30);
+    setHolding(true);
+    startAnim();
+    if (onHoldStart) onHoldStart();
   };
-  
-  const end = () => { 
-    setHolding(false); 
-    cancelAnimationFrame(reqRef.current); 
-    const d = Date.now() - startRef.current; 
-    if (d > 200) onTrigger(d); 
-    setProg(0); 
+
+  const end = () => {
+    setHolding(false);
+    cancelAnimationFrame(reqRef.current);
+    const d = Date.now() - startRef.current;
+    if (d > 200) onTrigger(d);
+    setProg(0);
+    if (onHoldEnd) onHoldEnd();
   };
 
   const isAct = holding || active;

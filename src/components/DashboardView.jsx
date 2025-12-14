@@ -3,7 +3,7 @@ import { User, Users, Tag, Wind, Scale, Coins, List, Clock, Shield, Radio, Flame
 import HoldButton from './HoldButton';
 import { MetricCard, AdminMetric } from './UIComponents';
 
-export default function DashboardView({ liveData, lastHitTime, settings, isGuestMode, setIsGuestMode, guestHits, sessionHits, onManualTrigger, currentStrainId, setCurrentStrainId, isSensorInhaling }) {
+export default function DashboardView({ liveData, lastHitTime, settings, isGuestMode, setIsGuestMode, guestHits, sessionHits, onManualTrigger, onHoldStart, onHoldEnd, currentStrainId, setCurrentStrainId, isSensorInhaling }) {
   const [timeSince, setTimeSince] = useState("00:00:00");
   
   useEffect(() => {
@@ -43,7 +43,14 @@ export default function DashboardView({ liveData, lastHitTime, settings, isGuest
         </button>
       </div>
 
-      <HoldButton onTrigger={onManualTrigger} lastHit={timeSince} active={isSensorInhaling} flame={liveData.flame} />
+      <HoldButton
+        onTrigger={onManualTrigger}
+        onHoldStart={onHoldStart}
+        onHoldEnd={onHoldEnd}
+        lastHit={timeSince}
+        active={isSensorInhaling}
+        flame={liveData.flame}
+      />
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
          {isGuestMode ? (

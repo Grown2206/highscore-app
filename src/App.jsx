@@ -202,9 +202,16 @@ export default function App() {
   const [connectionLog, setConnectionLog] = useState([]);
   const [flameHistory, setFlameHistory] = useState([]);
   const [errorCount, setErrorCount] = useState(0);
+  const [isManuallyHolding, setIsManuallyHolding] = useState(false);
 
   const sensorStartRef = useRef(0);
-  const simRef = useRef({ flame: false, lastTrigger: 0, counts: { today: 0, total: 0 } });
+  const simRef = useRef({
+    flame: false,
+    lastTrigger: 0,
+    counts: { today: 0, total: 0 },
+    sessionActive: false,
+    sessionStartTime: 0
+  });
   const prevApiTotalRef = useRef(0);
   const cooldownUntilRef = useRef(0); // Cooldown nach Hit
   const hasTriggeredRef = useRef(false); // Flag ob bereits getriggert
@@ -406,13 +413,18 @@ export default function App() {
       isRunning = true;
 
       if (isSimulating) {
-        let { flame, counts } = simRef.current;
-        // Simuliere Flame Sensor: Toggle basierend auf isSensorInhaling
-        const flameDetected = isSensorInhaling || (Math.random() > 0.95); // Gelegentlich zufälliges "Flackern"
-        simRef.current.flame = flameDetected;
+        const simData = simRef.current;
 
-        processFlameDetection(flameDetected, isSensorInhaling);
-        setLiveData({ flame: flameDetected, today: counts.today + manualOffset, total: counts.total + manualOffset });
+        // Simulation: Session-Status folgt Button-Hold-Zustand
+        const isSimInhaling = isManuallyHolding;
+        const flameDetected = isSimInhaling || (Math.random() > 0.98); // Gelegentliches Flackern
+
+        processFlameDetection(flameDetected, isSimInhaling);
+        setLiveData({
+          flame: flameDetected,
+          today: simData.counts.today + manualOffset,
+          total: simData.counts.total + manualOffset
+        });
         setConnected(true);
         setLastError(null);
         setErrorCount(0);
@@ -503,15 +515,17 @@ export default function App() {
     liveData, currentStrainId, setCurrentStrainId, isGuestMode, setIsGuestMode, guestHits,
     connected, setConnected, isSimulating, setIsSimulating, newAchievement, isSensorInhaling,
     ip, setIp, lastError, selectedSession, setSelectedSession, notification,
-    connectionLog, flameHistory, errorCount,
-    onManualTrigger: (d) => registerHit(true, d)
+    connectionLog, flameHistory, errorCount, isManuallyHolding,
+    onManualTrigger: (d) => registerHit(true, d),
+    onHoldStart: () => setIsManuallyHolding(true),
+    onHoldEnd: () => setIsManuallyHolding(false)
   }), [
     settings, setSettings, historyData, setHistoryData, sessionHits, setSessionHits,
     achievements, setAchievements, goals, setGoals, lastHitTime,
     liveData, currentStrainId, setCurrentStrainId, isGuestMode, setIsGuestMode, guestHits,
     connected, setConnected, isSimulating, setIsSimulating, newAchievement, isSensorInhaling,
     ip, setIp, lastError, selectedSession, setSelectedSession, notification,
-    connectionLog, flameHistory, errorCount, registerHit
+    connectionLog, flameHistory, errorCount, isManuallyHolding, registerHit
   ]);
 
   return <AppLayout ctx={ctx} />;
@@ -581,6 +595,8 @@ function AppLayout({ ctx }) {
               guestHits={ctx.guestHits}
               sessionHits={ctx.sessionHits}
               onManualTrigger={ctx.onManualTrigger}
+              onHoldStart={ctx.onHoldStart}
+              onHoldEnd={ctx.onHoldEnd}
               currentStrainId={ctx.currentStrainId}
               setCurrentStrainId={ctx.setCurrentStrainId}
               isSensorInhaling={ctx.isSensorInhaling}
