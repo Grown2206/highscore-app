@@ -215,8 +215,12 @@ export default function App() {
     setAchievements(prev => {
       if (prev.some(a => a.id === id)) return prev;
       const def = ALL_ACHIEVEMENTS.find(a => a.id === id);
-      if (!def) return prev;
+      if (!def) {
+        console.warn('Achievement not found:', id);
+        return prev;
+      }
       const ach = { id: def.id, date: new Date().toISOString() };
+      console.log('🏆 UNLOCK:', def.title);
       setNewAchievement({ ...def, date: ach.date });
       setTimeout(() => setNewAchievement(null), 4000);
       return [...prev, ach];
@@ -342,37 +346,35 @@ export default function App() {
     const strain = settings.strains.find(s => s.id == currentStrainId) || settings.strains[0] || {name:'?',price:0};
     const newHit = { id: now, timestamp: now, type: isManual ? 'Manuell' : 'Sensor', strainName: strain.name, strainPrice: strain.price, duration };
 
-    setSessionHits(p => {
-      const updated = [newHit, ...p];
-      // Check Achievements with updated data
-      setTimeout(() => {
-        setHistoryData(hist => {
-          checkAchievements(updated, hist);
-          return hist;
-        });
-      }, 0);
-      return updated;
-    });
-
-    setManualOffset(p => p + 1);
+    // Prepare updated data BEFORE state updates
+    const updatedSessionHits = [newHit, ...sessionHits];
     const todayStr = new Date().toISOString().split('T')[0];
-    setHistoryData(p => {
-      const n = [...p]; const idx = n.findIndex(d => d.date === todayStr);
-      if (idx >= 0) { n[idx].count++; n[idx].strainId = strain.id; }
-      else n.push({ date: todayStr, count: 1, strainId: strain.id, note: "" });
+    const idx = historyData.findIndex(d => d.date === todayStr);
+    const updatedHistoryData = [...historyData];
+    if (idx >= 0) {
+      updatedHistoryData[idx] = { ...updatedHistoryData[idx], count: updatedHistoryData[idx].count + 1, strainId: strain.id };
+    } else {
+      updatedHistoryData.push({ date: todayStr, count: 1, strainId: strain.id, note: "" });
+    }
 
-      // Check Daily Limit Goal
-      if (goals.dailyLimit > 0 && n[idx >= 0 ? idx : n.length - 1].count >= goals.dailyLimit) {
-        setNotification({
-          type: 'warning',
-          message: `Tägliches Limit erreicht! (${goals.dailyLimit} Hits)`,
-          icon: Bell
-        });
-        setTimeout(() => setNotification(null), 5000);
-      }
+    // Update States
+    setSessionHits(updatedSessionHits);
+    setHistoryData(updatedHistoryData);
+    setManualOffset(p => p + 1);
 
-      return n;
-    });
+    // Check Achievements with NEW data
+    setTimeout(() => checkAchievements(updatedSessionHits, updatedHistoryData), 50);
+
+    // Check Daily Limit Goal
+    const todayCount = idx >= 0 ? updatedHistoryData[idx].count : 1;
+    if (goals.dailyLimit > 0 && todayCount >= goals.dailyLimit) {
+      setNotification({
+        type: 'warning',
+        message: `Tägliches Limit erreicht! (${goals.dailyLimit} Hits)`,
+        icon: Bell
+      });
+      setTimeout(() => setNotification(null), 5000);
+    }
   };
 
   const processTemperature = (rawTemp) => {
