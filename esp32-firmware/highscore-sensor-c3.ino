@@ -316,7 +316,68 @@ void setupWiFi() {
 }
 
 // ===== HTTP SERVER =====
+
+// Captive Portal: WiFi Setup HTML Seite
+void handleConfigRoot() {
+  String html = "<!DOCTYPE html><html><head>";
+  html += "<meta charset='UTF-8'><meta name='viewport' content='width=device-width,initial-scale=1'>";
+  html += "<title>HighScore WiFi Setup</title>";
+  html += "<style>body{font-family:Arial;max-width:400px;margin:40px auto;padding:20px;background:#0a0a0a;color:#fff;}";
+  html += "h1{color:#10b981;text-align:center;font-size:24px;}";
+  html += "input,select,button{width:100%;padding:12px;margin:8px 0;border:1px solid #333;background:#1a1a1a;color:#fff;border-radius:8px;font-size:16px;}";
+  html += "button{background:#10b981;color:#000;font-weight:bold;cursor:pointer;}";
+  html += "button:hover{background:#059669;}</style></head><body>";
+  html += "<h1>🌿 HighScore</h1><h2 style='text-align:center;color:#666;'>WiFi Setup</h2>";
+  html += "<form action='/save' method='POST'>";
+  html += "<label>Netzwerk:</label><select id='ssid' name='ssid' onchange='document.getElementById(\"psk\").focus()'>";
+
+  // Scan networks
+  int n = WiFi.scanNetworks();
+  for (int i = 0; i < n && i < 15; i++) {
+    html += "<option value='" + WiFi.SSID(i) + "'>" + WiFi.SSID(i) + " (" + WiFi.RSSI(i) + "dBm)</option>";
+  }
+
+  html += "</select>";
+  html += "<label>Passwort:</label><input type='password' id='psk' name='password' placeholder='WLAN Passwort' required>";
+  html += "<button type='submit'>Verbinden</button></form>";
+  html += "<p style='text-align:center;color:#666;font-size:12px;margin-top:30px;'>Nach erfolgreicher Verbindung zeigt das Display die IP-Adresse an.</p>";
+  html += "</body></html>";
+
+  server.send(200, "text/html", html);
+}
+
+// WiFi Credentials speichern und neu starten
+void handleSave() {
+  String ssid = server.arg("ssid");
+  String password = server.arg("password");
+
+  Serial.println("Saving WiFi config...");
+  Serial.print("SSID: ");
+  Serial.println(ssid);
+
+  prefs.putString("wifi_ssid", ssid);
+  prefs.putString("wifi_pass", password);
+
+  String html = "<!DOCTYPE html><html><head><meta charset='UTF-8'><meta name='viewport' content='width=device-width,initial-scale=1'>";
+  html += "<style>body{font-family:Arial;max-width:400px;margin:40px auto;padding:20px;background:#0a0a0a;color:#fff;text-align:center;}";
+  html += "h1{color:#10b981;}</style></head><body>";
+  html += "<h1>✅ Gespeichert!</h1><p>ESP32 startet neu und verbindet sich mit:<br><strong>" + ssid + "</strong></p>";
+  html += "<p style='color:#666;margin-top:30px;'>Die IP-Adresse wird im Display angezeigt.</p></body></html>";
+
+  server.send(200, "text/html", html);
+
+  delay(2000);
+  ESP.restart();
+}
+
 void setupServer() {
+  // Captive Portal Routes (nur im AP-Modus aktiv)
+  if (isAPMode) {
+    server.on("/", HTTP_GET, handleConfigRoot);
+    server.on("/save", HTTP_POST, handleSave);
+    server.onNotFound(handleConfigRoot); // Captive Portal: alle unbekannten URLs auf Root umleiten
+  }
+
   // Live Data Endpoint (kompatibel mit React App)
   server.on("/api/data", HTTP_GET, []() {
     JsonDocument doc;
@@ -324,7 +385,7 @@ void setupServer() {
     doc["isInhaling"] = isInSession ? 1 : 0;
     doc["today"] = todayHits;
     doc["total"] = totalHits;
-    doc["lastDuration"] = lastHitDuration;
+    doc["lastDuration"] = lastSessionDuration;
     doc["streak"] = currentStreak;
     doc["longestStreak"] = longestStreak;
     doc["uptime"] = millis() / 1000;
