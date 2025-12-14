@@ -136,6 +136,13 @@ void setup() {
     while(1) { delay(100); }
   }
 
+  // WICHTIG: 72x40 Display braucht Column Offset!
+  // SSD1306 ist für 128x64 ausgelegt, aber wir haben nur 72x40
+  // Offset = (128 - 72) / 2 = 28
+  display.ssd1306_command(0x21); // Set column address
+  display.ssd1306_command(28);   // Column start (offset)
+  display.ssd1306_command(99);   // Column end (28 + 72 - 1)
+
   display.clearDisplay();
   display.setTextColor(SSD1306_WHITE);
   showBootScreen();
@@ -462,13 +469,11 @@ void checkFlameSensor() {
 void detectSession() {
   unsigned long now = millis();
 
-  // Cooldown aktiv?
-  if (now < cooldownUntil) {
-    return;
-  }
+  // Cooldown verhindert nur NEUE Sessions, nicht das Ende laufender Sessions
+  bool inCooldown = (now < cooldownUntil);
 
-  // Start Session wenn Flamme erkannt
-  if (isFlameDetected && !isInSession) {
+  // Start Session wenn Flamme erkannt UND kein Cooldown UND keine Session läuft
+  if (isFlameDetected && !isInSession && !inCooldown) {
     isInSession = true;
     sessionStartTime = now;
     digitalWrite(LED_PIN, HIGH);
@@ -484,16 +489,17 @@ void detectSession() {
     Serial.println(">>> FLAME DETECTED - SESSION START");
   }
 
-  // Ende Session wenn Flamme weg UND Session läuft
+  // Ende Session wenn Flamme weg UND Session läuft (IMMER prüfen, auch während Cooldown!)
   if (!isFlameDetected && isInSession) {
     unsigned long duration = now - sessionStartTime;
 
-    // Nur registrieren wenn Session länger als 500ms
-    if (duration > 500 && duration < SESSION_TIMEOUT) {
+    // Nur registrieren wenn Session länger als 500ms UND nicht im Cooldown
+    if (duration > 500 && duration < SESSION_TIMEOUT && !inCooldown) {
       registerHit(duration);
       cooldownUntil = now + COOLDOWN_TIME;  // 3 Sekunden Cooldown
     }
 
+    // Session IMMER beenden, auch wenn kein Hit registriert wird
     isInSession = false;
     digitalWrite(LED_PIN, LOW);
     lastActivityTime = now;

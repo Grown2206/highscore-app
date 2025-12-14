@@ -507,7 +507,7 @@ export default function App() {
       clearInterval(iv);
       clearInterval(recheckInterval);
     };
-  }, [isSimulating, ip, manualOffset, isSensorInhaling, settings.triggerThreshold, errorCount, connected]);
+  }, [isSimulating, ip, manualOffset, isManuallyHolding, settings.triggerThreshold, errorCount, connected]);
 
   const ctx = useMemo(() => ({
     settings, setSettings, historyData, setHistoryData, sessionHits, setSessionHits,
