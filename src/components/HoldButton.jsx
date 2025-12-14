@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Zap, Thermometer } from 'lucide-react';
+import { Zap, Flame } from 'lucide-react';
 
-export default function HoldButton({ onTrigger, lastHit, active, temp }) {
+export default function HoldButton({ onTrigger, lastHit, active, flame }) {
   const [holding, setHolding] = useState(false);
   const [prog, setProg] = useState(0);
   const startRef = useRef(0);
@@ -62,7 +62,7 @@ export default function HoldButton({ onTrigger, lastHit, active, temp }) {
             </div>
             
             <div className="absolute bottom-6 flex items-center gap-1 text-[10px] text-zinc-600 font-mono z-10">
-               <Thermometer size={10}/> {temp.toFixed(1)}°C
+               <Flame size={10} className={flame ? 'text-orange-500' : ''}/> {flame ? 'Detected' : 'Ready'}
             </div>
          </button>
       </div>

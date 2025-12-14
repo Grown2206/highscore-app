@@ -1,7 +1,7 @@
 import React, { useState, memo } from 'react';
-import { Wifi, WifiOff, Smartphone, RefreshCw, AlertCircle, CheckCircle, Radio, Activity, Clock, Thermometer, TrendingUp, Zap, Settings as SettingsIcon } from 'lucide-react';
+import { Wifi, WifiOff, Smartphone, RefreshCw, AlertCircle, CheckCircle, Radio, Activity, Clock, Flame, TrendingUp, Zap, Settings as SettingsIcon } from 'lucide-react';
 
-function ESP32DebugView({ ip, setIp, connected, isSimulating, setIsSimulating, lastError, connectionLog, tempHistory, liveData, errorCount, settings, setSettings }) {
+function ESP32DebugView({ ip, setIp, connected, isSimulating, setIsSimulating, lastError, connectionLog, flameHistory, liveData, errorCount, settings, setSettings }) {
   const [testing, setTesting] = useState(false);
 
   const testConnection = async () => {
@@ -21,21 +21,8 @@ function ESP32DebugView({ ip, setIp, connected, isSimulating, setIsSimulating, l
 
   const quality = getConnectionQuality();
 
-  // Chart Dimension
-  const chartWidth = 300;
-  const chartHeight = 120;
-  const maxTemp = 100;
-
-  // Temperatur-Chart Daten
-  const chartPoints = tempHistory.slice(-60).map((point, i, arr) => {
-    const x = (i / (arr.length - 1)) * chartWidth;
-    const y = chartHeight - (point.temp / maxTemp) * chartHeight;
-    return { x, y, temp: point.temp };
-  });
-
-  const pathD = chartPoints.length > 1
-    ? `M ${chartPoints.map(p => `${p.x},${p.y}`).join(' L ')}`
-    : '';
+  // Flame Detection Timeline
+  const recentFlameData = flameHistory.slice(-60); // Letzte 60 Datenpunkte (~2 Minuten bei 2s Polling)
 
   return (
     <div className="space-y-6 animate-in fade-in pb-20">
@@ -132,9 +119,11 @@ function ESP32DebugView({ ip, setIp, connected, isSimulating, setIsSimulating, l
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <div className="bg-zinc-900 border border-zinc-800 p-4 rounded-2xl">
           <div className="flex items-center gap-2 text-zinc-500 text-xs font-bold uppercase mb-2">
-            <Thermometer size={14}/> Temperatur
+            <Flame size={14}/> Flame Sensor
           </div>
-          <div className="text-2xl font-bold text-emerald-400">{liveData.temp.toFixed(1)}°C</div>
+          <div className={`text-lg font-bold ${liveData.flame ? 'text-orange-500' : 'text-zinc-500'}`}>
+            {liveData.flame ? 'DETECTED' : 'Ready'}
+          </div>
         </div>
 
         <div className="bg-zinc-900 border border-zinc-800 p-4 rounded-2xl">
@@ -150,7 +139,7 @@ function ESP32DebugView({ ip, setIp, connected, isSimulating, setIsSimulating, l
           <div className="flex items-center gap-2 text-zinc-500 text-xs font-bold uppercase mb-2">
             <Clock size={14}/> Polling
           </div>
-          <div className="text-2xl font-bold text-blue-400">{isSimulating ? '400ms' : '800ms'}</div>
+          <div className="text-2xl font-bold text-blue-400">400ms</div>
         </div>
 
         <div className="bg-zinc-900 border border-zinc-800 p-4 rounded-2xl">
@@ -163,58 +152,66 @@ function ESP32DebugView({ ip, setIp, connected, isSimulating, setIsSimulating, l
         </div>
       </div>
 
-      {/* Temperatur-Verlauf */}
+      {/* Flame Detection Timeline */}
       <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <TrendingUp size={16} className="text-emerald-500"/>
-            <h3 className="text-sm font-bold text-zinc-400 uppercase">Temperatur-Verlauf</h3>
+            <Flame size={16} className="text-orange-500"/>
+            <h3 className="text-sm font-bold text-zinc-400 uppercase">Flame Detection Timeline</h3>
           </div>
-          <span className="text-xs text-zinc-500">Letzte {Math.min(tempHistory.length, 60)} Messungen</span>
+          <span className="text-xs text-zinc-500">Letzte {Math.min(recentFlameData.length, 60)} Messungen</span>
         </div>
 
-        {/* Chart */}
+        {/* Timeline Visualization */}
         <div className="bg-zinc-950 rounded-xl p-4 border border-zinc-800 overflow-x-auto">
-          {chartPoints.length > 1 ? (
-            <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} className="w-full h-32">
-              {/* Grid Lines */}
-              {[0, 25, 50, 75, 100].map(temp => {
-                const y = chartHeight - (temp / maxTemp) * chartHeight;
-                return (
-                  <g key={temp}>
-                    <line x1="0" y1={y} x2={chartWidth} y2={y} stroke="#27272a" strokeWidth="1"/>
-                    <text x="5" y={y - 5} fill="#71717a" fontSize="10">{temp}°C</text>
-                  </g>
-                );
-              })}
+          {recentFlameData.length > 0 ? (
+            <div className="space-y-3">
+              {/* Status Bar */}
+              <div className="flex items-center gap-1 h-12">
+                {recentFlameData.map((point, i) => (
+                  <div
+                    key={i}
+                    className={`flex-1 h-full rounded-sm transition-colors ${
+                      point.inhaling
+                        ? 'bg-emerald-500'
+                        : point.flame
+                          ? 'bg-orange-500/50'
+                          : 'bg-zinc-800'
+                    }`}
+                    title={`${point.inhaling ? 'Inhaling' : point.flame ? 'Flame Detected' : 'No Flame'} - ${new Date(point.time).toLocaleTimeString()}`}
+                  />
+                ))}
+              </div>
 
-              {/* Area under curve */}
-              <path
-                d={`${pathD} L ${chartWidth},${chartHeight} L 0,${chartHeight} Z`}
-                fill="rgba(16, 185, 129, 0.1)"
-              />
+              {/* Legend */}
+              <div className="flex items-center justify-center gap-6 text-xs">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 bg-emerald-500 rounded-sm"></div>
+                  <span className="text-zinc-400">Inhaling (Session)</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 bg-orange-500/50 rounded-sm"></div>
+                  <span className="text-zinc-400">Flame Detected</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 bg-zinc-800 rounded-sm"></div>
+                  <span className="text-zinc-400">No Flame</span>
+                </div>
+              </div>
 
-              {/* Line */}
-              <path
-                d={pathD}
-                fill="none"
-                stroke="#10b981"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-
-              {/* Points */}
-              {chartPoints.map((point, i) => (
-                <circle
-                  key={i}
-                  cx={point.x}
-                  cy={point.y}
-                  r="2"
-                  fill="#10b981"
-                />
-              ))}
-            </svg>
+              {/* Current Status */}
+              <div className="bg-zinc-900 rounded-lg p-3 border border-zinc-800">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-zinc-500">Aktueller Status:</span>
+                  <div className="flex items-center gap-2">
+                    <Flame size={14} className={liveData.flame ? 'text-orange-500' : 'text-zinc-600'}/>
+                    <span className={`text-sm font-bold ${liveData.flame ? 'text-orange-400' : 'text-zinc-500'}`}>
+                      {liveData.flame ? 'Flamme erkannt' : 'Keine Flamme'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
           ) : (
             <div className="h-32 flex items-center justify-center text-zinc-600 text-sm">
               Warte auf Daten...
@@ -223,76 +220,58 @@ function ESP32DebugView({ ip, setIp, connected, isSimulating, setIsSimulating, l
         </div>
       </div>
 
-      {/* Kalibrierung */}
+      {/* Sensor Information */}
       <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 space-y-4">
         <div className="flex items-center gap-2">
           <SettingsIcon size={16} className="text-amber-500"/>
-          <h3 className="text-sm font-bold text-zinc-400 uppercase">Sensor Kalibrierung</h3>
+          <h3 className="text-sm font-bold text-zinc-400 uppercase">B05 Flame Sensor Info</h3>
         </div>
 
-        {/* Live Temperature Bar */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between text-xs">
-            <span className="text-zinc-500">Aktuelle Temperatur</span>
-            <span className="text-emerald-400 font-bold font-mono">{liveData.temp.toFixed(1)}°C</span>
+        {/* Sensor Status */}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="bg-zinc-950 rounded-lg p-4 border border-zinc-800">
+            <p className="text-xs text-zinc-500 mb-2">Sensor Typ</p>
+            <p className="text-sm font-bold text-white">B05 IR Flame</p>
+            <p className="text-[10px] text-zinc-600">760-1100nm</p>
           </div>
 
-          <div className="h-12 bg-zinc-950 rounded-lg relative flex items-center px-3 border border-zinc-800 overflow-hidden">
-            {/* Temperature Fill */}
-            <div
-              className="absolute inset-y-0 left-0 bg-gradient-to-r from-emerald-500/20 to-emerald-500/30 transition-all duration-300"
-              style={{width:`${Math.min(100, (liveData.temp / 100) * 100)}%`}}
-            />
+          <div className="bg-zinc-950 rounded-lg p-4 border border-zinc-800">
+            <p className="text-xs text-zinc-500 mb-2">Detection</p>
+            <p className={`text-sm font-bold ${liveData.flame ? 'text-orange-500' : 'text-zinc-500'}`}>
+              {liveData.flame ? 'ACTIVE' : 'Standby'}
+            </p>
+            <p className="text-[10px] text-zinc-600">Digital Signal</p>
+          </div>
 
-            {/* Trigger Line */}
-            <div
-              className="absolute inset-y-0 w-0.5 bg-rose-500 z-10 transition-all duration-300"
-              style={{left:`${(settings.triggerThreshold / 100) * 100}%`}}
-            >
-              <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-rose-500 text-white text-[9px] px-1.5 py-0.5 rounded whitespace-nowrap">
-                Trigger
-              </div>
-            </div>
+          <div className="bg-zinc-950 rounded-lg p-4 border border-zinc-800">
+            <p className="text-xs text-zinc-500 mb-2">Cooldown</p>
+            <p className="text-sm font-bold text-blue-400">3 Sekunden</p>
+            <p className="text-[10px] text-zinc-600">Nach Hit</p>
+          </div>
 
-            {/* Current Temp Marker */}
-            <div
-              className="absolute inset-y-0 w-1 bg-emerald-500 z-20 transition-all duration-300"
-              style={{left:`${Math.min(100, (liveData.temp / 100) * 100)}%`}}
-            />
-
-            <span className="relative z-30 text-sm font-mono font-bold text-white pointer-events-none">
-              {liveData.temp.toFixed(1)}°C
-            </span>
+          <div className="bg-zinc-950 rounded-lg p-4 border border-zinc-800">
+            <p className="text-xs text-zinc-500 mb-2">GPIO Pin</p>
+            <p className="text-sm font-bold text-emerald-400">GPIO 1</p>
+            <p className="text-[10px] text-zinc-600">Digital Input</p>
           </div>
         </div>
 
-        {/* Trigger Threshold Slider */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between text-xs">
-            <span className="text-zinc-500">Trigger Schwellwert</span>
-            <span className="text-rose-400 font-bold font-mono">{settings.triggerThreshold}°C</span>
-          </div>
-
-          <input
-            type="range"
-            min="30"
-            max="100"
-            value={settings.triggerThreshold}
-            onChange={e => setSettings(p => ({ ...p, triggerThreshold: parseFloat(e.target.value) }))}
-            className="w-full h-2 bg-zinc-800 rounded-lg accent-rose-500 cursor-pointer"
-          />
-
-          <div className="flex items-center justify-between text-[10px] text-zinc-600">
-            <span>30°C</span>
-            <span>100°C</span>
+        {/* Wiring Info */}
+        <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-3">
+          <p className="text-xs font-bold text-blue-300 mb-2">Verkabelung:</p>
+          <div className="grid grid-cols-3 gap-2 text-[10px] text-blue-200 font-mono">
+            <div><span className="text-blue-400">VCC</span> → 3.3V</div>
+            <div><span className="text-blue-400">GND</span> → GND</div>
+            <div><span className="text-blue-400">DO</span> → GPIO 1</div>
           </div>
         </div>
 
         {/* Hinweis */}
         <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3">
           <p className="text-[10px] text-amber-300 leading-relaxed">
-            <strong>Hinweis:</strong> Der Trigger-Schwellwert bestimmt, ab welcher Temperatur ein Zug erkannt wird.
-            Typische Werte: 50-70°C. Nach einem Hit gibt es einen 10 Sekunden Cooldown.
+            <strong>Hinweis:</strong> Der B05 Flame Sensor erkennt IR-Licht (760-1100nm) von Feuerzeug-Flammen.
+            Digital Output: LOW = Flamme erkannt, HIGH = keine Flamme. Der ESP32 verwaltet die komplette Logik
+            inklusive Session-Erkennung und 3-Sekunden Cooldown.
           </p>
         </div>
       </div>
@@ -307,7 +286,7 @@ function ESP32DebugView({ ip, setIp, connected, isSimulating, setIsSimulating, l
         {(() => {
           // ESP32-C3: ~160mA @ 3.3V = 0.53W (aktiv mit WiFi)
           // OLED Display: ~20mA @ 3.3V = 0.066W
-          // DS18B20 Sensor: ~1.5mA @ 3.3V = 0.005W
+          // B05 Flame Sensor: ~1.5mA @ 3.3V = 0.005W
           // Gesamt aktiv: ~0.6W (~180mA @ 3.3V)
           const powerActiveW = 0.6; // Watt bei aktiver Verbindung
           const powerIdleW = 0.05; // Watt bei getrennter Verbindung (nur Sensor)
@@ -361,7 +340,7 @@ function ESP32DebugView({ ip, setIp, connected, isSimulating, setIsSimulating, l
               {/* Info */}
               <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-3">
                 <p className="text-[10px] text-blue-300 leading-relaxed">
-                  <strong>Info:</strong> Schätzung basiert auf ESP32-C3 (160mA), OLED Display (20mA) und DS18B20 Sensor (1.5mA).
+                  <strong>Info:</strong> Schätzung basiert auf ESP32-C3 (160mA), OLED Display (20mA) und B05 Flame Sensor (1.5mA).
                   Tatsächlicher Verbrauch kann je nach Konfiguration variieren.
                 </p>
               </div>

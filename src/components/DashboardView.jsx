@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { User, Users, Tag, Wind, Scale, Coins, List, Clock, Shield, Radio, Thermometer, Zap } from 'lucide-react';
+import { User, Users, Tag, Wind, Scale, Coins, List, Clock, Shield, Radio, Flame, Zap } from 'lucide-react';
 import HoldButton from './HoldButton';
 import { MetricCard, AdminMetric } from './UIComponents';
 
@@ -43,7 +43,7 @@ export default function DashboardView({ liveData, lastHitTime, settings, isGuest
         </button>
       </div>
 
-      <HoldButton onTrigger={onManualTrigger} lastHit={timeSince} active={isSensorInhaling} temp={liveData.temp} />
+      <HoldButton onTrigger={onManualTrigger} lastHit={timeSince} active={isSensorInhaling} flame={liveData.flame} />
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
          {isGuestMode ? (
@@ -87,9 +87,9 @@ export default function DashboardView({ liveData, lastHitTime, settings, isGuest
              <span className="text-xs font-bold uppercase text-zinc-400">Admin Diagnose</span>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-px bg-zinc-800">
-             <AdminMetric label="Sensor Temp" value={`${liveData.temp.toFixed(1)} °C`} active={liveData.temp > settings.triggerThreshold} icon={<Thermometer size={12}/>} />
-             <AdminMetric label="Trigger" value={settings.triggerThreshold} icon={<Zap size={12}/>} />
-             <AdminMetric label="Manual Offset" value="Auto" icon={<List size={12}/>} />
+             <AdminMetric label="Flame Sensor" value={liveData.flame ? 'DETECTED' : 'Ready'} active={liveData.flame} icon={<Flame size={12}/>} />
+             <AdminMetric label="Inhaling" value={isSensorInhaling ? 'YES' : 'NO'} active={isSensorInhaling} icon={<Zap size={12}/>} />
+             <AdminMetric label="Session Hits" value={sessionHits.length} icon={<List size={12}/>} />
              <AdminMetric label="Signal" value="-42 dBm" icon={<Radio size={12}/>} />
           </div>
         </div>

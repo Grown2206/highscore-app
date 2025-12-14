@@ -95,7 +95,7 @@ const AdminMetric = ({ label, value, icon, active }) => (
   </div>
 );
 
-function HoldButton({ onTrigger, lastHit, active, temp }) {
+function HoldButton({ onTrigger, lastHit, active, flame }) {
   const [holding, setHolding] = useState(false);
   const [prog, setProg] = useState(0);
   const startRef = useRef(0);
@@ -117,11 +117,11 @@ function HoldButton({ onTrigger, lastHit, active, temp }) {
   };
 
   const start = () => { if(navigator.vibrate) navigator.vibrate(30); setHolding(true); startAnim(); };
-  const end = () => { 
-    setHolding(false); cancelAnimationFrame(reqRef.current); 
-    const d = Date.now() - startRef.current; 
-    if (d > 200) onTrigger(d); 
-    setProg(0); 
+  const end = () => {
+    setHolding(false); cancelAnimationFrame(reqRef.current);
+    const d = Date.now() - startRef.current;
+    if (d > 200) onTrigger(d);
+    setProg(0);
   };
 
   const isAct = holding || active;
@@ -131,26 +131,26 @@ function HoldButton({ onTrigger, lastHit, active, temp }) {
       <div className="w-64 h-64 relative flex items-center justify-center">
          <div className="absolute inset-0 rounded-full border-4 border-zinc-800"></div>
          <svg className="absolute inset-0 w-full h-full -rotate-90 pointer-events-none filter drop-shadow-[0_0_15px_rgba(16,185,129,0.4)]">
-            <circle cx="128" cy="128" r="124" stroke="currentColor" strokeWidth="8" fill="transparent" 
-              className={`text-emerald-500 transition-opacity duration-200 ${isAct ? 'opacity-100' : 'opacity-0'}`} 
+            <circle cx="128" cy="128" r="124" stroke="currentColor" strokeWidth="8" fill="transparent"
+              className={`text-emerald-500 transition-opacity duration-200 ${isAct ? 'opacity-100' : 'opacity-0'}`}
               strokeDasharray="779" strokeDashoffset={779 - (779 * prog) / 100} />
          </svg>
-         
-         <button 
-            onMouseDown={start} onMouseUp={end} onMouseLeave={end} 
+
+         <button
+            onMouseDown={start} onMouseUp={end} onMouseLeave={end}
             onTouchStart={(e)=>{e.preventDefault(); start();}} onTouchEnd={(e)=>{e.preventDefault(); end();}}
             className="w-48 h-48 rounded-full bg-zinc-900 border border-zinc-700 shadow-2xl flex flex-col items-center justify-center active:scale-95 transition-all z-10 relative overflow-hidden"
          >
             <div className={`absolute bottom-0 w-full bg-emerald-500/20 transition-all duration-75 ease-linear`} style={{ height: `${prog}%` }}></div>
             <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest z-10">Last Hit</span>
             <div className="text-4xl font-mono font-bold text-white z-10 tabular-nums my-1">{lastHit}</div>
-            
+
             <div className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border z-10 transition-colors ${isAct ? 'bg-emerald-500 text-black border-emerald-400' : 'bg-zinc-800 text-emerald-500 border-zinc-700'}`}>
                <Zap size={12} className={`inline mr-1 ${isAct ? "fill-black" : "fill-emerald-500"}`}/> {isAct ? "Inhaling..." : "Hold / Sensor"}
             </div>
-            
+
             <div className="absolute bottom-6 flex items-center gap-1 text-[10px] text-zinc-600 font-mono z-10">
-               <Thermometer size={10}/> {temp.toFixed(1)}°C
+               <Flame size={10} className={flame ? 'text-orange-500' : ''}/> {flame ? 'Detected' : 'Ready'}
             </div>
          </button>
       </div>
@@ -188,7 +188,7 @@ export default function App() {
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const [liveData, setLiveData] = useState({ temp: 0, today: 0, total: 0 });
+  const [liveData, setLiveData] = useState({ flame: false, today: 0, total: 0 });
   const [currentStrainId, setCurrentStrainId] = useState(settings.strains[0]?.id || 0);
   const [isGuestMode, setIsGuestMode] = useState(false);
   const [guestHits, setGuestHits] = useState(0);
@@ -200,13 +200,12 @@ export default function App() {
   const [selectedSession, setSelectedSession] = useState(null);
   const [notification, setNotification] = useState(null);
   const [connectionLog, setConnectionLog] = useState([]);
-  const [tempHistory, setTempHistory] = useState([]);
+  const [flameHistory, setFlameHistory] = useState([]);
   const [errorCount, setErrorCount] = useState(0);
 
   const sensorStartRef = useRef(0);
-  const simRef = useRef({ temp: 20, lastTrigger: 0, counts: { today: 0, total: 0 } });
+  const simRef = useRef({ flame: false, lastTrigger: 0, counts: { today: 0, total: 0 } });
   const prevApiTotalRef = useRef(0);
-  const tempBuffer = useRef([]);
   const cooldownUntilRef = useRef(0); // Cooldown nach Hit
   const hasTriggeredRef = useRef(false); // Flag ob bereits getriggert
 
@@ -336,9 +335,9 @@ export default function App() {
     const now = Date.now();
     setLastHitTime(now);
 
-    // Cooldown setzen: 10 Sekunden nach Hit
+    // Cooldown setzen: 3 Sekunden nach Hit (angepasst an Flame Sensor)
     if (!isManual) {
-      cooldownUntilRef.current = now + 10000; // 10 Sekunden Cooldown
+      cooldownUntilRef.current = now + 3000; // 3 Sekunden Cooldown
       hasTriggeredRef.current = false; // Reset Trigger-Flag
     }
 
@@ -377,40 +376,20 @@ export default function App() {
     }
   };
 
-  const processTemperature = (rawTemp) => {
-    tempBuffer.current.push(rawTemp);
-    if (tempBuffer.current.length > 5) tempBuffer.current.shift();
-    const temp = tempBuffer.current.reduce((a,b)=>a+b,0) / tempBuffer.current.length;
-    const now = Date.now();
-    const inCooldown = now < cooldownUntilRef.current;
+  // Flame Sensor Detection Logic (B05 Sensor)
+  // Der ESP32 verwaltet die gesamte Logik, wir empfangen nur den Status
+  const processFlameDetection = (flameDetected, isInhaling) => {
+    // Setze Status direkt vom ESP32
+    setIsSensorInhaling(isInhaling);
 
-    // Wenn Temperatur über Schwellwert UND kein Cooldown aktiv
-    if (temp >= settings.triggerThreshold && !inCooldown) {
-      if (!hasTriggeredRef.current) {
-        hasTriggeredRef.current = true; // Markiere als getriggert
-        setIsSensorInhaling(true);
-        sensorStartRef.current = now;
-      }
-    }
-    // Wenn Temperatur unter Schwellwert fällt
-    else if (temp < (settings.triggerThreshold - 5)) {
-      // Cooldown beenden wenn Temperatur deutlich unter Schwellwert
-      if (inCooldown && temp < (settings.triggerThreshold - 10)) {
-        cooldownUntilRef.current = 0;
-      }
+    // Flame History für Monitoring (letzten 2 Minuten)
+    setFlameHistory(prev => [...prev, {
+      time: Date.now(),
+      flame: flameDetected,
+      inhaling: isInhaling
+    }].slice(-60)); // 60 Datenpunkte bei ~2s Polling = 2 Minuten
 
-      // Wenn vorher getriggert wurde, registriere Hit
-      if (hasTriggeredRef.current && isSensorInhaling && !inCooldown) {
-        const duration = now - sensorStartRef.current;
-        if (duration > 500) { // Mindestens 500ms Inhalation
-          registerHit(false, duration);
-        }
-        hasTriggeredRef.current = false;
-      }
-      setIsSensorInhaling(false);
-    }
-
-    return temp;
+    return flameDetected;
   };
 
   // NETZWERK POLLING - MIT OPTIMIERUNGEN + LOGGING
@@ -427,18 +406,16 @@ export default function App() {
       isRunning = true;
 
       if (isSimulating) {
-        let { temp, counts } = simRef.current;
-        const target = isSensorInhaling ? 220 : 20;
-        temp += (target - temp) * 0.1 + (Math.random() - 0.5) * 2;
-        const smoothed = processTemperature(temp);
-        simRef.current.temp = temp;
-        setLiveData({ temp: smoothed, today: counts.today + manualOffset, total: counts.total + manualOffset });
+        let { flame, counts } = simRef.current;
+        // Simuliere Flame Sensor: Toggle basierend auf isSensorInhaling
+        const flameDetected = isSensorInhaling || (Math.random() > 0.95); // Gelegentlich zufälliges "Flackern"
+        simRef.current.flame = flameDetected;
+
+        processFlameDetection(flameDetected, isSensorInhaling);
+        setLiveData({ flame: flameDetected, today: counts.today + manualOffset, total: counts.total + manualOffset });
         setConnected(true);
         setLastError(null);
         setErrorCount(0);
-
-        // Temperatur-History (alle 2s)
-        setTempHistory(prev => [...prev, {time: Date.now(), temp: smoothed}].slice(-120)); // 4 Minuten bei 2s
       } else {
         try {
           const cleanIp = ip.trim().replace(/^http:\/\//, '').replace(/\/$/, '');
@@ -462,14 +439,23 @@ export default function App() {
 
           const responseTime = Date.now() - startTime;
 
-          if (json.total > prevApiTotalRef.current && prevApiTotalRef.current !== 0 && !isSensorInhaling) registerHit(false, 0);
+          // Hit Detection: ESP32 zählt bereits selbst, wir müssen nur bei Änderung reagieren
+          if (json.total > prevApiTotalRef.current && prevApiTotalRef.current !== 0) {
+            const duration = json.lastDuration || 0;
+            registerHit(false, duration);
+          }
           prevApiTotalRef.current = json.total;
 
-          const smoothed = processTemperature(json.temp);
-          setLiveData({ ...json, temp: smoothed, today: json.today + manualOffset, total: json.total + manualOffset });
+          // Flame Detection Processing
+          const flameDetected = json.flame || false;
+          const isInhaling = json.isInhaling || false;
+          processFlameDetection(flameDetected, isInhaling);
 
-          // Temperatur-History
-          setTempHistory(prev => [...prev, {time: Date.now(), temp: smoothed}].slice(-120));
+          setLiveData({
+            flame: flameDetected,
+            today: json.today + manualOffset,
+            total: json.total + manualOffset
+          });
 
           // Success
           if (!connected) {
@@ -517,7 +503,7 @@ export default function App() {
     liveData, currentStrainId, setCurrentStrainId, isGuestMode, setIsGuestMode, guestHits,
     connected, setConnected, isSimulating, setIsSimulating, newAchievement, isSensorInhaling,
     ip, setIp, lastError, selectedSession, setSelectedSession, notification,
-    connectionLog, tempHistory, errorCount,
+    connectionLog, flameHistory, errorCount,
     onManualTrigger: (d) => registerHit(true, d)
   }), [
     settings, setSettings, historyData, setHistoryData, sessionHits, setSessionHits,
@@ -525,7 +511,7 @@ export default function App() {
     liveData, currentStrainId, setCurrentStrainId, isGuestMode, setIsGuestMode, guestHits,
     connected, setConnected, isSimulating, setIsSimulating, newAchievement, isSensorInhaling,
     ip, setIp, lastError, selectedSession, setSelectedSession, notification,
-    connectionLog, tempHistory, errorCount, registerHit
+    connectionLog, flameHistory, errorCount, registerHit
   ]);
 
   return <AppLayout ctx={ctx} />;
@@ -643,7 +629,7 @@ function AppLayout({ ctx }) {
               setIsSimulating={ctx.setIsSimulating}
               lastError={ctx.lastError}
               connectionLog={ctx.connectionLog}
-              tempHistory={ctx.tempHistory}
+              flameHistory={ctx.flameHistory}
               liveData={ctx.liveData}
               errorCount={ctx.errorCount}
               settings={ctx.settings}
