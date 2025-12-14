@@ -1,21 +1,32 @@
 /*
- * HIGH SCORE PRO - ESP32-C3 SENSOR FIRMWARE v6.4
+ * HIGH SCORE PRO - ESP32-C3 SENSOR FIRMWARE v7.0
  * ================================================
  *
- * Optimiert für ESP32-C3 mit 0.42" OLED & DS18B20
+ * Optimiert für ESP32-C3 mit 0.42" OLED & B05 FLAME SENSOR
  *
  * Hardware:
  * - ESP32-C3 DevKit mit integriertem 0.42" OLED (72x40)
- * - DS18B20 Temperatursensor (Dallas OneWire)
+ * - B05 Flame Sensor (IR 760-1100nm, aus 40-in-1 Kit)
  * - Optional: Button & Buzzer
  *
  * Pinout:
  * - GPIO 5  → I2C SDA (OLED)
  * - GPIO 6  → I2C SCL (OLED)
- * - GPIO 1  → DS18B20 Data (4.7kΩ Pull-up zu 3.3V)
+ * - GPIO 1  → Flame Sensor DO (Digital Output - LOW = Flamme erkannt!)
  * - GPIO 9  → Button (optional, interner Pull-up)
  * - GPIO 10 → Buzzer (optional)
  * - GPIO 8  → Onboard LED
+ *
+ * Flame Sensor Anschluss:
+ * - VCC → 3.3V (oder 5V je nach Sensor)
+ * - GND → GND
+ * - DO  → GPIO 1 (Digital Output)
+ *
+ * Funktionsweise:
+ * - Flame Sensor erkennt Feuerzeug-Flamme beim Anzünden
+ * - DO gibt LOW wenn Flamme erkannt wird
+ * - DO gibt HIGH wenn keine Flamme
+ * - Empfindlichkeit einstellbar über Potentiometer am Sensor
  *
  * WiFi Setup:
  * - Ersteinrichtung: ESP32 startet als "HighScore-Setup" Access Point
@@ -31,8 +42,6 @@
 #include <Wire.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
-#include <OneWire.h>
-#include <DallasTemperature.h>
 #include <Preferences.h>
 #include <ArduinoJson.h>
 #include <DNSServer.h>
@@ -40,7 +49,7 @@
 // ===== HARDWARE PINS (ESP32-C3) =====
 #define I2C_SDA 5
 #define I2C_SCL 6
-#define DS18B20_PIN 1
+#define FLAME_SENSOR_PIN 1
 #define BUTTON_PIN 9
 #define BUZZER_PIN 10
 #define LED_PIN 8
@@ -52,9 +61,9 @@
 #define SCREEN_ADDRESS 0x3C
 
 // ===== SETTINGS =====
-#define TEMP_THRESHOLD 50.0
-#define COOLDOWN_TEMP 35.0
-#define SESSION_TIMEOUT 5000
+#define FLAME_DEBOUNCE 100     // Entprellzeit in ms
+#define SESSION_TIMEOUT 5000   // Max Session-Dauer in ms
+#define COOLDOWN_TIME 3000     // Cooldown nach Hit in ms
 #define DISPLAY_TIMEOUT 20000  // Display nach 20 Sekunden ausschalten
 
 // WiFi Manager
@@ -71,8 +80,6 @@ const byte DNS_PORT = 53;
 
 // ===== GLOBALS =====
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
-OneWire oneWire(DS18B20_PIN);
-DallasTemperature tempSensor(&oneWire);
 WebServer server(80);
 DNSServer dnsServer;
 Preferences prefs;
@@ -82,11 +89,12 @@ int todayHits = 0;
 int totalHits = 0;
 int currentStreak = 0;
 int longestStreak = 0;
-float currentTemp = 0.0;
-bool isInhaling = false;
+bool isFlameDetected = false;
+bool isInSession = false;
 unsigned long sessionStartTime = 0;
 unsigned long lastHitTime = 0;
-unsigned long lastTempRead = 0;
+unsigned long lastFlameCheck = 0;
+unsigned long cooldownUntil = 0;
 
 // Display
 int currentScreen = SCREEN_LIVE;
@@ -98,7 +106,6 @@ unsigned long lastActivityTime = 0;
 
 // Session Info
 unsigned long lastSessionDuration = 0;
-float lastSessionTemp = 0.0;
 String lastSessionTime = "";
 String lastSessionDate = "";
 
@@ -117,8 +124,8 @@ unsigned long lastAnimUpdate = 0;
 void setup() {
   Serial.begin(115200);
   delay(1000);
-  Serial.println("\n\n=== HIGH SCORE PRO v6.3 ===");
-  Serial.println("ESP32-C3 + DS18B20");
+  Serial.println("\n\n=== HIGH SCORE PRO v7.0 ===");
+  Serial.println("ESP32-C3 + B05 Flame Sensor");
 
   // I2C mit benutzerdefinierten Pins initialisieren
   Wire.begin(I2C_SDA, I2C_SCL);
@@ -137,12 +144,10 @@ void setup() {
   pinMode(LED_PIN, OUTPUT);
   pinMode(BUTTON_PIN, INPUT_PULLUP);
   pinMode(BUZZER_PIN, OUTPUT);
+  pinMode(FLAME_SENSOR_PIN, INPUT);  // Flame Sensor Digital Input
 
-  // DS18B20 starten
-  tempSensor.begin();
-  tempSensor.setResolution(12); // 12-bit Genauigkeit
-  Serial.print("DS18B20 Devices: ");
-  Serial.println(tempSensor.getDeviceCount());
+  Serial.print("Flame Sensor Pin: ");
+  Serial.println(FLAME_SENSOR_PIN);
 
   // Preferences laden
   prefs.begin("highscore", false);
@@ -166,6 +171,7 @@ void setup() {
   lastActivityTime = millis();
 
   Serial.println("=== READY ===");
+  Serial.println("Waiting for flame detection...");
 }
 
 // ===== MAIN LOOP =====
@@ -177,10 +183,10 @@ void loop() {
     dnsServer.processNextRequest();
   }
 
-  // Temperatur lesen (DS18B20 braucht Zeit)
-  if (millis() - lastTempRead > 500) {
-    readTemperature();
-    lastTempRead = millis();
+  // Flame Sensor prüfen (alle 50ms)
+  if (millis() - lastFlameCheck > 50) {
+    checkFlameSensor();
+    lastFlameCheck = millis();
   }
 
   // Session Detection
@@ -240,31 +246,24 @@ void setupWiFi() {
 
     if (millis() - pressStart >= 5000) {
       resetConfig = true;
-      prefs.putString("wifi_ssid", "");
-      prefs.putString("wifi_pass", "");
-      savedSSID = "";
-      savedPassword = "";
-      playTone(2000, 500);
-      Serial.println("WiFi Config Reset!");
-
       display.clearDisplay();
       display.setCursor(0, 0);
-      display.println("Config");
       display.println("Reset!");
       display.display();
-      delay(2000);
+      prefs.clear();
+      delay(1000);
     }
   }
 
   // Versuche Verbindung mit gespeicherten Credentials
-  if (savedSSID.length() > 0 && !resetConfig) {
+  if (!resetConfig && savedSSID.length() > 0) {
     Serial.print("Connecting to: ");
     Serial.println(savedSSID);
 
     display.clearDisplay();
     display.setCursor(0, 0);
     display.setTextSize(1);
-    display.println("Connect");
+    display.println("WiFi...");
     display.println(savedSSID.substring(0, 10));
     display.display();
 
@@ -276,227 +275,176 @@ void setupWiFi() {
       delay(500);
       Serial.print(".");
     }
-    Serial.println();
 
     if (WiFi.status() == WL_CONNECTED) {
       wifiConnected = true;
-      isAPMode = false;
       localIP = WiFi.localIP();
-
-      Serial.print("Connected! IP: ");
+      Serial.println("\nConnected!");
+      Serial.print("IP: ");
       Serial.println(localIP);
 
       display.clearDisplay();
       display.setCursor(0, 0);
-      display.println("WiFi OK");
-      display.print(localIP[0]); display.print(".");
-      display.print(localIP[1]); display.print(".");
-      display.println(localIP[2]);
-      display.print("."); display.println(localIP[3]);
+      display.println("Connected!");
+      display.println(localIP.toString());
       display.display();
-      delay(3000);
-
+      delay(2000);
       return;
-    } else {
-      Serial.println("Connection failed - starting AP mode");
     }
   }
 
-  // Starte Access Point + Captive Portal
-  startConfigPortal();
-}
-
-void startConfigPortal() {
-  Serial.println("Starting Config Portal...");
+  // AP Mode
   isAPMode = true;
-  wifiConnected = false;
+  Serial.println("Starting AP Mode...");
 
   WiFi.mode(WIFI_AP);
   WiFi.softAP(AP_SSID, AP_PASSWORD);
-  localIP = WiFi.softAPIP();
+
+  dnsServer.start(DNS_PORT, "*", WiFi.softAPIP());
 
   Serial.print("AP IP: ");
-  Serial.println(localIP);
+  Serial.println(WiFi.softAPIP());
 
   display.clearDisplay();
   display.setCursor(0, 0);
   display.setTextSize(1);
-  display.println("Setup");
-  display.println("WiFi:");
+  display.println("Setup Mode");
   display.println(AP_SSID);
+  display.println("192.168.4.1");
   display.display();
-
-  // DNS Server für Captive Portal
-  dnsServer.start(DNS_PORT, "*", localIP);
-
-  // Config Webserver Routes
-  server.on("/", HTTP_GET, handleConfigRoot);
-  server.on("/scan", HTTP_GET, handleScan);
-  server.on("/save", HTTP_POST, handleSave);
-  server.onNotFound(handleConfigRoot); // Captive Portal redirect
-
-  Serial.println("Config Portal ready!");
-  playTone(1000, 200);
-  delay(100);
-  playTone(1500, 200);
-}
-
-void handleConfigRoot() {
-  String html = "<!DOCTYPE html><html><head>";
-  html += "<meta charset='UTF-8'><meta name='viewport' content='width=device-width,initial-scale=1'>";
-  html += "<title>HighScore WiFi Setup</title>";
-  html += "<style>body{font-family:Arial;max-width:400px;margin:40px auto;padding:20px;background:#0a0a0a;color:#fff;}";
-  html += "h1{color:#10b981;text-align:center;font-size:24px;}";
-  html += "input,select,button{width:100%;padding:12px;margin:8px 0;border:1px solid #333;background:#1a1a1a;color:#fff;border-radius:8px;font-size:16px;}";
-  html += "button{background:#10b981;color:#000;font-weight:bold;cursor:pointer;}";
-  html += "button:hover{background:#059669;}</style></head><body>";
-  html += "<h1>🌿 HighScore</h1><h2 style='text-align:center;color:#666;'>WiFi Setup</h2>";
-  html += "<form action='/save' method='POST'>";
-  html += "<label>Netzwerk:</label><select id='ssid' name='ssid' onchange='document.getElementById(\"psk\").focus()'>";
-
-  // Scan networks
-  int n = WiFi.scanNetworks();
-  for (int i = 0; i < n && i < 15; i++) {
-    html += "<option value='" + WiFi.SSID(i) + "'>" + WiFi.SSID(i) + " (" + WiFi.RSSI(i) + "dBm)</option>";
-  }
-
-  html += "</select>";
-  html += "<label>Passwort:</label><input type='password' id='psk' name='password' placeholder='WLAN Passwort' required>";
-  html += "<button type='submit'>Verbinden</button></form>";
-  html += "<p style='text-align:center;color:#666;font-size:12px;margin-top:30px;'>Nach erfolgreicher Verbindung zeigt das Display die IP-Adresse an.</p>";
-  html += "</body></html>";
-
-  server.send(200, "text/html", html);
-}
-
-void handleScan() {
-  String json = "[";
-  int n = WiFi.scanNetworks();
-  for (int i = 0; i < n; i++) {
-    if (i > 0) json += ",";
-    json += "{\"ssid\":\"" + WiFi.SSID(i) + "\",\"rssi\":" + String(WiFi.RSSI(i)) + "}";
-  }
-  json += "]";
-  server.send(200, "application/json", json);
-}
-
-void handleSave() {
-  String ssid = server.arg("ssid");
-  String password = server.arg("password");
-
-  Serial.println("Saving WiFi config...");
-  Serial.print("SSID: ");
-  Serial.println(ssid);
-
-  prefs.putString("wifi_ssid", ssid);
-  prefs.putString("wifi_pass", password);
-
-  String html = "<!DOCTYPE html><html><head><meta charset='UTF-8'><meta name='viewport' content='width=device-width,initial-scale=1'>";
-  html += "<style>body{font-family:Arial;max-width:400px;margin:40px auto;padding:20px;background:#0a0a0a;color:#fff;text-align:center;}";
-  html += "h1{color:#10b981;}</style></head><body>";
-  html += "<h1>✅ Gespeichert!</h1><p>ESP32 startet neu und verbindet sich mit:<br><strong>" + ssid + "</strong></p>";
-  html += "<p style='color:#666;margin-top:30px;'>Die IP-Adresse wird im Display angezeigt.</p></body></html>";
-
-  server.send(200, "text/html", html);
-
   delay(2000);
-  ESP.restart();
 }
 
 // ===== HTTP SERVER =====
 void setupServer() {
-  // API Routes nur im normalen Modus, nicht im Config Portal
-  if (!isAPMode) {
-    // Live Data
-    server.on("/api/data", HTTP_GET, []() {
+  // Live Data Endpoint (kompatibel mit React App)
+  server.on("/api/data", HTTP_GET, []() {
+    JsonDocument doc;
+    doc["flame"] = isFlameDetected ? 1 : 0;
+    doc["isInhaling"] = isInSession ? 1 : 0;
+    doc["today"] = todayHits;
+    doc["total"] = totalHits;
+    doc["lastDuration"] = lastHitDuration;
+    doc["streak"] = currentStreak;
+    doc["longestStreak"] = longestStreak;
+    doc["uptime"] = millis() / 1000;
+
+    String json;
+    serializeJson(doc, json);
+
+    server.sendHeader("Access-Control-Allow-Origin", "*");
+    server.send(200, "application/json", json);
+  });
+
+  // WiFi Scan
+  server.on("/scan", HTTP_GET, []() {
+    int n = WiFi.scanNetworks();
+    JsonDocument doc;
+    JsonArray networks = doc["networks"].to<JsonArray>();
+
+    for (int i = 0; i < n; i++) {
+      JsonObject net = networks.add<JsonObject>();
+      net["ssid"] = WiFi.SSID(i);
+      net["rssi"] = WiFi.RSSI(i);
+      net["secure"] = (WiFi.encryptionType(i) != WIFI_AUTH_OPEN);
+    }
+
+    String json;
+    serializeJson(doc, json);
+
+    server.sendHeader("Access-Control-Allow-Origin", "*");
+    server.send(200, "application/json", json);
+  });
+
+  // WiFi Connect
+  server.on("/connect", HTTP_POST, []() {
+    if (server.hasArg("plain")) {
       JsonDocument doc;
-      doc["temp"] = currentTemp;
-      doc["today"] = todayHits;
-      doc["total"] = totalHits;
-      doc["inhaling"] = isInhaling;
-      doc["streak"] = currentStreak;
-      doc["longestStreak"] = longestStreak;
-      doc["lastSession"] = lastSessionTime;
+      deserializeJson(doc, server.arg("plain"));
 
-      String output;
-      serializeJson(doc, output);
+      String ssid = doc["ssid"];
+      String pass = doc["password"];
+
+      prefs.putString("wifi_ssid", ssid);
+      prefs.putString("wifi_pass", pass);
+
       server.sendHeader("Access-Control-Allow-Origin", "*");
-      server.send(200, "application/json", output);
-    });
+      server.send(200, "application/json", "{\"status\":\"ok\"}");
 
-    // Stats
-    server.on("/api/stats", HTTP_GET, []() {
-      JsonDocument doc;
-      doc["totalHits"] = totalHits;
-      doc["todayHits"] = todayHits;
-      doc["currentStreak"] = currentStreak;
-      doc["longestStreak"] = longestStreak;
-      doc["lastSessionDuration"] = lastSessionDuration;
-      doc["lastSessionTemp"] = lastSessionTemp;
-      doc["lastSessionTime"] = lastSessionTime;
-      doc["uptime"] = millis() / 1000;
-      doc["ip"] = localIP.toString();
+      delay(1000);
+      ESP.restart();
+    } else {
+      server.send(400, "application/json", "{\"error\":\"no data\"}");
+    }
+  });
 
-      String output;
-      serializeJson(doc, output);
-      server.sendHeader("Access-Control-Allow-Origin", "*");
-      server.send(200, "application/json", output);
-    });
-
-    // Reset Today
-    server.on("/api/reset-today", HTTP_POST, []() {
-      todayHits = 0;
-      server.send(200, "text/plain", "Today reset");
-      playTone(800, 150);
-    });
-  }
+  // CORS
+  server.on("/status", HTTP_OPTIONS, []() {
+    server.sendHeader("Access-Control-Allow-Origin", "*");
+    server.sendHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+    server.sendHeader("Access-Control-Allow-Headers", "Content-Type");
+    server.send(204);
+  });
 
   server.begin();
-  Serial.println("HTTP Server started");
+  Serial.println("HTTP server started");
 }
 
-// ===== TEMPERATUR LESEN (DS18B20) =====
-void readTemperature() {
-  tempSensor.requestTemperatures();
-  float temp = tempSensor.getTempCByIndex(0);
-
-  // Gültigkeit prüfen
-  if (temp != DEVICE_DISCONNECTED_C && temp > -50 && temp < 150) {
-    currentTemp = temp;
-  }
+// ===== FLAME SENSOR DETECTION =====
+void checkFlameSensor() {
+  // B05 Flame Sensor: LOW = Flamme erkannt, HIGH = keine Flamme
+  int sensorValue = digitalRead(FLAME_SENSOR_PIN);
+  isFlameDetected = (sensorValue == LOW);
 }
 
 // ===== SESSION DETECTION =====
 void detectSession() {
-  // Start
-  if (currentTemp >= TEMP_THRESHOLD && !isInhaling) {
-    isInhaling = true;
-    sessionStartTime = millis();
+  unsigned long now = millis();
+
+  // Cooldown aktiv?
+  if (now < cooldownUntil) {
+    return;
+  }
+
+  // Start Session wenn Flamme erkannt
+  if (isFlameDetected && !isInSession) {
+    isInSession = true;
+    sessionStartTime = now;
     digitalWrite(LED_PIN, HIGH);
 
     // Display reaktivieren bei Sensor-Trigger
     if (!displayOn) {
       displayOn = true;
       display.ssd1306_command(SSD1306_DISPLAYON);
-      Serial.println("Display ON (sensor trigger)");
+      Serial.println("Display ON (flame detected)");
     }
-    lastActivityTime = millis();
+    lastActivityTime = now;
 
-    Serial.println(">>> INHALE START");
+    Serial.println(">>> FLAME DETECTED - SESSION START");
   }
 
-  // Ende
-  if (currentTemp < COOLDOWN_TEMP && isInhaling) {
-    isInhaling = false;
-    digitalWrite(LED_PIN, LOW);
-    unsigned long duration = millis() - sessionStartTime;
+  // Ende Session wenn Flamme weg UND Session läuft
+  if (!isFlameDetected && isInSession) {
+    unsigned long duration = now - sessionStartTime;
 
-    if (duration > 500) {
+    // Nur registrieren wenn Session länger als 500ms
+    if (duration > 500 && duration < SESSION_TIMEOUT) {
       registerHit(duration);
+      cooldownUntil = now + COOLDOWN_TIME;  // 3 Sekunden Cooldown
     }
 
-    lastActivityTime = millis(); // Activity bei Ende
-    Serial.println("<<< INHALE END");
+    isInSession = false;
+    digitalWrite(LED_PIN, LOW);
+    lastActivityTime = now;
+
+    Serial.println("<<< FLAME GONE - SESSION END");
+  }
+
+  // Timeout: Session zu lang (>5s)
+  if (isInSession && (now - sessionStartTime > SESSION_TIMEOUT)) {
+    isInSession = false;
+    digitalWrite(LED_PIN, LOW);
+    Serial.println("<<< SESSION TIMEOUT");
   }
 }
 
@@ -506,7 +454,6 @@ void registerHit(unsigned long duration) {
   totalHits++;
   lastHitTime = millis();
   lastSessionDuration = duration;
-  lastSessionTemp = currentTemp;
 
   // Zeit
   unsigned long sec = millis() / 1000;
@@ -593,22 +540,20 @@ void updateDisplay() {
 
 // ===== SCREEN 1: LIVE (72x40) =====
 void drawLiveScreen() {
-  // Temperatur (groß)
-  display.setTextSize(2);
-  display.setCursor(0, 0);
-  display.print(currentTemp, 0);
   display.setTextSize(1);
-  display.print("C");
 
-  // Status Icon rechts oben (innerhalb 72px Grenze)
-  if (isInhaling) {
-    // Pulsierender Punkt
+  // Status-Anzeige oben
+  display.setCursor(0, 0);
+  if (isInSession) {
+    display.print("BURNING");
+    // Blinkendes Feuer-Symbol
     if (animFrame % 2 == 0) {
       display.fillCircle(64, 4, 2, SSD1306_WHITE);
     }
   } else {
-    // WiFi Icon - simple dot
-    if (wifiConnected) {
+    display.print("READY");
+    // Statisches Symbol
+    if (isFlameDetected) {
       display.fillCircle(64, 4, 2, SSD1306_WHITE);
     } else {
       display.drawCircle(64, 4, 2, SSD1306_WHITE);
@@ -628,8 +573,8 @@ void drawLiveScreen() {
   display.print("#:");
   display.print(totalHits);
 
-  // Fortschrittsbalken wenn inhaling
-  if (isInhaling) {
+  // Fortschrittsbalken wenn Session aktiv
+  if (isInSession) {
     int progress = min(71, (int)((millis() - sessionStartTime) / 30));
     display.fillRect(0, 38, progress, 2, SSD1306_WHITE);
   }
@@ -704,9 +649,9 @@ void showBootScreen() {
   display.setCursor(6, 5);
   display.print("HIGHSCORE");
   display.setCursor(12, 18);
-  display.print("PRO v6.4");
-  display.setCursor(6, 30);
-  display.print("ESP32-C3");
+  display.print("PRO v7.0");
+  display.setCursor(0, 30);
+  display.print("Flame Sensor");
   display.display();
   delay(2000);
 }
