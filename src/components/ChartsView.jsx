@@ -213,14 +213,14 @@ export default function ChartsView({ historyData, sessionHits, settings }) {
       </div>
 
       {/* Monats-Trend */}
-      {monthlyTrend.length > 0 && (
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <CalendarIcon size={16} className="text-indigo-500"/>
-            <h3 className="text-sm font-bold text-zinc-400 uppercase">Monats-Trend</h3>
-            <span className="text-[10px] text-zinc-600 ml-auto">Letzte 6 Monate</span>
-          </div>
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
+        <div className="flex items-center gap-2 mb-4">
+          <CalendarIcon size={16} className="text-indigo-500"/>
+          <h3 className="text-sm font-bold text-zinc-400 uppercase">Monats-Trend</h3>
+          <span className="text-[10px] text-zinc-600 ml-auto">Letzte 6 Monate</span>
+        </div>
 
+        {monthlyTrend.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Hits pro Monat */}
             <div>
@@ -228,14 +228,13 @@ export default function ChartsView({ historyData, sessionHits, settings }) {
               <div className="h-32 flex items-end gap-2">
                 {monthlyTrend.map((m, i) => {
                   const monthName = new Date(m.month + '-01').toLocaleDateString('de-DE', { month: 'short' });
+                  const barHeight = Math.max(4, (m.count / maxMonthlyCount) * 100);
                   return (
                     <div key={i} className="flex-1 flex flex-col justify-end items-center gap-2">
-                      <div className="w-full bg-gradient-to-t from-indigo-600 to-indigo-400 rounded-t-lg hover:from-indigo-500 hover:to-indigo-300 transition-colors relative group" style={{ height: `${(m.count / maxMonthlyCount) * 100}%` }}>
-                        {m.count > 0 && (
-                          <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-black text-white text-[9px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 whitespace-nowrap">
-                            {m.count} Hits
-                          </div>
-                        )}
+                      <div className="w-full bg-gradient-to-t from-indigo-600 to-indigo-400 rounded-t-lg hover:from-indigo-500 hover:to-indigo-300 transition-colors relative group" style={{ height: `${barHeight}%` }}>
+                        <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-black text-white text-[9px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 whitespace-nowrap z-10">
+                          {m.count} Hits
+                        </div>
                       </div>
                       <span className="text-[10px] text-zinc-500 uppercase">{monthName}</span>
                     </div>
@@ -250,14 +249,13 @@ export default function ChartsView({ historyData, sessionHits, settings }) {
               <div className="h-32 flex items-end gap-2">
                 {monthlyTrend.map((m, i) => {
                   const monthName = new Date(m.month + '-01').toLocaleDateString('de-DE', { month: 'short' });
+                  const barHeight = Math.max(4, (m.cost / maxMonthlyCost) * 100);
                   return (
                     <div key={i} className="flex-1 flex flex-col justify-end items-center gap-2">
-                      <div className="w-full bg-gradient-to-t from-amber-600 to-yellow-400 rounded-t-lg hover:from-amber-500 hover:to-yellow-300 transition-colors relative group" style={{ height: `${(m.cost / maxMonthlyCost) * 100}%` }}>
-                        {m.cost > 0 && (
-                          <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-black text-white text-[9px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 whitespace-nowrap">
-                            {m.cost.toFixed(2)}€
-                          </div>
-                        )}
+                      <div className="w-full bg-gradient-to-t from-amber-600 to-yellow-400 rounded-t-lg hover:from-amber-500 hover:to-yellow-300 transition-colors relative group" style={{ height: `${barHeight}%` }}>
+                        <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-black text-white text-[9px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 whitespace-nowrap z-10">
+                          {m.cost.toFixed(2)}€
+                        </div>
                       </div>
                       <span className="text-[10px] text-zinc-500 uppercase">{monthName}</span>
                     </div>
@@ -266,8 +264,13 @@ export default function ChartsView({ historyData, sessionHits, settings }) {
               </div>
             </div>
           </div>
-        </div>
-      )}
+        ) : (
+          <div className="text-center py-12">
+            <p className="text-zinc-600 text-sm">Noch keine Daten für Monats-Trend vorhanden</p>
+            <p className="text-zinc-700 text-xs mt-1">Nutze die App für mindestens einen Monat</p>
+          </div>
+        )}
+      </div>
 
       {/* Sorten-Verteilung */}
       {strainStats.length > 0 && (
@@ -360,57 +363,65 @@ export default function ChartsView({ historyData, sessionHits, settings }) {
       </div>
 
       {/* Cost Timeline */}
-      {settings && (
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <DollarSign size={16} className="text-yellow-500"/>
-            <h3 className="text-sm font-bold text-zinc-400 uppercase">Kosten-Verlauf</h3>
-            <span className="text-[10px] text-zinc-600 ml-auto">Letzte 30 Tage</span>
-          </div>
-
-          <div className="h-40 flex items-end gap-0.5 overflow-x-auto">
-            {costTimeline.map((day, i) => (
-              <div key={i} className="flex-1 min-w-[8px] flex flex-col justify-end items-center group relative">
-                <div
-                  className="w-full bg-gradient-to-t from-yellow-500 to-amber-500 rounded-t-sm hover:from-yellow-400 hover:to-amber-400 transition-colors"
-                  style={{ height: `${(day.cost / maxCost) * 100}%` }}
-                >
-                  {day.cost > 0 && (
-                    <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-black text-white text-[9px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 whitespace-nowrap z-10">
-                      {day.cost.toFixed(2)}€<br/>
-                      <span className="text-zinc-400">{day.count} Hits</span>
-                    </div>
-                  )}
-                </div>
-                {(i === 0 || day.day === 1) && (
-                  <span className="text-[8px] text-zinc-600 mt-1">{day.day}</span>
-                )}
-              </div>
-            ))}
-          </div>
-
-          <div className="mt-4 grid grid-cols-3 gap-3">
-            <div className="bg-zinc-950 p-3 rounded-xl text-center">
-              <p className="text-[10px] text-zinc-600 uppercase mb-1">Gesamt (30d)</p>
-              <p className="text-lg font-bold text-yellow-400">
-                {costTimeline.reduce((sum, d) => sum + d.cost, 0).toFixed(2)}€
-              </p>
-            </div>
-            <div className="bg-zinc-950 p-3 rounded-xl text-center">
-              <p className="text-[10px] text-zinc-600 uppercase mb-1">Ø pro Tag</p>
-              <p className="text-lg font-bold text-amber-400">
-                {(costTimeline.reduce((sum, d) => sum + d.cost, 0) / 30).toFixed(2)}€
-              </p>
-            </div>
-            <div className="bg-zinc-950 p-3 rounded-xl text-center">
-              <p className="text-[10px] text-zinc-600 uppercase mb-1">Max. Tag</p>
-              <p className="text-lg font-bold text-orange-400">
-                {Math.max(...costTimeline.map(d => d.cost)).toFixed(2)}€
-              </p>
-            </div>
-          </div>
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
+        <div className="flex items-center gap-2 mb-4">
+          <DollarSign size={16} className="text-yellow-500"/>
+          <h3 className="text-sm font-bold text-zinc-400 uppercase">Kosten-Verlauf</h3>
+          <span className="text-[10px] text-zinc-600 ml-auto">Letzte 30 Tage</span>
         </div>
-      )}
+
+        {costTimeline.some(d => d.cost > 0) ? (
+          <>
+            <div className="h-40 flex items-end gap-0.5 overflow-x-auto">
+              {costTimeline.map((day, i) => {
+                const barHeight = Math.max(2, (day.cost / maxCost) * 100);
+                return (
+                  <div key={i} className="flex-1 min-w-[8px] flex flex-col justify-end items-center group relative">
+                    <div
+                      className="w-full bg-gradient-to-t from-yellow-500 to-amber-500 rounded-t-sm hover:from-yellow-400 hover:to-amber-400 transition-colors"
+                      style={{ height: `${barHeight}%` }}
+                    >
+                      <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-black text-white text-[9px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 whitespace-nowrap z-10">
+                        {day.cost.toFixed(2)}€<br/>
+                        <span className="text-zinc-400">{day.count} Hits</span>
+                      </div>
+                    </div>
+                    {(i === 0 || day.day === 1) && (
+                      <span className="text-[8px] text-zinc-600 mt-1">{day.day}</span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="mt-4 grid grid-cols-3 gap-3">
+              <div className="bg-zinc-950 p-3 rounded-xl text-center">
+                <p className="text-[10px] text-zinc-600 uppercase mb-1">Gesamt (30d)</p>
+                <p className="text-lg font-bold text-yellow-400">
+                  {costTimeline.reduce((sum, d) => sum + d.cost, 0).toFixed(2)}€
+                </p>
+              </div>
+              <div className="bg-zinc-950 p-3 rounded-xl text-center">
+                <p className="text-[10px] text-zinc-600 uppercase mb-1">Ø pro Tag</p>
+                <p className="text-lg font-bold text-amber-400">
+                  {(costTimeline.reduce((sum, d) => sum + d.cost, 0) / 30).toFixed(2)}€
+                </p>
+              </div>
+              <div className="bg-zinc-950 p-3 rounded-xl text-center">
+                <p className="text-[10px] text-zinc-600 uppercase mb-1">Max. Tag</p>
+                <p className="text-lg font-bold text-orange-400">
+                  {Math.max(...costTimeline.map(d => d.cost)).toFixed(2)}€
+                </p>
+              </div>
+            </div>
+          </>
+        ) : (
+          <div className="text-center py-12">
+            <p className="text-zinc-600 text-sm">Noch keine Kostendaten vorhanden</p>
+            <p className="text-zinc-700 text-xs mt-1">Starte deine erste Session</p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

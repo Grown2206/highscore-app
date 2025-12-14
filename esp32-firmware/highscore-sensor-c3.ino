@@ -642,7 +642,7 @@ void drawStatsScreen() {
   // Titel
   display.setCursor(0, 0);
   display.print("STATS");
-  display.drawLine(0, 9, 72, 9, SSD1306_WHITE);
+  display.drawLine(0, 9, 71, 9, SSD1306_WHITE);
 
   // Today
   display.setCursor(0, 12);
