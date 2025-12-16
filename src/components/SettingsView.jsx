@@ -106,6 +106,46 @@ function SettingsView({ settings, setSettings, historyData, setHistoryData, sess
     }
   };
 
+  // NEUE FUNKTION: Alle Daten zurücksetzen (außer Sorten)
+  const resetAllDataExceptStrains = () => {
+    if (!window.confirm('⚠️ ACHTUNG: Alle Daten (Sessions, Erfolge, Tagebuch) werden gelöscht!\n\nNur die Sorten bleiben erhalten.\n\nWirklich fortfahren?')) return;
+
+    try {
+      // Sorten aus Settings extrahieren
+      const strainsBackup = settings.strains || [];
+
+      // Alle Daten zurücksetzen
+      setSessionHits([]);
+      setHistoryData([]);
+      setAchievements([]);
+      if (setGoals) setGoals({ dailyLimit: 0, tBreakDays: 0 });
+
+      // Settings zurücksetzen ABER Sorten behalten
+      setSettings({
+        bowlSize: 0.3,
+        weedRatio: 80,
+        triggerThreshold: 50,
+        adminMode: settings.adminMode, // Admin-Modus behalten
+        strains: strainsBackup // SORTEN BLEIBEN ERHALTEN!
+      });
+
+      // localStorage Keys manuell löschen (außer Settings)
+      localStorage.removeItem('hs_history_v6');
+      localStorage.removeItem('hs_session_hits_v6');
+      localStorage.removeItem('hs_achievements_v6');
+      localStorage.removeItem('hs_goals_v6');
+      localStorage.removeItem('hs_last_date');
+      localStorage.removeItem('hs_offset');
+      localStorage.removeItem('hs_last_hit_ts');
+
+      setExportStatus({ type: 'success', msg: '✅ Alle Daten gelöscht (Sorten behalten)!' });
+      setTimeout(() => setExportStatus(null), 4000);
+    } catch (e) {
+      setExportStatus({ type: 'error', msg: 'Fehler beim Zurücksetzen: ' + e.message });
+      setTimeout(() => setExportStatus(null), 4000);
+    }
+  };
+
   return (
     <div className="space-y-8 animate-in slide-in-from-right-4 pb-20">
       <h2 className="text-2xl font-bold text-white">Einstellungen</h2>
@@ -288,6 +328,20 @@ function SettingsView({ settings, setSettings, historyData, setHistoryData, sess
         <p className="text-[10px] text-zinc-600 leading-relaxed">
           Sichere deine Daten regelmäßig! Export erstellt eine JSON-Datei mit allen Sessions, Erfolgen und Einstellungen.
         </p>
+
+        {/* RESET BUTTON */}
+        <div className="pt-4 border-t border-zinc-800">
+          <button
+            onClick={resetAllDataExceptStrains}
+            className="w-full flex items-center justify-center gap-2 bg-rose-600 hover:bg-rose-700 text-white p-3 rounded-xl transition-colors font-medium"
+          >
+            <Trash size={18} />
+            Alle Daten Zurücksetzen (außer Sorten)
+          </button>
+          <p className="text-[10px] text-rose-400/70 mt-2 text-center">
+            ⚠️ Löscht alle Sessions, Erfolge und Tagebuch-Einträge. Sorten bleiben erhalten!
+          </p>
+        </div>
       </div>
     </div>
   );
