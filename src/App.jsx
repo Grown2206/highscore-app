@@ -331,6 +331,28 @@ export default function App() {
     const totalCost = allHits.reduce((sum, h) => sum + (settings.bowlSize * (settings.weedRatio / 100) * (h.strainPrice || 0)), 0);
     if (totalCost > 100) unlockAchievement('big_spender');
 
+    // Cheapskate: Nur günstige Sorten (<8€/g) für 10 Sessions
+    const last10Hits = allHits.slice(0, 10);
+    if (last10Hits.length === 10 && last10Hits.every(h => (h.strainPrice || 0) < 8)) {
+      unlockAchievement('cheapskate');
+    }
+
+    // All Nighter: Hits in jeder Stunde von 22-06 Uhr
+    const nightHours = [22, 23, 0, 1, 2, 3, 4, 5, 6];
+    const hitHours = new Set(allHits.map(h => new Date(h.timestamp).getHours()));
+    if (nightHours.every(hour => hitHours.has(hour))) {
+      unlockAchievement('all_nighter');
+    }
+
+    // Perfect Week: Jeden Tag genau 3 Hits für 7 Tage
+    const last7Days = allHistory.slice(-7);
+    if (last7Days.length === 7 && last7Days.every(d => d.count === 3)) {
+      unlockAchievement('perfect_week');
+    }
+
+    // HINWEIS: rainy_day und birthday erfordern manuelle Auslösung (Datum/Wetter-API)
+    // Diese können in der UI manuell freigeschaltet werden
+
   }, [unlockAchievement, settings]);
 
   useEffect(() => {
