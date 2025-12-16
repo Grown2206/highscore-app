@@ -332,12 +332,16 @@ export default function App() {
     if (totalCost > 100) unlockAchievement('big_spender');
 
     // Cheapskate: Nur günstige Sorten (<8€/g) für 10 Sessions
+    // allHits ist bereits nach timestamp sortiert (neueste zuerst)
+    // slice(0, 10) = die letzten 10 chronologischen Sessions
     const last10Hits = allHits.slice(0, 10);
     if (last10Hits.length === 10 && last10Hits.every(h => (h.strainPrice || 0) < 8)) {
       unlockAchievement('cheapskate');
     }
 
     // All Nighter: Hits in jeder Stunde von 22-06 Uhr
+    // HINWEIS: Lifetime Achievement - prüft über alle Sessions hinweg
+    // (nicht eingeschränkt auf eine einzelne Nacht)
     const nightHours = [22, 23, 0, 1, 2, 3, 4, 5, 6];
     const hitHours = new Set(allHits.map(h => new Date(h.timestamp).getHours()));
     if (nightHours.every(hour => hitHours.has(hour))) {

@@ -2,6 +2,23 @@ import React, { useState, useRef, memo } from 'react';
 import { Settings, Shield, Download, Upload, Target, AlertCircle, Database, Trash, Scale, Percent } from 'lucide-react';
 import { generateTestData, mergeTestData, removeTestData } from '../utils/testDataGenerator';
 
+// Zentrale Konfiguration für Default Settings und Storage Keys
+const DEFAULT_SETTINGS = {
+  bowlSize: 0.3,
+  weedRatio: 80,
+  triggerThreshold: 50,
+};
+
+const STORAGE_KEYS = {
+  HISTORY: 'hs_history_v6',
+  SESSION_HITS: 'hs_session_hits_v6',
+  ACHIEVEMENTS: 'hs_achievements_v6',
+  GOALS: 'hs_goals_v6',
+  LAST_DATE: 'hs_last_date',
+  OFFSET: 'hs_offset',
+  LAST_HIT_TS: 'hs_last_hit_ts',
+};
+
 function SettingsView({ settings, setSettings, historyData, setHistoryData, sessionHits, setSessionHits, achievements, setAchievements, goals, setGoals }) {
   const [exportStatus, setExportStatus] = useState(null);
   const [testDataStatus, setTestDataStatus] = useState(null);
@@ -120,23 +137,20 @@ function SettingsView({ settings, setSettings, historyData, setHistoryData, sess
       setAchievements([]);
       if (setGoals) setGoals({ dailyLimit: 0, tBreakDays: 0 });
 
-      // Settings zurücksetzen ABER Sorten behalten
-      setSettings({
-        bowlSize: 0.3,
-        weedRatio: 80,
-        triggerThreshold: 50,
-        adminMode: settings.adminMode, // Admin-Modus behalten
-        strains: strainsBackup // SORTEN BLEIBEN ERHALTEN!
-      });
+      // Settings zurücksetzen ABER Sorten + adminMode behalten
+      // Spread operator verhindert Datenverlust bei zukünftigen Settings-Feldern
+      setSettings((prevSettings) => ({
+        ...prevSettings,
+        ...DEFAULT_SETTINGS, // Verwende zentrale Defaults
+        adminMode: prevSettings.adminMode, // Admin-Modus behalten
+        strains: strainsBackup, // SORTEN BLEIBEN ERHALTEN!
+      }));
 
       // localStorage Keys manuell löschen (außer Settings)
-      localStorage.removeItem('hs_history_v6');
-      localStorage.removeItem('hs_session_hits_v6');
-      localStorage.removeItem('hs_achievements_v6');
-      localStorage.removeItem('hs_goals_v6');
-      localStorage.removeItem('hs_last_date');
-      localStorage.removeItem('hs_offset');
-      localStorage.removeItem('hs_last_hit_ts');
+      // Verwende zentrale Storage-Key-Konstanten
+      Object.values(STORAGE_KEYS).forEach(key => {
+        localStorage.removeItem(key);
+      });
 
       setExportStatus({ type: 'success', msg: '✅ Alle Daten gelöscht (Sorten behalten)!' });
       setTimeout(() => setExportStatus(null), 4000);
