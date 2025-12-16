@@ -17,6 +17,7 @@ import AchievementsView from './components/AchievementsView';
 import ESP32DebugView from './components/ESP32DebugView';
 import { ALL_ACHIEVEMENTS } from './utils/achievements';
 import { generateTestData } from './utils/testDataGenerator';
+import { DEFAULT_SETTINGS, STORAGE_KEYS } from './utils/constants';
 
 // --- KONFIGURATION FÜR PLATTFORMEN ---
 
@@ -163,15 +164,20 @@ function HoldButton({ onTrigger, lastHit, active, flame }) {
 // --- 5. MAIN LOGIC & LAYOUT ---
 
 export default function App() {
-  const [settings, setSettings] = useLocalStorage('hs_settings_v6', { bowlSize: 0.3, weedRatio: 80, triggerThreshold: 50, adminMode: false, strains: [{ id: 1, name: "Lemon Haze", price: 10, thc: 22 }] });
-  const [historyData, setHistoryData] = useLocalStorage('hs_history_v6', []);
-  const [sessionHits, setSessionHits] = useLocalStorage('hs_session_hits_v6', []);
-  const [achievements, setAchievements] = useLocalStorage('hs_achievements_v6', []);
-  const [goals, setGoals] = useLocalStorage('hs_goals_v6', { dailyLimit: 0, tBreakDays: 0 });
-  const [lastActiveDate, setLastActiveDate] = useLocalStorage('hs_last_date', '');
-  const [manualOffset, setManualOffset] = useLocalStorage('hs_offset', 0);
-  const [lastHitTime, setLastHitTime] = useLocalStorage('hs_last_hit_ts', null);
-  const [ip, setIp] = useLocalStorage('hs_device_ip', '192.168.178.XXX');
+  // State mit zentralen STORAGE_KEYS Konstanten
+  const [settings, setSettings] = useLocalStorage(STORAGE_KEYS.SETTINGS, {
+    ...DEFAULT_SETTINGS,
+    adminMode: false,
+    strains: [{ id: 1, name: "Lemon Haze", price: 10, thc: 22 }]
+  });
+  const [historyData, setHistoryData] = useLocalStorage(STORAGE_KEYS.HISTORY, []);
+  const [sessionHits, setSessionHits] = useLocalStorage(STORAGE_KEYS.SESSION_HITS, []);
+  const [achievements, setAchievements] = useLocalStorage(STORAGE_KEYS.ACHIEVEMENTS, []);
+  const [goals, setGoals] = useLocalStorage(STORAGE_KEYS.GOALS, { dailyLimit: 0, tBreakDays: 0 });
+  const [lastActiveDate, setLastActiveDate] = useLocalStorage(STORAGE_KEYS.LAST_DATE, '');
+  const [manualOffset, setManualOffset] = useLocalStorage(STORAGE_KEYS.OFFSET, 0);
+  const [lastHitTime, setLastHitTime] = useLocalStorage(STORAGE_KEYS.LAST_HIT_TS, null);
+  const [ip, setIp] = useLocalStorage(STORAGE_KEYS.DEVICE_IP, '192.168.178.XXX');
 
   // Automatisch Testdaten hinzufügen wenn keine Daten vorhanden
   useEffect(() => {
