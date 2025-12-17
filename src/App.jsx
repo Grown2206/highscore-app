@@ -15,8 +15,10 @@ import SettingsView from './components/SettingsView';
 import DashboardView from './components/DashboardView';
 import BadgesView from './components/BadgesView';
 import ESP32DebugView from './components/ESP32DebugView';
+import DataRecovery from './components/DataRecovery';
 import { generateTestData } from './utils/testDataGenerator';
 import { DEFAULT_SETTINGS, STORAGE_KEYS } from './utils/constants';
+import { useAutoBackup } from './hooks/useAutoBackup';
 
 // --- KONFIGURATION FÜR PLATTFORMEN ---
 
@@ -206,6 +208,27 @@ export default function App() {
   const [flameHistory, setFlameHistory] = useState([]);
   const [errorCount, setErrorCount] = useState(0);
   const [isManuallyHolding, setIsManuallyHolding] = useState(false);
+  const [showRecovery, setShowRecovery] = useState(false);
+
+  // Auto-Backup System: Speichert automatisch bei Änderungen
+  useAutoBackup(settings, historyData, sessionHits, goals);
+
+  // Recovery Handler
+  const handleDataRestore = useCallback((backupData) => {
+    try {
+      if (backupData.settings) setSettings(backupData.settings);
+      if (backupData.historyData) setHistoryData(backupData.historyData);
+      if (backupData.sessionHits) setSessionHits(backupData.sessionHits);
+      if (backupData.goals) setGoals(backupData.goals);
+
+      setShowRecovery(false);
+      setNotification({ type: 'success', msg: '✅ Daten erfolgreich wiederhergestellt!' });
+      setTimeout(() => setNotification(null), 3000);
+    } catch (error) {
+      setNotification({ type: 'error', msg: '❌ Wiederherstellung fehlgeschlagen!' });
+      setTimeout(() => setNotification(null), 3000);
+    }
+  }, [setSettings, setHistoryData, setSessionHits, setGoals, setNotification]);
 
   const sensorStartRef = useRef(0);
   const simRef = useRef({
@@ -402,6 +425,7 @@ export default function App() {
     connected, setConnected, isSimulating, setIsSimulating, isSensorInhaling,
     ip, setIp, lastError, selectedSession, setSelectedSession, notification,
     connectionLog, flameHistory, errorCount, isManuallyHolding,
+    showRecovery, setShowRecovery, handleDataRestore,
     onManualTrigger: (d) => registerHit(true, d),
     onHoldStart: () => setIsManuallyHolding(true),
     onHoldEnd: () => setIsManuallyHolding(false)
@@ -411,7 +435,8 @@ export default function App() {
     liveData, currentStrainId, setCurrentStrainId, isGuestMode, setIsGuestMode, guestHits,
     connected, setConnected, isSimulating, setIsSimulating, isSensorInhaling,
     ip, setIp, lastError, selectedSession, setSelectedSession, notification,
-    connectionLog, flameHistory, errorCount, isManuallyHolding, registerHit
+    connectionLog, flameHistory, errorCount, isManuallyHolding,
+    showRecovery, setShowRecovery, handleDataRestore, registerHit
   ]);
 
   return <AppLayout ctx={ctx} />;
@@ -441,6 +466,15 @@ function AppLayout({ ctx }) {
       {ctx.selectedSession && (
         <SessionDetailsModal session={ctx.selectedSession} onClose={() => ctx.setSelectedSession(null)} />
       )}
+
+      {/* Data Recovery Modal */}
+      {ctx.showRecovery && (
+        <DataRecovery
+          onRestore={ctx.handleDataRestore}
+          onDismiss={() => ctx.setShowRecovery(false)}
+        />
+      )}
+
       <aside className="hidden md:flex w-64 bg-zinc-900 border-r border-zinc-800 flex-col shrink-0 z-20 pt-[env(safe-area-inset-top)]">
         <div className="p-6 border-b border-zinc-800 flex items-center gap-3"><div className="bg-emerald-500/10 p-2 rounded-xl border border-emerald-500/20"><Leaf className="w-6 h-6 text-emerald-400" /></div><div><h1 className="font-bold text-lg text-white">High Score</h1><p className="text-xs text-zinc-500">Pro v6.1</p></div></div>
         <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
