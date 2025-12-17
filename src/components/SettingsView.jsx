@@ -1,9 +1,9 @@
 import React, { useState, useRef, memo } from 'react';
-import { Settings, Shield, Download, Upload, Target, AlertCircle, Database, Trash, Scale, Percent } from 'lucide-react';
+import { Settings, Shield, Download, Upload, Target, AlertCircle, Database, Trash, Scale, Percent, RefreshCw } from 'lucide-react';
 import { generateTestData, mergeTestData, removeTestData } from '../utils/testDataGenerator';
 import { DEFAULT_SETTINGS, STORAGE_KEYS } from '../utils/constants';
 
-function SettingsView({ settings, setSettings, historyData, setHistoryData, sessionHits, setSessionHits, goals, setGoals }) {
+function SettingsView({ settings, setSettings, historyData, setHistoryData, sessionHits, setSessionHits, goals, setGoals, showRecovery, setShowRecovery }) {
   const [exportStatus, setExportStatus] = useState(null);
   const [testDataStatus, setTestDataStatus] = useState(null);
   const fileInputRef = useRef(null);
@@ -301,7 +301,7 @@ function SettingsView({ settings, setSettings, historyData, setHistoryData, sess
           </div>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <button
             onClick={exportData}
             className="flex items-center justify-center gap-2 bg-purple-600 hover:bg-purple-700 text-white p-3 rounded-xl transition-colors font-medium"
@@ -316,6 +316,14 @@ function SettingsView({ settings, setSettings, historyData, setHistoryData, sess
           >
             <Upload size={18} />
             Daten Importieren
+          </button>
+
+          <button
+            onClick={() => setShowRecovery?.(true)}
+            className="flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white p-3 rounded-xl transition-colors font-medium"
+          >
+            <RefreshCw size={18} />
+            Wiederherstellen
           </button>
         </div>
 
