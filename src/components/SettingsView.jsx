@@ -3,7 +3,7 @@ import { Settings, Shield, Download, Upload, Target, AlertCircle, Database, Tras
 import { generateTestData, mergeTestData, removeTestData } from '../utils/testDataGenerator';
 import { DEFAULT_SETTINGS, STORAGE_KEYS } from '../utils/constants';
 
-function SettingsView({ settings, setSettings, historyData, setHistoryData, sessionHits, setSessionHits, achievements, setAchievements, goals, setGoals }) {
+function SettingsView({ settings, setSettings, historyData, setHistoryData, sessionHits, setSessionHits, goals, setGoals }) {
   const [exportStatus, setExportStatus] = useState(null);
   const [testDataStatus, setTestDataStatus] = useState(null);
   const fileInputRef = useRef(null);
@@ -14,12 +14,11 @@ function SettingsView({ settings, setSettings, historyData, setHistoryData, sess
   const exportData = () => {
     try {
       const exportObj = {
-        version: '6.1',
+        version: '7.0', // Badge-System statt Achievements
         exportDate: new Date().toISOString(),
         settings,
         historyData,
         sessionHits,
-        achievements,
         goals: goals || []
       };
 
@@ -56,7 +55,6 @@ function SettingsView({ settings, setSettings, historyData, setHistoryData, sess
           setSettings(data.settings);
           setHistoryData(data.historyData || []);
           setSessionHits(data.sessionHits || []);
-          setAchievements(data.achievements || []);
           if (setGoals) setGoals(data.goals || []);
 
           setExportStatus({ type: 'success', msg: 'Daten erfolgreich importiert!' });
@@ -118,7 +116,6 @@ function SettingsView({ settings, setSettings, historyData, setHistoryData, sess
       // Alle Daten zurücksetzen
       setSessionHits([]);
       setHistoryData([]);
-      setAchievements([]);
       if (setGoals) setGoals({ dailyLimit: 0, tBreakDays: 0 });
 
       // Settings zurücksetzen ABER Sorten + andere Felder behalten
