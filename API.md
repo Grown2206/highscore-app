@@ -399,6 +399,9 @@ ws.onerror = (error) => {
 - Weniger Netzwerk-Traffic
 - Echtzeit-Updates
 
+**⚠️ Security Note**:
+The example above uses `ws://` (unencrypted WebSocket) for local development with ESP32. In production environments with external connections, use `wss://` (WebSocket Secure) with TLS/SSL encryption. For local ESP32 access points (`192.168.4.1`), `ws://` is acceptable as traffic stays within the device's private network.
+
 ---
 
 ## 🐛 Error Handling

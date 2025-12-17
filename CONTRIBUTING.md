@@ -157,7 +157,7 @@ git pull upstream main
 # Erstelle Feature Branch
 git checkout -b feature/your-feature-name
 
-# Entwickle & Committe
+# Entwickle & committe
 git add .
 git commit -m "Add: Your feature description"
 
@@ -181,7 +181,7 @@ git push origin feature/your-feature-name
 ### 2. Code schreiben
 
 - ✅ Folge den [Code Style Guidelines](#code-style-guidelines)
-- ✅ Schreibe klare, lesbare Code
+- ✅ Schreibe klaren, lesbaren Code
 - ✅ Kommentiere komplexe Logik
 - ✅ Aktualisiere Dokumentation falls nötig
 
@@ -240,7 +240,7 @@ Related to #456
 ### 5. Review Process
 
 - Maintainer reviewen deinen PR
-- Feedbackändere ggf. Code nach Feedback
+- Ändere ggf. den Code nach Feedback
 - Halte deinen Branch aktuell (`git rebase main`)
 - Sobald approved → Merge!
 
