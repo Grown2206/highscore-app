@@ -1,6 +1,8 @@
 # 🌿 HIGH SCORE PRO - ESP32 Sensor Firmware v6.2
 
-Erweiterte ESP32-Firmware mit OLED-Display, Multi-Screen-Unterstützung und erweiterten Statistiken.
+**Kompatibel mit HIGH SCORE PRO App v7.0**
+
+Erweiterte ESP32-Firmware mit OLED-Display, Multi-Screen-Unterstützung und erweiterten Statistiken. Perfekte Integration mit dem neuen Badge-System und Auto-Backup der App.
 
 ## 📋 Features
 
@@ -244,6 +246,7 @@ const char* password = "highscore2024";     // Passwort (min. 8 Zeichen)
 - Erhitze den DHT22 leicht (z.B. Fön, Feuerzeug mit Abstand)
 - Display zeigt Temperatur & Animation
 - App empfängt Live-Daten
+- **Neue v7.0 Features**: Daten werden automatisch im Auto-Backup gespeichert und tragen zum Badge-Fortschritt bei!
 
 ---
 

@@ -1,6 +1,8 @@
 # 🌿 HIGH SCORE PRO - ESP32-C3 Compact Version
 
-Optimierte Firmware für **ESP32-C3 Development Board** mit integriertem **0.42" OLED Display (72x40)** und **DS18B20 Temperatursensor**.
+**Kompatibel mit HIGH SCORE PRO App v7.0**
+
+Optimierte Firmware für **ESP32-C3 Development Board** mit integriertem **0.42" OLED Display (72x40)** und **DS18B20 Temperatursensor**. Volle Integration mit Badge-System und Auto-Backup.
 
 ## 📋 Über diese Version
 
@@ -234,6 +236,7 @@ const char* password = "weed2024";    // Min. 8 Zeichen
 - Display zeigt Temperatur
 - Bei >50°C wird Session erkannt
 - App empfängt Live-Daten
+- **Neue v7.0 Features**: Sessions werden automatisch gesichert (Auto-Backup) und schalten Badges frei!
 
 ---
 
