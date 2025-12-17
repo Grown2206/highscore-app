@@ -11,11 +11,13 @@ export const DEFAULT_SETTINGS = {
 };
 
 // localStorage Keys (Version 6)
+// NOTE: v7.0 reuses the v6 storage schema - no breaking changes in data structure
+// ACHIEVEMENTS key is kept for migration/cleanup purposes (removed in v7.0)
 export const STORAGE_KEYS = {
   SETTINGS: 'hs_settings_v6',
   HISTORY: 'hs_history_v6',
   SESSION_HITS: 'hs_session_hits_v6',
-  ACHIEVEMENTS: 'hs_achievements_v6',
+  ACHIEVEMENTS: 'hs_achievements_v6', // Legacy - removed in v7.0, kept for cleanup
   GOALS: 'hs_goals_v6',
   LAST_DATE: 'hs_last_date',
   OFFSET: 'hs_offset',
