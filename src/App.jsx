@@ -13,9 +13,8 @@ import CalendarView from './components/CalendarView';
 import ChartsView from './components/ChartsView';
 import SettingsView from './components/SettingsView';
 import DashboardView from './components/DashboardView';
-import AchievementsView from './components/AchievementsView';
+import BadgesView from './components/BadgesView';
 import ESP32DebugView from './components/ESP32DebugView';
-import { ALL_ACHIEVEMENTS } from './utils/achievements';
 import { generateTestData } from './utils/testDataGenerator';
 import { DEFAULT_SETTINGS, STORAGE_KEYS } from './utils/constants';
 
@@ -172,7 +171,6 @@ export default function App() {
   });
   const [historyData, setHistoryData] = useLocalStorage(STORAGE_KEYS.HISTORY, []);
   const [sessionHits, setSessionHits] = useLocalStorage(STORAGE_KEYS.SESSION_HITS, []);
-  const [achievements, setAchievements] = useLocalStorage(STORAGE_KEYS.ACHIEVEMENTS, []);
   const [goals, setGoals] = useLocalStorage(STORAGE_KEYS.GOALS, { dailyLimit: 0, tBreakDays: 0 });
   const [lastActiveDate, setLastActiveDate] = useLocalStorage(STORAGE_KEYS.LAST_DATE, '');
   const [manualOffset, setManualOffset] = useLocalStorage(STORAGE_KEYS.OFFSET, 0);
@@ -200,7 +198,6 @@ export default function App() {
   const [guestHits, setGuestHits] = useState(0);
   const [connected, setConnected] = useState(false);
   const [isSimulating, setIsSimulating] = useState(true);
-  const [newAchievement, setNewAchievement] = useState(null);
   const [isSensorInhaling, setIsSensorInhaling] = useState(false);
   const [lastError, setLastError] = useState(null);
   const [selectedSession, setSelectedSession] = useState(null);
@@ -222,148 +219,8 @@ export default function App() {
   const cooldownUntilRef = useRef(0); // Cooldown nach Hit
   const hasTriggeredRef = useRef(false); // Flag ob bereits getriggert
 
-  // Achievement Unlock Logic
-  const unlockAchievement = useCallback((id) => {
-    setAchievements(prev => {
-      if (prev.some(a => a.id === id)) return prev;
-      const def = ALL_ACHIEVEMENTS.find(a => a.id === id);
-      if (!def) {
-        console.warn('Achievement not found:', id);
-        return prev;
-      }
-      const ach = { id: def.id, date: new Date().toISOString() };
-      console.log('🏆 UNLOCK:', def.title);
-      setNewAchievement({ ...def, date: ach.date });
-      setTimeout(() => setNewAchievement(null), 4000);
-      return [...prev, ach];
-    });
-  }, [setAchievements]);
-
-  // Achievement Check Logic
-  const checkAchievements = useCallback((allHits, allHistory) => {
-    const totalHits = allHits.length;
-    const now = Date.now();
-    const hour = new Date(now).getHours();
-    const minute = new Date(now).getMinutes();
-    const day = new Date(now).getDay();
-    const todayStr = new Date().toISOString().split('T')[0];
-    const todayData = allHistory.find(h => h.date === todayStr);
-    const todayCount = todayData?.count || 0;
-
-    // Basis Erfolge
-    if (totalHits >= 1) unlockAchievement('first_blood');
-    if (totalHits >= 3) unlockAchievement('baby_steps');
-    if (totalHits >= 10) unlockAchievement('getting_started');
-    if (totalHits >= 25) unlockAchievement('committed');
-    if (totalHits >= 50) unlockAchievement('half_century');
-    if (totalHits >= 100) unlockAchievement('century_club');
-    if (totalHits >= 250) unlockAchievement('veteran');
-    if (totalHits >= 500) unlockAchievement('legend');
-    if (totalHits >= 1000) unlockAchievement('ultimate');
-    if (totalHits >= 2500) unlockAchievement('unstoppable');
-
-    // Tages-Erfolge
-    if (todayCount >= 5) unlockAchievement('high_five');
-    if (todayCount >= 10) unlockAchievement('stoner');
-    if (todayCount >= 15) unlockAchievement('party_mode');
-    if (todayCount >= 20) unlockAchievement('insane');
-    if (todayCount >= 30) unlockAchievement('legendary_day');
-    if (todayCount === 1) unlockAchievement('chill_day');
-    if (todayCount === 3) unlockAchievement('balanced');
-    if ((day === 0 || day === 6) && todayCount >= 10) unlockAchievement('weekend_warrior');
-    if (day === 1) unlockAchievement('monday_blues');
-    if (day === 0) unlockAchievement('sunday_driver');
-
-    // Zeit-Erfolge
-    if (hour < 8) unlockAchievement('early_bird');
-    if (hour >= 2 && hour < 5) unlockAchievement('night_owl');
-    if (hour === 16 && minute === 20) unlockAchievement('420');
-    if (hour === 0 && minute === 0) unlockAchievement('midnight_toker');
-    if (hour >= 12 && hour < 13) unlockAchievement('lunch_break');
-    if (hour >= 17 && hour < 19) unlockAchievement('golden_hour');
-
-    // Rapid Fire Checks
-    const recentHits = allHits.filter(h => now - h.timestamp < 5 * 60 * 1000);
-    if (recentHits.length >= 2) unlockAchievement('rapid_fire');
-    const recent15min = allHits.filter(h => now - h.timestamp < 15 * 60 * 1000);
-    if (recent15min.length >= 3) unlockAchievement('hattrick');
-    const recent30min = allHits.filter(h => now - h.timestamp < 30 * 60 * 1000);
-    if (recent30min.length >= 5) unlockAchievement('chain_smoker');
-
-    // Streak Erfolge
-    const sortedHistory = [...allHistory].sort((a, b) => new Date(a.date) - new Date(b.date));
-    let currentStreak = 0;
-    let maxGap = 0;
-    for (let i = sortedHistory.length - 1; i >= 0; i--) {
-      if (sortedHistory[i].count > 0) {
-        currentStreak++;
-        if (i > 0) {
-          const daysDiff = Math.floor((new Date(sortedHistory[i].date) - new Date(sortedHistory[i - 1].date)) / (1000 * 60 * 60 * 24));
-          if (daysDiff > 1) break;
-        }
-      }
-    }
-    if (currentStreak >= 3) unlockAchievement('consistency');
-    if (currentStreak >= 5) unlockAchievement('dedication');
-    if (currentStreak >= 7) unlockAchievement('marathon');
-    if (currentStreak >= 14) unlockAchievement('champion');
-
-    // T-Break
-    if (allHits.length >= 2) {
-      const gap = (allHits[0].timestamp - allHits[1].timestamp) / (1000 * 60 * 60);
-      if (gap >= 24) unlockAchievement('t_break');
-      if (gap >= 120) unlockAchievement('detox_king');
-      if (gap >= 336) unlockAchievement('self_control');
-    }
-
-    // Sorten-Erfolge
-    const uniqueStrains = new Set(allHits.map(h => h.strainName));
-    if (settings.strains.length >= 1) unlockAchievement('first_strain');
-    if (uniqueStrains.size >= 3) unlockAchievement('connoisseur');
-    if (uniqueStrains.size >= 5) unlockAchievement('explorer');
-    if (uniqueStrains.size >= 10) unlockAchievement('collector');
-    if (uniqueStrains.size >= 20) unlockAchievement('master');
-
-    // High Roller
-    const expensiveStrain = allHits.find(h => h.strainPrice > 15);
-    if (expensiveStrain) unlockAchievement('high_roller');
-
-    // Duration Erfolge
-    const lastHit = allHits[0];
-    if (lastHit && lastHit.duration > 5000) unlockAchievement('iron_lung');
-    if (lastHit && lastHit.duration > 10000) unlockAchievement('dragon');
-
-    // Cost Erfolge
-    const totalCost = allHits.reduce((sum, h) => sum + (settings.bowlSize * (settings.weedRatio / 100) * (h.strainPrice || 0)), 0);
-    if (totalCost > 100) unlockAchievement('big_spender');
-
-    // Cheapskate: Nur günstige Sorten (<8€/g) für 10 Sessions
-    // allHits ist bereits nach timestamp sortiert (neueste zuerst)
-    // slice(0, 10) = die letzten 10 chronologischen Sessions
-    const last10Hits = allHits.slice(0, 10);
-    if (last10Hits.length === 10 && last10Hits.every(h => (h.strainPrice || 0) < 8)) {
-      unlockAchievement('cheapskate');
-    }
-
-    // All Nighter: Hits in jeder Stunde von 22-06 Uhr
-    // HINWEIS: Lifetime Achievement - prüft über alle Sessions hinweg
-    // (nicht eingeschränkt auf eine einzelne Nacht)
-    const nightHours = [22, 23, 0, 1, 2, 3, 4, 5, 6];
-    const hitHours = new Set(allHits.map(h => new Date(h.timestamp).getHours()));
-    if (nightHours.every(hour => hitHours.has(hour))) {
-      unlockAchievement('all_nighter');
-    }
-
-    // Perfect Week: Jeden Tag genau 3 Hits für 7 Tage
-    const last7Days = allHistory.slice(-7);
-    if (last7Days.length === 7 && last7Days.every(d => d.count === 3)) {
-      unlockAchievement('perfect_week');
-    }
-
-    // HINWEIS: rainy_day und birthday erfordern manuelle Auslösung (Datum/Wetter-API)
-    // Diese können in der UI manuell freigeschaltet werden
-
-  }, [unlockAchievement, settings]);
+  // NEUES BADGE-SYSTEM: Keine komplexe Check-Logik mehr!
+  // Badges werden automatisch in BadgesView berechnet basierend auf Stats
 
   useEffect(() => {
     const todayStr = new Date().toISOString().split('T')[0];
@@ -399,9 +256,6 @@ export default function App() {
     setSessionHits(updatedSessionHits);
     setHistoryData(updatedHistoryData);
     setManualOffset(p => p + 1);
-
-    // Check Achievements with NEW data
-    setTimeout(() => checkAchievements(updatedSessionHits, updatedHistoryData), 50);
 
     // Check Daily Limit Goal
     const todayCount = idx >= 0 ? updatedHistoryData[idx].count : 1;
@@ -543,9 +397,9 @@ export default function App() {
 
   const ctx = useMemo(() => ({
     settings, setSettings, historyData, setHistoryData, sessionHits, setSessionHits,
-    achievements, setAchievements, goals, setGoals, lastHitTime,
+    goals, setGoals, lastHitTime,
     liveData, currentStrainId, setCurrentStrainId, isGuestMode, setIsGuestMode, guestHits,
-    connected, setConnected, isSimulating, setIsSimulating, newAchievement, isSensorInhaling,
+    connected, setConnected, isSimulating, setIsSimulating, isSensorInhaling,
     ip, setIp, lastError, selectedSession, setSelectedSession, notification,
     connectionLog, flameHistory, errorCount, isManuallyHolding,
     onManualTrigger: (d) => registerHit(true, d),
@@ -553,9 +407,9 @@ export default function App() {
     onHoldEnd: () => setIsManuallyHolding(false)
   }), [
     settings, setSettings, historyData, setHistoryData, sessionHits, setSessionHits,
-    achievements, setAchievements, goals, setGoals, lastHitTime,
+    goals, setGoals, lastHitTime,
     liveData, currentStrainId, setCurrentStrainId, isGuestMode, setIsGuestMode, guestHits,
-    connected, setConnected, isSimulating, setIsSimulating, newAchievement, isSensorInhaling,
+    connected, setConnected, isSimulating, setIsSimulating, isSensorInhaling,
     ip, setIp, lastError, selectedSession, setSelectedSession, notification,
     connectionLog, flameHistory, errorCount, isManuallyHolding, registerHit
   ]);
@@ -568,15 +422,6 @@ function AppLayout({ ctx }) {
 
   return (
     <div className="flex flex-col md:flex-row h-screen bg-zinc-950 text-zinc-100 font-sans overflow-hidden select-none">
-      {/* Achievement Notification */}
-      {ctx.newAchievement && (
-        <div className="absolute top-4 left-4 right-4 md:left-1/2 md:-translate-x-1/2 z-[100] animate-in slide-in-from-top-4 fade-in duration-300 pointer-events-none">
-           <div className="bg-gradient-to-r from-amber-500 to-yellow-600 text-white px-6 py-4 rounded-2xl shadow-[0_10px_40px_-10px_rgba(245,158,11,0.5)] flex items-center gap-4 border border-yellow-400/50">
-              <div className="bg-white/20 p-2 rounded-full"><ctx.newAchievement.Icon size={20} /></div>
-              <div><p className="text-[10px] uppercase font-bold text-yellow-100 tracking-wider">Erfolg Freigeschaltet</p><p className="font-bold text-lg leading-tight">{ctx.newAchievement.title}</p></div>
-           </div>
-        </div>
-      )}
 
       {/* Goal/Warning Notification */}
       {ctx.notification && (
@@ -604,7 +449,7 @@ function AppLayout({ ctx }) {
           <NavBtn id="strains" icon={<Tag/>} label="Sorten" active={activeTab} set={setActiveTab}/>
           <NavBtn id="charts" icon={<BarChart3/>} label="Statistik" active={activeTab} set={setActiveTab}/>
           <NavBtn id="analytics" icon={<Brain/>} label="Analytics" active={activeTab} set={setActiveTab}/>
-          <NavBtn id="achievements" icon={<Trophy/>} label="Erfolge" active={activeTab} set={setActiveTab}/>
+          <NavBtn id="badges" icon={<Trophy/>} label="Badges" active={activeTab} set={setActiveTab}/>
           <NavBtn id="esp32" icon={<Radio/>} label="ESP32 Debug" active={activeTab} set={setActiveTab}/>
           <NavBtn id="settings" icon={<Settings/>} label="Einstellungen" active={activeTab} set={setActiveTab}/>
         </nav>
@@ -663,9 +508,11 @@ function AppLayout({ ctx }) {
               settings={ctx.settings}
             />
           )}
-          {activeTab === 'achievements' && (
-            <AchievementsView
-              achievements={ctx.achievements}
+          {activeTab === 'badges' && (
+            <BadgesView
+              sessionHits={ctx.sessionHits}
+              historyData={ctx.historyData}
+              settings={ctx.settings}
             />
           )}
           {activeTab === 'esp32' && (
@@ -692,8 +539,6 @@ function AppLayout({ ctx }) {
               setHistoryData={ctx.setHistoryData}
               sessionHits={ctx.sessionHits}
               setSessionHits={ctx.setSessionHits}
-              achievements={ctx.achievements}
-              setAchievements={ctx.setAchievements}
               goals={ctx.goals}
               setGoals={ctx.setGoals}
             />
@@ -706,7 +551,7 @@ function AppLayout({ ctx }) {
         <MobNavBtn id="strains" icon={<Tag/>} active={activeTab} set={setActiveTab}/>
         <MobNavBtn id="charts" icon={<BarChart3/>} active={activeTab} set={setActiveTab}/>
         <MobNavBtn id="analytics" icon={<Brain/>} active={activeTab} set={setActiveTab}/>
-        <MobNavBtn id="achievements" icon={<Trophy/>} active={activeTab} set={setActiveTab}/>
+        <MobNavBtn id="badges" icon={<Trophy/>} active={activeTab} set={setActiveTab}/>
         <MobNavBtn id="esp32" icon={<Radio/>} active={activeTab} set={setActiveTab}/>
         <MobNavBtn id="settings" icon={<Settings/>} active={activeTab} set={setActiveTab}/>
       </div>
