@@ -24,14 +24,4 @@ export const STORAGE_KEYS = {
 };
 
 // App Version
-export const APP_VERSION = '6.1.0';
-
-// Achievement-Kategorien für Filterung
-export const ACHIEVEMENT_CATEGORIES = {
-  BASIS: 'basis',
-  DAILY: 'daily',
-  TIME: 'time',
-  STREAK: 'streak',
-  STRAIN: 'strain',
-  SPECIAL: 'special',
-};
+export const APP_VERSION = '7.0.0';
