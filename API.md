@@ -382,6 +382,8 @@ void loop() {
 
 ```javascript
 // App (Future)
+// HINWEIS: ws:// nur für lokales ESP32-Netzwerk! Für externe Verbindungen wss:// verwenden!
+// nosemgrep: javascript.lang.security.detect-insecure-websocket
 const ws = new WebSocket('ws://192.168.4.1:81');
 
 ws.onmessage = (event) => {
@@ -399,8 +401,20 @@ ws.onerror = (error) => {
 - Weniger Netzwerk-Traffic
 - Echtzeit-Updates
 
-**⚠️ Security Note**:
-The example above uses `ws://` (unencrypted WebSocket) for local development with ESP32. In production environments with external connections, use `wss://` (WebSocket Secure) with TLS/SSL encryption. For local ESP32 access points (`192.168.4.1`), `ws://` is acceptable as traffic stays within the device's private network.
+**⚠️ Sicherheitshinweis - WebSocket-Verschlüsselung**:
+
+Das obige Beispiel verwendet `ws://` (unverschlüsseltes WebSocket) für die **lokale Entwicklung** mit ESP32 im privaten Netzwerk (`192.168.4.1`).
+
+**Für Produktiv-Umgebungen mit externen Verbindungen**:
+- ✅ **Verwende `wss://`** (WebSocket Secure) mit TLS/SSL-Verschlüsselung
+- ❌ **NIEMALS `ws://`** für öffentlich erreichbare Server
+- ℹ️ **Ausnahme**: Lokale ESP32 Access Points (192.168.4.x) im privaten Netzwerk → `ws://` akzeptabel, da Traffic nicht das Gerät verlässt
+
+**Beispiel für sichere Verbindung**:
+```javascript
+// Für externe/öffentliche Server IMMER wss:// verwenden!
+const ws = new WebSocket('wss://your-server.com/ws');
+```
 
 ---
 
