@@ -199,7 +199,7 @@ export default function App() {
   const [isGuestMode, setIsGuestMode] = useState(false);
   const [guestHits, setGuestHits] = useState(0);
   const [connected, setConnected] = useState(false);
-  const [isSimulating, setIsSimulating] = useState(true);
+  const [isSimulating, setIsSimulating] = useState(false); // v7.0: Sensor-Modus als Standard (kein Demo)
   const [isSensorInhaling, setIsSensorInhaling] = useState(false);
   const [lastError, setLastError] = useState(null);
   const [selectedSession, setSelectedSession] = useState(null);
@@ -488,9 +488,12 @@ function AppLayout({ ctx }) {
           <NavBtn id="settings" icon={<Settings/>} label="Einstellungen" active={activeTab} set={setActiveTab}/>
         </nav>
         <div className="p-4 border-t border-zinc-800">
-           <div className="flex items-center gap-2 text-xs">
-             <button onClick={() => ctx.setIsSimulating(!ctx.isSimulating)} className="flex items-center gap-2 text-zinc-500 hover:text-white"><Smartphone size={14}/> {ctx.isSimulating ? "Demo" : "Sensor"}</button>
-             <div className="ml-auto flex items-center gap-1.5"><div className={`w-2 h-2 rounded-full ${ctx.connected ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`}></div></div>
+           <div className="flex items-center justify-between gap-2 text-xs">
+             <span className="text-zinc-600 flex items-center gap-1.5">
+               <Radio size={14} className={ctx.connected ? "text-emerald-500" : "text-rose-500"} />
+               {ctx.connected ? "Verbunden" : "Offline"}
+             </span>
+             <div className={`w-2 h-2 rounded-full ${ctx.connected ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`}></div>
            </div>
         </div>
       </aside>
@@ -575,6 +578,10 @@ function AppLayout({ ctx }) {
               setSessionHits={ctx.setSessionHits}
               goals={ctx.goals}
               setGoals={ctx.setGoals}
+              showRecovery={ctx.showRecovery}
+              setShowRecovery={ctx.setShowRecovery}
+              isSimulating={ctx.isSimulating}
+              setIsSimulating={ctx.setIsSimulating}
             />
           )}
         </div>

@@ -1,9 +1,9 @@
 import React, { useState, useRef, memo } from 'react';
-import { Settings, Shield, Download, Upload, Target, AlertCircle, Database, Trash, Scale, Percent, RefreshCw } from 'lucide-react';
+import { Settings, Shield, Download, Upload, Target, AlertCircle, Database, Trash, Scale, Percent, RefreshCw, Smartphone } from 'lucide-react';
 import { generateTestData, mergeTestData, removeTestData } from '../utils/testDataGenerator';
 import { DEFAULT_SETTINGS, STORAGE_KEYS } from '../utils/constants';
 
-function SettingsView({ settings, setSettings, historyData, setHistoryData, sessionHits, setSessionHits, goals, setGoals, showRecovery, setShowRecovery }) {
+function SettingsView({ settings, setSettings, historyData, setHistoryData, sessionHits, setSessionHits, goals, setGoals, showRecovery, setShowRecovery, isSimulating, setIsSimulating }) {
   const [exportStatus, setExportStatus] = useState(null);
   const [testDataStatus, setTestDataStatus] = useState(null);
   const fileInputRef = useRef(null);
@@ -185,6 +185,29 @@ function SettingsView({ settings, setSettings, historyData, setHistoryData, sess
               <div className={`w-4 h-4 bg-white rounded-full absolute top-1 transition-all ${settings.adminMode ? 'left-7' : 'left-1'}`}></div>
            </button>
          </div>
+
+         {/* Demo-Modus Toggle (nur im Admin-Modus sichtbar) */}
+         {settings.adminMode && setIsSimulating && (
+           <div className="flex items-center justify-between pt-4 mt-4 border-t border-zinc-800">
+             <div>
+               <label className="flex items-center gap-2 text-white font-medium">
+                 <Smartphone size={20} className={isSimulating ? "text-blue-500" : "text-emerald-500"} />
+                 {isSimulating ? "Demo-Modus" : "Sensor-Modus"}
+               </label>
+               <p className="text-xs text-zinc-500 mt-1 pl-7">
+                 {isSimulating
+                   ? "Simuliert Sensor-Daten für Tests (keine Hardware benötigt)"
+                   : "Verbindet mit ESP32-Hardware für echte Messungen"}
+               </p>
+             </div>
+             <button
+               onClick={() => setIsSimulating(!isSimulating)}
+               className={`w-12 h-6 rounded-full transition-colors relative ${isSimulating ? 'bg-blue-500' : 'bg-emerald-500'}`}
+             >
+                <div className={`w-4 h-4 bg-white rounded-full absolute top-1 transition-all ${isSimulating ? 'left-7' : 'left-1'}`}></div>
+             </button>
+           </div>
+         )}
       </div>
 
       {/* GOALS / ZIELE */}
