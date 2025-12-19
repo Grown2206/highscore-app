@@ -357,16 +357,18 @@ export default function App() {
           duration: hit.duration || 0
         }));
 
-        // Berechne neue Hits (filtere Duplikate) BEVOR State-Updates
-        const existingIds = new Set(sessionHits.map(h => h.id));
-        const newHits = importedHits.filter(h => !existingIds.has(h.id));
-        const actuallyImportedCount = newHits.length;
+        // Importiere Hits in sessionHits mit Duplikatsprüfung im functional updater
+        // (verhindert Race Conditions bei concurrent updates)
+        let actuallyImportedCount = 0;
+        setSessionHits(prev => {
+          const existingIds = new Set(prev.map(h => h.id));
+          const newHits = importedHits.filter(h => !existingIds.has(h.id));
+          actuallyImportedCount = newHits.length; // Closure-Variable wird synchron gesetzt
+          return newHits.length > 0 ? [...newHits, ...prev] : prev;
+        });
 
-        // Importiere Hits in sessionHits (nur neue Hits)
+        // Update History Data - NUR mit tatsächlich importierten Hits
         if (actuallyImportedCount > 0) {
-          setSessionHits(prev => [...newHits, ...prev]);
-
-          // Update History Data - NUR mit tatsächlich importierten Hits
           const todayStr = new Date().toISOString().split('T')[0];
           setHistoryData(prev => {
             const updated = [...prev];
@@ -403,7 +405,7 @@ export default function App() {
     } finally {
       isSyncingRef.current = false;
     }
-  }, [isSimulating, ip, currentStrainId, settings.strains, sessionHits, setSessionHits, setHistoryData, setNotification]);
+  }, [isSimulating, ip, currentStrainId, settings.strains, setSessionHits, setHistoryData, setNotification]);
 
   // AUTO-SYNC COMPLETE: ESP32 mitteilen dass Sync erfolgreich war
   const completeSyncRequest = async () => {
