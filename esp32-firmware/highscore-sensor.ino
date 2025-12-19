@@ -1,5 +1,5 @@
 /*
- * HIGH SCORE PRO - ESP32 SENSOR FIRMWARE v6.2
+ * HIGH SCORE PRO - ESP32 SENSOR FIRMWARE v6.3
  * =============================================
  *
  * Advanced Cannabis Session Tracker with OLED Display
@@ -25,6 +25,7 @@
  * - Lokale Statistiken
  * - Streak-Tracking
  * - Visuelle Inhalations-Animation
+ * - **NEU in v6.3**: Offline Hit-Zwischenspeicherung & Sync
  */
 
 #include <WiFi.h>
@@ -58,6 +59,9 @@ const char* password = "highscore2024";
 #define TEMP_THRESHOLD 50.0
 #define SESSION_TIMEOUT 5000
 #define COOLDOWN_TEMP 35.0
+
+// Offline Sync Einstellungen
+#define MAX_PENDING_HITS 50  // Maximale Anzahl gespeicherter unsynced hits
 
 // Display Screens
 #define NUM_SCREENS 4
@@ -109,6 +113,16 @@ int clientsConnected = 0;
 int animFrame = 0;
 unsigned long lastAnimUpdate = 0;
 
+// Offline Sync - Pending Hits Speicherung
+struct PendingHit {
+  unsigned long timestamp;  // Zeitstempel (millis seit ESP32 Start)
+  float temperature;        // Max Temperatur
+  unsigned long duration;   // Session-Dauer in ms
+};
+
+PendingHit pendingHits[MAX_PENDING_HITS];
+int pendingHitsCount = 0;
+
 // ===== SETUP =====
 
 void setup() {
@@ -139,6 +153,19 @@ void setup() {
   currentStreak = prefs.getInt("streak", 0);
   longestStreak = prefs.getInt("longestStreak", 0);
   lastSessionDate = prefs.getString("lastDate", "");
+
+  // **NEU v6.3: Pending Hits aus Preferences laden**
+  pendingHitsCount = prefs.getInt("pendingCount", 0);
+  Serial.print("Lade ");
+  Serial.print(pendingHitsCount);
+  Serial.println(" pending hits aus Speicher...");
+
+  for (int i = 0; i < pendingHitsCount && i < MAX_PENDING_HITS; i++) {
+    String key = "pHit_" + String(i);
+    pendingHits[i].timestamp = prefs.getULong((key + "_ts").c_str(), 0);
+    pendingHits[i].temperature = prefs.getFloat((key + "_temp").c_str(), 0.0);
+    pendingHits[i].duration = prefs.getULong((key + "_dur").c_str(), 0);
+  }
 
   // WiFi AP starten
   setupWiFi();
@@ -251,6 +278,57 @@ void setupServer() {
     playTone(800, 200);
   });
 
+  // **NEU v6.3: Sync Endpoint - Pending Hits abrufen**
+  server.on("/api/sync", HTTP_GET, []() {
+    StaticJsonDocument<2048> doc;
+    doc["pendingCount"] = pendingHitsCount;
+    doc["espUptime"] = millis();
+
+    JsonArray hitsArray = doc.createNestedArray("pendingHits");
+
+    for (int i = 0; i < pendingHitsCount; i++) {
+      JsonObject hit = hitsArray.createNestedObject();
+      hit["timestamp"] = pendingHits[i].timestamp;
+      hit["temperature"] = pendingHits[i].temperature;
+      hit["duration"] = pendingHits[i].duration;
+    }
+
+    String output;
+    serializeJson(doc, output);
+
+    server.sendHeader("Access-Control-Allow-Origin", "*");
+    server.send(200, "application/json", output);
+
+    Serial.print("Sync Request: ");
+    Serial.print(pendingHitsCount);
+    Serial.println(" pending hits gesendet");
+  });
+
+  // **NEU v6.3: Sync Complete - Pending Hits löschen**
+  server.on("/api/sync-complete", HTTP_POST, []() {
+    // Pending Hits löschen
+    Serial.print("Sync Complete: Lösche ");
+    Serial.print(pendingHitsCount);
+    Serial.println(" pending hits...");
+
+    // Aus Speicher löschen
+    for (int i = 0; i < pendingHitsCount; i++) {
+      String key = "pHit_" + String(i);
+      prefs.remove((key + "_ts").c_str());
+      prefs.remove((key + "_temp").c_str());
+      prefs.remove((key + "_dur").c_str());
+    }
+
+    pendingHitsCount = 0;
+    prefs.putInt("pendingCount", 0);
+
+    server.sendHeader("Access-Control-Allow-Origin", "*");
+    server.send(200, "text/plain", "Sync complete - pending hits cleared");
+
+    playTone(1800, 100);
+    Serial.println("Sync erfolgreich abgeschlossen!");
+  });
+
   server.begin();
   Serial.println("HTTP Server gestartet!");
 }
@@ -317,6 +395,36 @@ void registerHit(unsigned long duration) {
   prefs.putInt("totalHits", totalHits);
   prefs.putInt("streak", currentStreak);
   prefs.putInt("longestStreak", longestStreak);
+
+  // **NEU v6.3: Pending Hit für Offline-Sync speichern**
+  if (pendingHitsCount < MAX_PENDING_HITS) {
+    pendingHits[pendingHitsCount].timestamp = millis();
+    pendingHits[pendingHitsCount].temperature = lastSessionTemp;
+    pendingHits[pendingHitsCount].duration = duration;
+    pendingHitsCount++;
+
+    // Pending Hits Count in Preferences speichern
+    prefs.putInt("pendingCount", pendingHitsCount);
+
+    // Jeden Hit einzeln speichern (für Persistenz nach Neustart)
+    String key = "pHit_" + String(pendingHitsCount - 1);
+    prefs.putULong((key + "_ts").c_str(), millis());
+    prefs.putFloat((key + "_temp").c_str(), lastSessionTemp);
+    prefs.putULong((key + "_dur").c_str(), duration);
+
+    Serial.print("Pending Hit gespeichert (");
+    Serial.print(pendingHitsCount);
+    Serial.println(" unsynced)");
+  } else {
+    Serial.println("WARNUNG: Pending Hits Buffer voll! Ältester Hit wird überschrieben.");
+    // Ring-Buffer: Ältesten überschreiben
+    for (int i = 0; i < MAX_PENDING_HITS - 1; i++) {
+      pendingHits[i] = pendingHits[i + 1];
+    }
+    pendingHits[MAX_PENDING_HITS - 1].timestamp = millis();
+    pendingHits[MAX_PENDING_HITS - 1].temperature = lastSessionTemp;
+    pendingHits[MAX_PENDING_HITS - 1].duration = duration;
+  }
 
   // Feedback
   playTone(1500, 50);
