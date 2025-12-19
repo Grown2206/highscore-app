@@ -36,6 +36,11 @@ const NativeCapacitor = (typeof window !== 'undefined' && window.Capacitor)
   ? window.Capacitor 
   : { isNativePlatform: () => false };
 
+// IP Normalisierungs-Helper
+const normalizeIp = (ip) => {
+  return ip.trim().replace(/^http:\/\//, '').replace(/\/$/, '');
+};
+
 // Native HTTP Helper (versucht CapacitorHttp zu nutzen, falls vorhanden)
 const nativeHttp = async (url, method = 'GET') => {
   if (typeof window !== 'undefined' && window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.CapacitorHttp) {
@@ -306,12 +311,16 @@ export default function App() {
   const syncPendingHits = useCallback(async () => {
     if (isSimulating || isSyncingRef.current || hasSyncedRef.current) return;
 
+    // IP-Validierung VOR dem Setzen des Sync-Flags
+    const cleanIp = normalizeIp(ip);
+    if (!cleanIp) {
+      console.warn('⚠️ Auto-Sync übersprungen: keine gültige IP konfiguriert');
+      return;
+    }
+
     isSyncingRef.current = true;
 
     try {
-      const cleanIp = ip.trim().replace(/^http:\/\//, '').replace(/\/$/, '');
-      if (!cleanIp) return;
-
       const url = `http://${cleanIp}/api/sync`;
 
       let json;
@@ -344,36 +353,40 @@ export default function App() {
         }));
 
         // Importiere Hits in sessionHits (nur wenn noch nicht vorhanden)
+        let actuallyImportedCount = 0;
         setSessionHits(prev => {
           const existingIds = new Set(prev.map(h => h.id));
           const newHits = importedHits.filter(h => !existingIds.has(h.id));
+          actuallyImportedCount = newHits.length;
           return [...newHits, ...prev];
         });
 
-        // Update History Data
-        const todayStr = new Date().toISOString().split('T')[0];
-        setHistoryData(prev => {
-          const updated = [...prev];
-          const idx = updated.findIndex(d => d.date === todayStr);
-          if (idx >= 0) {
-            updated[idx] = { ...updated[idx], count: updated[idx].count + pendingCount };
-          } else {
-            updated.push({ date: todayStr, count: pendingCount, strainId: strain.id, note: "" });
-          }
-          return updated;
-        });
+        // Update History Data - NUR mit tatsächlich importierten Hits (keine Duplikate)
+        if (actuallyImportedCount > 0) {
+          const todayStr = new Date().toISOString().split('T')[0];
+          setHistoryData(prev => {
+            const updated = [...prev];
+            const idx = updated.findIndex(d => d.date === todayStr);
+            if (idx >= 0) {
+              updated[idx] = { ...updated[idx], count: updated[idx].count + actuallyImportedCount };
+            } else {
+              updated.push({ date: todayStr, count: actuallyImportedCount, strainId: strain.id, note: "" });
+            }
+            return updated;
+          });
+        }
 
         // Sync erfolgreich - Bestätige an ESP32
         await completeSyncRequest();
 
         setNotification({
           type: 'success',
-          message: `✅ ${pendingCount} Offline-Hits importiert!`,
+          message: `✅ ${actuallyImportedCount} Offline-Hits importiert!`,
           icon: RefreshCw
         });
         setTimeout(() => setNotification(null), 4000);
 
-        console.log(`✅ Auto-Sync erfolgreich: ${pendingCount} hits importiert`);
+        console.log(`✅ Auto-Sync erfolgreich: ${actuallyImportedCount} hits importiert (${pendingCount - actuallyImportedCount} Duplikate übersprungen)`);
       } else {
         console.log('✓ Auto-Sync: Keine pending hits');
       }
@@ -389,7 +402,12 @@ export default function App() {
   // AUTO-SYNC COMPLETE: ESP32 mitteilen dass Sync erfolgreich war
   const completeSyncRequest = async () => {
     try {
-      const cleanIp = ip.trim().replace(/^http:\/\//, '').replace(/\/$/, '');
+      const cleanIp = normalizeIp(ip);
+      if (!cleanIp) {
+        console.warn('⚠️ Sync-Complete übersprungen: keine gültige IP konfiguriert');
+        return;
+      }
+
       const url = `http://${cleanIp}/api/sync-complete`;
 
       if (NativeCapacitor.isNativePlatform()) {
@@ -453,7 +471,7 @@ export default function App() {
         setErrorCount(0);
       } else {
         try {
-          const cleanIp = ip.trim().replace(/^http:\/\//, '').replace(/\/$/, '');
+          const cleanIp = normalizeIp(ip);
           if (!cleanIp) throw new Error("Keine IP");
 
           const startTime = Date.now();
