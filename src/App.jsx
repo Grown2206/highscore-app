@@ -38,7 +38,12 @@ const NativeCapacitor = (typeof window !== 'undefined' && window.Capacitor)
 
 // IP Normalisierungs-Helper
 const normalizeIp = (ip) => {
-  return ip.trim().replace(/^http:\/\//, '').replace(/\/$/, '');
+  if (!ip || typeof ip !== 'string') return '';
+
+  return ip
+    .trim()
+    .replace(/^https?:\/\//, '')
+    .replace(/\/$/, '');
 };
 
 // Native HTTP Helper (versucht CapacitorHttp zu nutzen, falls vorhanden)
@@ -352,17 +357,16 @@ export default function App() {
           duration: hit.duration || 0
         }));
 
-        // Importiere Hits in sessionHits (nur wenn noch nicht vorhanden)
-        let actuallyImportedCount = 0;
-        setSessionHits(prev => {
-          const existingIds = new Set(prev.map(h => h.id));
-          const newHits = importedHits.filter(h => !existingIds.has(h.id));
-          actuallyImportedCount = newHits.length;
-          return [...newHits, ...prev];
-        });
+        // Berechne neue Hits (filtere Duplikate) BEVOR State-Updates
+        const existingIds = new Set(sessionHits.map(h => h.id));
+        const newHits = importedHits.filter(h => !existingIds.has(h.id));
+        const actuallyImportedCount = newHits.length;
 
-        // Update History Data - NUR mit tatsächlich importierten Hits (keine Duplikate)
+        // Importiere Hits in sessionHits (nur neue Hits)
         if (actuallyImportedCount > 0) {
+          setSessionHits(prev => [...newHits, ...prev]);
+
+          // Update History Data - NUR mit tatsächlich importierten Hits
           const todayStr = new Date().toISOString().split('T')[0];
           setHistoryData(prev => {
             const updated = [...prev];
@@ -374,19 +378,21 @@ export default function App() {
             }
             return updated;
           });
+
+          // Sync erfolgreich - Bestätige an ESP32
+          await completeSyncRequest();
+
+          setNotification({
+            type: 'success',
+            message: `✅ ${actuallyImportedCount} Offline-Hits importiert!`,
+            icon: RefreshCw
+          });
+          setTimeout(() => setNotification(null), 4000);
+
+          console.log(`✅ Auto-Sync erfolgreich: ${actuallyImportedCount} hits importiert (${pendingCount - actuallyImportedCount} Duplikate übersprungen)`);
+        } else {
+          console.log(`✓ Auto-Sync: Alle ${pendingCount} hits bereits vorhanden (Duplikate)`);
         }
-
-        // Sync erfolgreich - Bestätige an ESP32
-        await completeSyncRequest();
-
-        setNotification({
-          type: 'success',
-          message: `✅ ${actuallyImportedCount} Offline-Hits importiert!`,
-          icon: RefreshCw
-        });
-        setTimeout(() => setNotification(null), 4000);
-
-        console.log(`✅ Auto-Sync erfolgreich: ${actuallyImportedCount} hits importiert (${pendingCount - actuallyImportedCount} Duplikate übersprungen)`);
       } else {
         console.log('✓ Auto-Sync: Keine pending hits');
       }
@@ -397,7 +403,7 @@ export default function App() {
     } finally {
       isSyncingRef.current = false;
     }
-  }, [isSimulating, ip, currentStrainId, settings.strains, setSessionHits, setHistoryData, setNotification]);
+  }, [isSimulating, ip, currentStrainId, settings.strains, sessionHits, setSessionHits, setHistoryData, setNotification]);
 
   // AUTO-SYNC COMPLETE: ESP32 mitteilen dass Sync erfolgreich war
   const completeSyncRequest = async () => {
