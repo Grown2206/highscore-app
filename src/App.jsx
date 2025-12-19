@@ -37,8 +37,11 @@ const NativeCapacitor = (typeof window !== 'undefined' && window.Capacitor)
   : { isNativePlatform: () => false };
 
 // Native HTTP Helper (versucht CapacitorHttp zu nutzen, falls vorhanden)
-const nativeHttp = async (url) => {
+const nativeHttp = async (url, method = 'GET') => {
   if (typeof window !== 'undefined' && window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.CapacitorHttp) {
+      if (method === 'POST') {
+        return await window.Capacitor.Plugins.CapacitorHttp.post({ url });
+      }
       return await window.Capacitor.Plugins.CapacitorHttp.get({ url });
   }
   throw new Error("Native HTTP plugin not found");
@@ -241,6 +244,8 @@ export default function App() {
   const prevApiTotalRef = useRef(0);
   const cooldownUntilRef = useRef(0); // Cooldown nach Hit
   const hasTriggeredRef = useRef(false); // Flag ob bereits getriggert
+  const hasSyncedRef = useRef(false); // Flag ob bereits synchronisiert
+  const isSyncingRef = useRef(false); // Flag ob Sync läuft
 
   // NEUES BADGE-SYSTEM: Keine komplexe Check-Logik mehr!
   // Badges werden automatisch in BadgesView berechnet basierend auf Stats
@@ -249,6 +254,11 @@ export default function App() {
     const todayStr = new Date().toISOString().split('T')[0];
     if (lastActiveDate !== todayStr) { setManualOffset(0); setLastActiveDate(todayStr); }
   }, []);
+
+  // Reset Sync-Flag bei IP-Änderung (damit neue Verbindung erneut synchronisiert)
+  useEffect(() => {
+    hasSyncedRef.current = false;
+  }, [ip]);
 
   const registerHit = (isManual, duration) => {
     const now = Date.now();
@@ -289,6 +299,110 @@ export default function App() {
         icon: Bell
       });
       setTimeout(() => setNotification(null), 5000);
+    }
+  };
+
+  // AUTO-SYNC: Pending Hits vom ESP32 abrufen und importieren
+  const syncPendingHits = useCallback(async () => {
+    if (isSimulating || isSyncingRef.current || hasSyncedRef.current) return;
+
+    isSyncingRef.current = true;
+
+    try {
+      const cleanIp = ip.trim().replace(/^http:\/\//, '').replace(/\/$/, '');
+      if (!cleanIp) return;
+
+      const url = `http://${cleanIp}/api/sync`;
+
+      let json;
+      if (NativeCapacitor.isNativePlatform()) {
+        const response = await nativeHttp(url);
+        if (response.status !== 200) throw new Error(`HTTP ${response.status}`);
+        json = response.data;
+      } else {
+        const c = new AbortController();
+        setTimeout(() => c.abort(), 5000);
+        const res = await fetch(url, { signal: c.signal });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        json = await res.json();
+      }
+
+      const { pendingHits = [], pendingCount = 0 } = json;
+
+      if (pendingCount > 0 && pendingHits.length > 0) {
+        console.log(`🔄 Auto-Sync: ${pendingCount} pending hits gefunden`);
+
+        // Konvertiere ESP32 Hits in App-Format
+        const strain = settings.strains.find(s => s.id == currentStrainId) || settings.strains[0] || { name: '?', price: 0 };
+        const importedHits = pendingHits.map(hit => ({
+          id: hit.timestamp,
+          timestamp: hit.timestamp,
+          type: 'Sensor',
+          strainName: strain.name,
+          strainPrice: strain.price,
+          duration: hit.duration || 0
+        }));
+
+        // Importiere Hits in sessionHits (nur wenn noch nicht vorhanden)
+        setSessionHits(prev => {
+          const existingIds = new Set(prev.map(h => h.id));
+          const newHits = importedHits.filter(h => !existingIds.has(h.id));
+          return [...newHits, ...prev];
+        });
+
+        // Update History Data
+        const todayStr = new Date().toISOString().split('T')[0];
+        setHistoryData(prev => {
+          const updated = [...prev];
+          const idx = updated.findIndex(d => d.date === todayStr);
+          if (idx >= 0) {
+            updated[idx] = { ...updated[idx], count: updated[idx].count + pendingCount };
+          } else {
+            updated.push({ date: todayStr, count: pendingCount, strainId: strain.id, note: "" });
+          }
+          return updated;
+        });
+
+        // Sync erfolgreich - Bestätige an ESP32
+        await completeSyncRequest();
+
+        setNotification({
+          type: 'success',
+          message: `✅ ${pendingCount} Offline-Hits importiert!`,
+          icon: RefreshCw
+        });
+        setTimeout(() => setNotification(null), 4000);
+
+        console.log(`✅ Auto-Sync erfolgreich: ${pendingCount} hits importiert`);
+      } else {
+        console.log('✓ Auto-Sync: Keine pending hits');
+      }
+
+      hasSyncedRef.current = true;
+    } catch (e) {
+      console.error('❌ Auto-Sync Fehler:', e.message);
+    } finally {
+      isSyncingRef.current = false;
+    }
+  }, [isSimulating, ip, currentStrainId, settings.strains, setSessionHits, setHistoryData, setNotification]);
+
+  // AUTO-SYNC COMPLETE: ESP32 mitteilen dass Sync erfolgreich war
+  const completeSyncRequest = async () => {
+    try {
+      const cleanIp = ip.trim().replace(/^http:\/\//, '').replace(/\/$/, '');
+      const url = `http://${cleanIp}/api/sync-complete`;
+
+      if (NativeCapacitor.isNativePlatform()) {
+        await nativeHttp(url, 'POST');
+      } else {
+        const c = new AbortController();
+        setTimeout(() => c.abort(), 3000);
+        await fetch(url, { method: 'POST', signal: c.signal });
+      }
+
+      console.log('✅ Sync-Complete an ESP32 gesendet');
+    } catch (e) {
+      console.error('⚠️ Sync-Complete Fehler:', e.message);
     }
   };
 
@@ -379,19 +493,31 @@ export default function App() {
           });
 
           // Success
-          if (!connected) {
+          const wasDisconnected = !connected;
+          if (wasDisconnected) {
             addLog('success', `Verbunden mit ${cleanIp} (${responseTime}ms)`);
           }
           setConnected(true);
           setLastError(null);
           setErrorCount(0);
+
+          // AUTO-SYNC: Beim ersten erfolgreichen Verbinden pending hits synchronisieren
+          if (wasDisconnected && !hasSyncedRef.current) {
+            setTimeout(() => syncPendingHits(), 1000); // 1s Delay für stabilere Verbindung
+          }
         } catch (e) {
           setErrorCount(prev => prev + 1);
+          const wasConnected = connected;
           setConnected(false);
           let msg = e.message;
           if (msg.includes('Failed to fetch') || msg.includes('aborted')) msg = 'Netzwerkfehler (Check WLAN)';
           setLastError(msg);
           addLog('error', msg);
+
+          // Reset Sync-Flag bei Verbindungsverlust, damit beim Wiederverbinden synchronisiert wird
+          if (wasConnected) {
+            hasSyncedRef.current = false;
+          }
         }
       }
 
@@ -416,7 +542,7 @@ export default function App() {
       clearInterval(iv);
       clearInterval(recheckInterval);
     };
-  }, [isSimulating, ip, manualOffset, isManuallyHolding, settings.triggerThreshold, errorCount, connected]);
+  }, [isSimulating, ip, manualOffset, isManuallyHolding, settings.triggerThreshold, errorCount, connected, syncPendingHits]);
 
   const ctx = useMemo(() => ({
     settings, setSettings, historyData, setHistoryData, sessionHits, setSessionHits,
