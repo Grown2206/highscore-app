@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { User, Users, Tag, Wind, Scale, Coins, List, Clock, Shield, Radio, Flame, Zap } from 'lucide-react';
+import { User, Users, Tag, Wind, Scale, Coins, List, Clock, Shield, Radio, Flame, Zap, RotateCcw } from 'lucide-react';
 import HoldButton from './HoldButton';
 import { MetricCard, AdminMetric } from './UIComponents';
 
-export default function DashboardView({ liveData, lastHitTime, settings, isGuestMode, setIsGuestMode, guestHits, sessionHits, onManualTrigger, onHoldStart, onHoldEnd, currentStrainId, setCurrentStrainId, isSensorInhaling }) {
+export default function DashboardView({ liveData, lastHitTime, settings, isGuestMode, setIsGuestMode, guestHits, resetGuestHits, sessionHits, onManualTrigger, onHoldStart, onHoldEnd, currentStrainId, setCurrentStrainId, isSensorInhaling }) {
   const [timeSince, setTimeSince] = useState("00:00:00");
   
   useEffect(() => {
@@ -54,9 +54,18 @@ export default function DashboardView({ liveData, lastHitTime, settings, isGuest
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
          {isGuestMode ? (
-            <div className="col-span-full bg-amber-500/10 border border-amber-500/20 rounded-2xl p-6 text-center">
-               <span className="text-5xl font-bold text-amber-500 block">{guestHits}</span>
-               <span className="text-xs uppercase font-bold text-amber-200">Gäste Hits</span>
+            <div className="col-span-full bg-amber-500/10 border border-amber-500/20 rounded-2xl p-6">
+               <div className="text-center mb-4">
+                  <span className="text-5xl font-bold text-amber-500 block">{guestHits}</span>
+                  <span className="text-xs uppercase font-bold text-amber-200">Gäste Hits</span>
+               </div>
+               <button
+                  onClick={resetGuestHits}
+                  className="w-full flex items-center justify-center gap-2 bg-amber-600 hover:bg-amber-700 active:bg-amber-800 text-white py-2 px-4 rounded-xl transition-colors font-medium text-sm"
+               >
+                  <RotateCcw size={16} />
+                  Zurücksetzen
+               </button>
             </div>
          ) : (
            <>
