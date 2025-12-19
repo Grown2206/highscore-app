@@ -3,6 +3,7 @@
  * ================================================
  *
  * Optimiert für ESP32-C3 mit 0.42" OLED & B05 FLAME SENSOR
+ * **NEU in v7.0**: Offline Hit-Zwischenspeicherung & Sync
  *
  * Hardware:
  * - ESP32-C3 DevKit mit integriertem 0.42" OLED (72x40)
@@ -27,6 +28,12 @@
  * - DO gibt LOW wenn Flamme erkannt wird
  * - DO gibt HIGH wenn keine Flamme
  * - Empfindlichkeit einstellbar über Potentiometer am Sensor
+ *
+ * Offline-Sync (NEU):
+ * - Hits werden lokal gespeichert wenn App offline ist
+ * - Bis zu 50 pending hits im Flash-Speicher
+ * - Automatische Sync beim App-Verbindung
+ * - Persistenz über ESP32-Neustarts
  *
  * WiFi Setup:
  * - Ersteinrichtung: ESP32 startet als "HighScore-Setup" Access Point
@@ -65,6 +72,9 @@
 #define SESSION_TIMEOUT 5000   // Max Session-Dauer in ms
 #define COOLDOWN_TIME 3000     // Cooldown nach Hit in ms
 #define DISPLAY_TIMEOUT 20000  // Display nach 20 Sekunden ausschalten
+
+// Offline Sync Einstellungen
+#define MAX_PENDING_HITS 50    // Maximale Anzahl gespeicherter unsynced hits
 
 // WiFi Manager
 #define WIFI_TIMEOUT 15000
@@ -112,6 +122,15 @@ String lastSessionDate = "";
 // WiFi
 bool wifiConnected = false;
 bool isAPMode = false;
+
+// Offline Sync - Pending Hits Speicherung
+struct PendingHit {
+  unsigned long timestamp;  // Zeitstempel (millis seit ESP32 Start)
+  unsigned long duration;   // Session-Dauer in ms
+};
+
+PendingHit pendingHits[MAX_PENDING_HITS];
+int pendingHitsCount = 0;
 IPAddress localIP;
 String savedSSID = "";
 String savedPassword = "";
@@ -162,6 +181,18 @@ void setup() {
   currentStreak = prefs.getInt("streak", 0);
   longestStreak = prefs.getInt("longestStreak", 0);
   lastSessionDate = prefs.getString("lastDate", "");
+
+  // **NEU v7.0: Pending Hits aus Preferences laden**
+  pendingHitsCount = prefs.getInt("pendingCount", 0);
+  Serial.print("Lade ");
+  Serial.print(pendingHitsCount);
+  Serial.println(" pending hits aus Speicher...");
+
+  for (int i = 0; i < pendingHitsCount && i < MAX_PENDING_HITS; i++) {
+    String key = "pHit_" + String(i);
+    pendingHits[i].timestamp = prefs.getULong((key + "_ts").c_str(), 0);
+    pendingHits[i].duration = prefs.getULong((key + "_dur").c_str(), 0);
+  }
 
   // WiFi AP
   setupWiFi();
@@ -454,6 +485,55 @@ void setupServer() {
     server.send(204);
   });
 
+  // **NEU v7.0: Sync Endpoint - Pending Hits abrufen**
+  server.on("/api/sync", HTTP_GET, []() {
+    JsonDocument doc;
+    doc["pendingCount"] = pendingHitsCount;
+    doc["espUptime"] = millis();
+
+    JsonArray hitsArray = doc["pendingHits"].to<JsonArray>();
+
+    for (int i = 0; i < pendingHitsCount; i++) {
+      JsonObject hit = hitsArray.add<JsonObject>();
+      hit["timestamp"] = pendingHits[i].timestamp;
+      hit["duration"] = pendingHits[i].duration;
+    }
+
+    String output;
+    serializeJson(doc, output);
+
+    server.sendHeader("Access-Control-Allow-Origin", "*");
+    server.send(200, "application/json", output);
+
+    Serial.print("Sync Request: ");
+    Serial.print(pendingHitsCount);
+    Serial.println(" pending hits gesendet");
+  });
+
+  // **NEU v7.0: Sync Complete - Pending Hits löschen**
+  server.on("/api/sync-complete", HTTP_POST, []() {
+    // Pending Hits löschen
+    Serial.print("Sync Complete: Lösche ");
+    Serial.print(pendingHitsCount);
+    Serial.println(" pending hits...");
+
+    // Aus Speicher löschen
+    for (int i = 0; i < pendingHitsCount; i++) {
+      String key = "pHit_" + String(i);
+      prefs.remove((key + "_ts").c_str());
+      prefs.remove((key + "_dur").c_str());
+    }
+
+    pendingHitsCount = 0;
+    prefs.putInt("pendingCount", 0);
+
+    server.sendHeader("Access-Control-Allow-Origin", "*");
+    server.send(200, "text/plain", "Sync complete - pending hits cleared");
+
+    playTone(1800, 100);
+    Serial.println("Sync erfolgreich abgeschlossen!");
+  });
+
   server.begin();
   Serial.println("HTTP server started");
 }
@@ -535,6 +615,33 @@ void registerHit(unsigned long duration) {
   prefs.putInt("totalHits", totalHits);
   prefs.putInt("streak", currentStreak);
   prefs.putInt("longestStreak", longestStreak);
+
+  // **NEU v7.0: Pending Hit für Offline-Sync speichern**
+  if (pendingHitsCount < MAX_PENDING_HITS) {
+    pendingHits[pendingHitsCount].timestamp = millis();
+    pendingHits[pendingHitsCount].duration = duration;
+    pendingHitsCount++;
+
+    // Pending Hits Count in Preferences speichern
+    prefs.putInt("pendingCount", pendingHitsCount);
+
+    // Jeden Hit einzeln speichern (für Persistenz nach Neustart)
+    String key = "pHit_" + String(pendingHitsCount - 1);
+    prefs.putULong((key + "_ts").c_str(), millis());
+    prefs.putULong((key + "_dur").c_str(), duration);
+
+    Serial.print("Pending Hit gespeichert (");
+    Serial.print(pendingHitsCount);
+    Serial.println(" unsynced)");
+  } else {
+    Serial.println("WARNUNG: Pending Hits Buffer voll! Ältester Hit wird überschrieben.");
+    // Ring-Buffer: Ältesten überschreiben
+    for (int i = 0; i < MAX_PENDING_HITS - 1; i++) {
+      pendingHits[i] = pendingHits[i + 1];
+    }
+    pendingHits[MAX_PENDING_HITS - 1].timestamp = millis();
+    pendingHits[MAX_PENDING_HITS - 1].duration = duration;
+  }
 
   // Feedback
   playTone(1500, 50);
