@@ -261,6 +261,41 @@ void loop() {
 }
 
 // ===== WIFI =====
+
+// Helper: Startet Access Point Mode
+bool startAPMode() {
+  Serial.println("Starting AP Mode...");
+
+  // WiFi sauber zurücksetzen
+  WiFi.mode(WIFI_OFF);
+  delay(500);
+
+  // AP Mode aktivieren
+  WiFi.mode(WIFI_AP);
+  bool apStarted = WiFi.softAP(AP_SSID, AP_PASSWORD);
+
+  if (apStarted) {
+    // DNS Server für Captive Portal starten
+    dnsServer.start(DNS_PORT, "*", WiFi.softAPIP());
+
+    Serial.print("AP IP: ");
+    Serial.println(WiFi.softAPIP());
+    Serial.print("AP SSID: ");
+    Serial.println(AP_SSID);
+
+    // Display Update
+    display.clearDisplay();
+    display.setCursor(0, 0);
+    display.setTextSize(1);
+    display.println("Setup Mode");
+    display.println(AP_SSID);
+    display.println("192.168.4.1");
+    display.display();
+  }
+
+  return apStarted;
+}
+
 void setupWiFi() {
   // Credentials aus Preferences laden
   savedSSID = prefs.getString("wifi_ssid", "");
@@ -338,39 +373,44 @@ void setupWiFi() {
 
   // AP Mode
   isAPMode = true;
-  Serial.println("Starting AP Mode...");
 
-  // Sicherstellen dass WiFi sauber ist
-  WiFi.mode(WIFI_OFF);
-  delay(500);
-
-  WiFi.mode(WIFI_AP);
-  bool apStarted = WiFi.softAP(AP_SSID, AP_PASSWORD);
+  // Erster Versuch AP zu starten
+  bool apStarted = startAPMode();
 
   if (!apStarted) {
     Serial.println("ERROR: AP Mode failed to start!");
-    // Retry
+    Serial.println("Retrying in 1 second...");
     delay(1000);
-    WiFi.mode(WIFI_OFF);
-    delay(500);
-    WiFi.mode(WIFI_AP);
-    WiFi.softAP(AP_SSID, AP_PASSWORD);
+
+    // Zweiter Versuch
+    apStarted = startAPMode();
+
+    if (!apStarted) {
+      // Beide Versuche fehlgeschlagen - kritischer Fehler
+      Serial.println("CRITICAL: AP Mode failed after retry!");
+      Serial.println("Device may not be accessible via WiFi!");
+
+      // Fehler auf Display anzeigen
+      display.clearDisplay();
+      display.setCursor(0, 0);
+      display.setTextSize(1);
+      display.println("AP ERROR!");
+      display.println("Reboot");
+      display.println("needed");
+      display.display();
+
+      // Endlosschleife mit Blink-LED als Warnung
+      while (true) {
+        digitalWrite(LED_PIN, HIGH);
+        delay(200);
+        digitalWrite(LED_PIN, LOW);
+        delay(200);
+      }
+    } else {
+      Serial.println("AP Mode started successfully on retry");
+    }
   }
 
-  dnsServer.start(DNS_PORT, "*", WiFi.softAPIP());
-
-  Serial.print("AP IP: ");
-  Serial.println(WiFi.softAPIP());
-  Serial.print("AP SSID: ");
-  Serial.println(AP_SSID);
-
-  display.clearDisplay();
-  display.setCursor(0, 0);
-  display.setTextSize(1);
-  display.println("Setup Mode");
-  display.println(AP_SSID);
-  display.println("192.168.4.1");
-  display.display();
   delay(2000);
 }
 
