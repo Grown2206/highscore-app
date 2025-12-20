@@ -194,50 +194,6 @@ export default function App() {
   const [ip, setIp] = useLocalStorage(STORAGE_KEYS.DEVICE_IP, '192.168.178.XXX');
   const [badgeHistory, setBadgeHistory] = useLocalStorage(STORAGE_KEYS.BADGE_HISTORY, []);
 
-  // Badge History mit maximaler Größe
-  const MAX_BADGE_HISTORY_LENGTH = 100;
-
-  /**
-   * Wrapper um setBadgeHistory der sicherstellt, dass das History-Array
-   * auf die letzten MAX_BADGE_HISTORY_LENGTH Einträge begrenzt ist.
-   *
-   * Unterstützt sowohl funktionale als auch direkte Wert-Updates.
-   */
-  const setCappedBadgeHistory = useCallback(
-    (update) => {
-      setBadgeHistory((prev) => {
-        const next =
-          typeof update === 'function'
-            ? update(prev ?? [])
-            : update ?? [];
-
-        // Stelle sicher, dass wir immer mit einem Array arbeiten
-        if (!Array.isArray(next)) {
-          if (process.env.NODE_ENV !== 'production') {
-            // Bewahre die Invariante, dass Badge History immer ein Array ist
-            // und zeige ein klares Signal während der Entwicklung.
-            console.error(
-              'setCappedBadgeHistory expected an array, but received:',
-              next
-            );
-          }
-
-          // Konvertiere ungültige Werte zu einem leeren, begrenzten Array, sodass
-          // badgeHistory in allen Fällen ein begrenztes Array bleibt.
-          return [];
-        }
-
-        // Begrenze auf die letzten MAX_BADGE_HISTORY_LENGTH Einträge
-        if (next.length > MAX_BADGE_HISTORY_LENGTH) {
-          return next.slice(0, MAX_BADGE_HISTORY_LENGTH);
-        }
-
-        return next;
-      });
-    },
-    [setBadgeHistory]
-  );
-
   // Automatisch Testdaten hinzufügen wenn keine Daten vorhanden
   useEffect(() => {
     if (sessionHits.length === 0 && historyData.length === 0) {
@@ -326,15 +282,11 @@ export default function App() {
       const unlockedBadges = detectUnlockedBadges(prevBadgesRef.current, currentBadges);
 
       if (unlockedBadges.length > 0) {
-        // Zeige Notification für das erste neue Badge, aber weise auf weitere hin
+        // Zeige Notification für das erste neue Badge
         const badge = unlockedBadges[0];
-        const additionalCount = unlockedBadges.length - 1;
-        const additionalText =
-          additionalCount > 0 ? ` (+${additionalCount} weitere)` : '';
-
         setNotification({
           type: 'success',
-          message: `🏆 ${badge.name} ${badge.newLevel.icon} ${badge.newLevel.name} freigeschaltet${additionalText}!`,
+          message: `🏆 ${badge.name} ${badge.newLevel.icon} ${badge.newLevel.name} freigeschaltet!`,
           icon: Trophy
         });
         setTimeout(() => setNotification(null), 5000);
@@ -342,7 +294,7 @@ export default function App() {
         // Vibration feedback
         if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
 
-        // Speichere in Badge History (mit Größenbegrenzung)
+        // Speichere in Badge History
         const newHistoryEntries = unlockedBadges.map(b => ({
           category: b.category,
           name: b.name,
@@ -352,12 +304,12 @@ export default function App() {
           timestamp: Date.now()
         }));
 
-        setCappedBadgeHistory(prev => [...newHistoryEntries, ...prev]);
+        setBadgeHistory(prev => [...newHistoryEntries, ...prev]);
       }
     }
 
     prevBadgesRef.current = currentBadges;
-  }, [sessionHits, historyData, settings, setCappedBadgeHistory]);
+  }, [sessionHits, historyData, settings, setBadgeHistory]);
 
   const registerHit = (isManual, duration) => {
     const now = Date.now();
@@ -668,7 +620,7 @@ export default function App() {
 
   const ctx = useMemo(() => ({
     settings, setSettings, historyData, setHistoryData, sessionHits, setSessionHits,
-    goals, setGoals, lastHitTime, badgeHistory,
+    goals, setGoals, lastHitTime,
     liveData, currentStrainId, setCurrentStrainId, isGuestMode, setIsGuestMode, guestHits, resetGuestHits,
     connected, setConnected, isSimulating, setIsSimulating, isSensorInhaling,
     ip, setIp, lastError, selectedSession, setSelectedSession, notification,
@@ -679,7 +631,7 @@ export default function App() {
     onHoldEnd: () => setIsManuallyHolding(false)
   }), [
     settings, setSettings, historyData, setHistoryData, sessionHits, setSessionHits,
-    goals, setGoals, lastHitTime, badgeHistory,
+    goals, setGoals, lastHitTime,
     liveData, currentStrainId, setCurrentStrainId, isGuestMode, setIsGuestMode, guestHits, resetGuestHits,
     connected, setConnected, isSimulating, setIsSimulating, isSensorInhaling,
     ip, setIp, lastError, selectedSession, setSelectedSession, notification,
@@ -798,7 +750,7 @@ function AppLayout({ ctx }) {
               sessionHits={ctx.sessionHits}
               historyData={ctx.historyData}
               settings={ctx.settings}
-              badgeHistory={ctx.badgeHistory}
+              badgeHistory={badgeHistory}
             />
           )}
           {activeTab === 'esp32' && (
