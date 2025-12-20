@@ -19,6 +19,7 @@ import DataRecovery from './components/DataRecovery';
 import { generateTestData } from './utils/testDataGenerator';
 import { DEFAULT_SETTINGS, STORAGE_KEYS } from './utils/constants';
 import { useAutoBackup } from './hooks/useAutoBackup';
+import { calculateBadges, calculateUserStats, detectUnlockedBadges } from './utils/badges';
 
 // --- KONFIGURATION FÜR PLATTFORMEN ---
 
@@ -191,6 +192,7 @@ export default function App() {
   const [manualOffset, setManualOffset] = useLocalStorage(STORAGE_KEYS.OFFSET, 0);
   const [lastHitTime, setLastHitTime] = useLocalStorage(STORAGE_KEYS.LAST_HIT_TS, null);
   const [ip, setIp] = useLocalStorage(STORAGE_KEYS.DEVICE_IP, '192.168.178.XXX');
+  const [badgeHistory, setBadgeHistory] = useLocalStorage(STORAGE_KEYS.BADGE_HISTORY, []);
 
   // Automatisch Testdaten hinzufügen wenn keine Daten vorhanden
   useEffect(() => {
@@ -256,6 +258,7 @@ export default function App() {
   const hasTriggeredRef = useRef(false); // Flag ob bereits getriggert
   const hasSyncedRef = useRef(false); // Flag ob bereits synchronisiert
   const isSyncingRef = useRef(false); // Flag ob Sync läuft
+  const prevBadgesRef = useRef(null); // Vorherige Badges für Unlock-Erkennung
 
   // NEUES BADGE-SYSTEM: Keine komplexe Check-Logik mehr!
   // Badges werden automatisch in BadgesView berechnet basierend auf Stats
@@ -269,6 +272,44 @@ export default function App() {
   useEffect(() => {
     hasSyncedRef.current = false;
   }, [ip]);
+
+  // Badge Unlock Detection & Notifications
+  useEffect(() => {
+    const stats = calculateUserStats(sessionHits, historyData, settings);
+    const currentBadges = calculateBadges(stats);
+
+    if (prevBadgesRef.current) {
+      const unlockedBadges = detectUnlockedBadges(prevBadgesRef.current, currentBadges);
+
+      if (unlockedBadges.length > 0) {
+        // Zeige Notification für das erste neue Badge
+        const badge = unlockedBadges[0];
+        setNotification({
+          type: 'success',
+          message: `🏆 ${badge.name} ${badge.newLevel.icon} ${badge.newLevel.name} freigeschaltet!`,
+          icon: Trophy
+        });
+        setTimeout(() => setNotification(null), 5000);
+
+        // Vibration feedback
+        if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+
+        // Speichere in Badge History
+        const newHistoryEntries = unlockedBadges.map(b => ({
+          category: b.category,
+          name: b.name,
+          level: b.newLevel.id,
+          levelName: b.newLevel.name,
+          icon: b.newLevel.icon,
+          timestamp: Date.now()
+        }));
+
+        setBadgeHistory(prev => [...newHistoryEntries, ...prev]);
+      }
+    }
+
+    prevBadgesRef.current = currentBadges;
+  }, [sessionHits, historyData, settings, setBadgeHistory]);
 
   const registerHit = (isManual, duration) => {
     const now = Date.now();
@@ -709,6 +750,7 @@ function AppLayout({ ctx }) {
               sessionHits={ctx.sessionHits}
               historyData={ctx.historyData}
               settings={ctx.settings}
+              badgeHistory={badgeHistory}
             />
           )}
           {activeTab === 'esp32' && (

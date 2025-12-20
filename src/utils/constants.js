@@ -30,6 +30,7 @@ export const STORAGE_KEYS = {
   OFFSET: 'hs_offset',
   LAST_HIT_TS: 'hs_last_hit_ts',
   DEVICE_IP: 'hs_device_ip',
+  BADGE_HISTORY: 'hs_badge_history_v7', // Badge unlock timestamps
 };
 
 // App Version
