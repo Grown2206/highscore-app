@@ -8,7 +8,12 @@ function BadgesView({ sessionHits, historyData, settings, badgeHistory = [] }) {
     try {
       return calculateUserStats(sessionHits, historyData, settings);
     } catch (error) {
-      console.error('❌ calculateUserStats Error:', error);
+      console.error('BadgesView: calculateUserStats failed', {
+        error: error instanceof Error ? error.message : String(error),
+        sessionHitsCount: sessionHits?.length,
+        historyDataCount: historyData?.length,
+        hasSettings: !!settings
+      });
       return null;
     }
   }, [sessionHits, historyData, settings]);
@@ -18,7 +23,10 @@ function BadgesView({ sessionHits, historyData, settings, badgeHistory = [] }) {
       if (!stats) return [];
       return calculateBadges(stats);
     } catch (error) {
-      console.error('❌ calculateBadges Error:', error);
+      console.error('BadgesView: calculateBadges failed', {
+        error: error instanceof Error ? error.message : String(error),
+        hasStats: !!stats
+      });
       return [];
     }
   }, [stats]);
@@ -26,15 +34,18 @@ function BadgesView({ sessionHits, historyData, settings, badgeHistory = [] }) {
   // Error State - Zeige Fehler-UI wenn Stats nicht berechnet werden konnten
   if (!stats) {
     return (
-      <div className="flex flex-col items-center justify-center h-screen bg-zinc-950 text-zinc-100 p-6">
+      <div className="flex flex-col items-center justify-center w-full min-h-[400px] p-6">
         <AlertTriangle size={48} className="text-red-500 mb-4" />
         <h2 className="text-xl font-bold text-white mb-2">Badge-System Fehler</h2>
         <p className="text-zinc-400 text-center mb-4">
           Die Badge-Statistiken konnten nicht berechnet werden.
         </p>
-        <p className="text-xs text-zinc-600 text-center">
-          Bitte überprüfe die Browser-Konsole (F12) für Details.
-        </p>
+        <button
+          onClick={() => window.location.reload()}
+          className="bg-zinc-800 hover:bg-zinc-700 text-white px-4 py-2 rounded-lg transition-colors"
+        >
+          App neu laden
+        </button>
       </div>
     );
   }
