@@ -229,7 +229,15 @@ export function calculateBadges(stats) {
       const prevReq = unlockedLevel ? unlockedLevel.requirement : 0;
       const range = nextLevel.requirement - prevReq;
       const current = currentValue - prevReq;
-      progress = Math.min(100, Math.round((current / range) * 100));
+
+      // Guard gegen Division durch Null
+      if (range > 0) {
+        progress = Math.min(100, Math.round((current / range) * 100));
+      } else {
+        // Fallback falls range === 0 (sollte nicht vorkommen bei korrekter Konfiguration)
+        progress = 100;
+      }
+
       remaining = nextLevel.requirement - currentValue;
     } else {
       // Alle Levels erreicht!
@@ -290,13 +298,18 @@ export function detectUnlockedBadges(oldBadges, newBadges) {
  * Berechne Benutzer-Stats aus sessionHits und historyData
  */
 export function calculateUserStats(sessionHits, historyData, settings) {
+  // Guards gegen undefined/null
+  const safeSessionHits = Array.isArray(sessionHits) ? sessionHits : [];
+  const safeHistoryData = Array.isArray(historyData) ? historyData : [];
+  const safeSettings = settings || {};
+
   // Sessions
-  const sessions = sessionHits.length;
+  const sessions = safeSessionHits.length;
 
   // Streaks (längster Streak)
   let currentStreak = 0;
   let maxStreak = 0;
-  const sortedHistory = [...historyData].sort((a, b) => new Date(a.date) - new Date(b.date));
+  const sortedHistory = [...safeHistoryData].sort((a, b) => new Date(a.date) - new Date(b.date));
 
   for (let i = sortedHistory.length - 1; i >= 0; i--) {
     if (sortedHistory[i].count > 0) {
@@ -318,45 +331,47 @@ export function calculateUserStats(sessionHits, historyData, settings) {
   maxStreak = Math.max(maxStreak, currentStreak);
 
   // Daily Record
-  const daily_record = Math.max(...historyData.map(d => d.count), 0);
+  const daily_record = safeHistoryData.length > 0
+    ? Math.max(...safeHistoryData.map(d => d.count), 0)
+    : 0;
 
   // Spending
-  const spending = sessionHits.reduce((sum, h) => {
-    const strain = settings?.strains?.find(s => s.name === h.strainName);
+  const spending = safeSessionHits.reduce((sum, h) => {
+    const strain = safeSettings?.strains?.find(s => s.name === h.strainName);
     const price = strain?.price || h.strainPrice || 0;
-    return sum + (settings?.bowlSize || 0.3) * ((settings?.weedRatio || 80) / 100) * price;
+    return sum + (safeSettings?.bowlSize || 0.3) * ((safeSettings?.weedRatio || 80) / 100) * price;
   }, 0);
 
   // Strains
-  const strains = new Set(sessionHits.map(h => h.strainName)).size;
+  const strains = new Set(safeSessionHits.map(h => h.strainName)).size;
 
   // Early Bird (vor 8 Uhr)
-  const early_bird = sessionHits.filter(h => new Date(h.timestamp).getHours() < 8).length;
+  const early_bird = safeSessionHits.filter(h => new Date(h.timestamp).getHours() < 8).length;
 
   // Night Owl (nach 22 Uhr)
-  const night_owl = sessionHits.filter(h => new Date(h.timestamp).getHours() >= 22).length;
+  const night_owl = safeSessionHits.filter(h => new Date(h.timestamp).getHours() >= 22).length;
 
   // Efficiency (durchschnittliche Kosten pro Session)
   const efficiency = sessions > 0 ? spending / sessions : 999; // Invertiert: niedriger = besser
 
   // Weekend Warrior (Sessions am Wochenende: Sa=6, So=0)
-  const weekend_warrior = sessionHits.filter(h => {
+  const weekend_warrior = safeSessionHits.filter(h => {
     const day = new Date(h.timestamp).getDay();
     return day === 0 || day === 6;
   }).length;
 
   // Marathon (Sessions über 5 Sekunden)
-  const marathon = sessionHits.filter(h => h.duration > 5000).length;
+  const marathon = safeSessionHits.filter(h => (h.duration || 0) > 5000).length;
 
   // Consistency (Anzahl der Tage mit mindestens 1 Hit)
   const daysWithHits = new Set(
-    sessionHits.map(h => new Date(h.timestamp).toISOString().split('T')[0])
+    safeSessionHits.map(h => new Date(h.timestamp).toISOString().split('T')[0])
   ).size;
   const consistency = daysWithHits;
 
   // Explorer (Verschiedene Tageszeiten: Nacht, Morgen, Mittag, Abend, Spätnacht)
   const timePeriods = new Set();
-  sessionHits.forEach(h => {
+  safeSessionHits.forEach(h => {
     const hour = new Date(h.timestamp).getHours();
     if (hour >= 0 && hour < 6) timePeriods.add('night'); // 0-6: Nacht
     else if (hour >= 6 && hour < 12) timePeriods.add('morning'); // 6-12: Morgen
@@ -367,7 +382,7 @@ export function calculateUserStats(sessionHits, historyData, settings) {
   const explorer = timePeriods.size;
 
   // Dedicated (Sessions an Werktagen: Mo-Fr = 1-5)
-  const dedicated = sessionHits.filter(h => {
+  const dedicated = safeSessionHits.filter(h => {
     const day = new Date(h.timestamp).getDay();
     return day >= 1 && day <= 5;
   }).length;
