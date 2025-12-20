@@ -13,13 +13,12 @@ import CalendarView from './components/CalendarView';
 import ChartsView from './components/ChartsView';
 import SettingsView from './components/SettingsView';
 import DashboardView from './components/DashboardView';
-import BadgesView from './components/BadgesView';
+import AchievementsView from './components/AchievementsView';
 import ESP32DebugView from './components/ESP32DebugView';
 import DataRecovery from './components/DataRecovery';
 import { generateTestData } from './utils/testDataGenerator';
 import { DEFAULT_SETTINGS, STORAGE_KEYS } from './utils/constants';
 import { useAutoBackup } from './hooks/useAutoBackup';
-import { calculateBadges, calculateUserStats, detectUnlockedBadges } from './utils/badges';
 
 // --- KONFIGURATION FÜR PLATTFORMEN ---
 
@@ -36,28 +35,6 @@ import { calculateBadges, calculateUserStats, detectUnlockedBadges } from './uti
 const NativeCapacitor = (typeof window !== 'undefined' && window.Capacitor)
   ? window.Capacitor
   : { isNativePlatform: () => false };
-
-/**
- * Normalisiert Error-Objekte für konsistentes Logging
- * Handhabt sowohl Error-Instanzen als auch primitive throws
- *
- * @param {any} error - Der geworfene Fehler (kann Error, String, Object, etc. sein)
- * @returns {Object} Normalisierte Error-Metadaten
- */
-const normalizeError = (error) => {
-  if (error instanceof Error) {
-    return {
-      errorMessage: error.message,
-      errorStack: error.stack,
-      errorType: error.name
-    };
-  }
-  // Non-Error throws (z.B. throw "string", throw null)
-  return {
-    errorValue: error,
-    errorType: typeof error
-  };
-};
 
 // IP Normalisierungs-Helper
 const normalizeIp = (ip) => {
@@ -214,7 +191,6 @@ export default function App() {
   const [manualOffset, setManualOffset] = useLocalStorage(STORAGE_KEYS.OFFSET, 0);
   const [lastHitTime, setLastHitTime] = useLocalStorage(STORAGE_KEYS.LAST_HIT_TS, null);
   const [ip, setIp] = useLocalStorage(STORAGE_KEYS.DEVICE_IP, '192.168.178.XXX');
-  const [badgeHistory, setBadgeHistory] = useLocalStorage(STORAGE_KEYS.BADGE_HISTORY, []);
 
   // Automatisch Testdaten hinzufügen wenn keine Daten vorhanden
   useEffect(() => {
@@ -280,10 +256,8 @@ export default function App() {
   const hasTriggeredRef = useRef(false); // Flag ob bereits getriggert
   const hasSyncedRef = useRef(false); // Flag ob bereits synchronisiert
   const isSyncingRef = useRef(false); // Flag ob Sync läuft
-  const prevBadgesRef = useRef(null); // Vorherige Badges für Unlock-Erkennung
-
-  // NEUES BADGE-SYSTEM: Keine komplexe Check-Logik mehr!
-  // Badges werden automatisch in BadgesView berechnet basierend auf Stats
+  // NEUES ACHIEVEMENTS-SYSTEM: Einfach & Robust!
+  // Alle Berechnungen passieren direkt in AchievementsView mit Guards
 
   useEffect(() => {
     const todayStr = new Date().toISOString().split('T')[0];
@@ -294,65 +268,6 @@ export default function App() {
   useEffect(() => {
     hasSyncedRef.current = false;
   }, [ip]);
-
-  // Badge Unlock Detection & Notifications - DEAKTIVIERT zum Debuggen
-  /*useEffect(() => {
-    // Begrenze try-catch auf Badge-Berechnung, damit unrelated Fehler nicht verschluckt werden
-    let stats, currentBadges;
-    try {
-      stats = calculateUserStats(sessionHits, historyData, settings);
-      currentBadges = calculateBadges(stats);
-    } catch (error) {
-      console.error('❌ Badge Calculation Error:', error, {
-        context: 'Badge calculation failed',
-        sessionHitsCount: sessionHits?.length,
-        historyDataCount: historyData?.length,
-        hasSettings: !!settings,
-        // Null vs 0: Unterscheide "keine settings" von "settings mit 0 Keys"
-        settingsKeyCount: settings ? Object.keys(settings).length : null,
-        ...normalizeError(error)
-      });
-      // Early return - verhindert, dass fehlerhafte Badge-Daten verwendet werden
-      return;
-    }
-
-    // Ab hier läuft der Code normal - Fehler werden nicht abgefangen
-    if (prevBadgesRef.current) {
-      const unlockedBadges = detectUnlockedBadges(prevBadgesRef.current, currentBadges);
-
-      if (unlockedBadges.length > 0) {
-        // Zeige Notification für das erste neue Badge, aber weise auf weitere hin
-        const badge = unlockedBadges[0];
-        const additionalCount = unlockedBadges.length - 1;
-        const additionalText =
-          additionalCount > 0 ? ` (+${additionalCount} weitere)` : '';
-
-        setNotification({
-          type: 'success',
-          message: `🏆 ${badge.name} ${badge.newLevel.icon} ${badge.newLevel.name} freigeschaltet${additionalText}!`,
-          icon: Trophy
-        });
-        setTimeout(() => setNotification(null), 5000);
-
-        // Vibration feedback
-        if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
-
-        // Speichere in Badge History (mit Größenbegrenzung)
-        const newHistoryEntries = unlockedBadges.map(b => ({
-          category: b.category,
-          name: b.name,
-          level: b.newLevel.id,
-          levelName: b.newLevel.name,
-          icon: b.newLevel.icon,
-          timestamp: Date.now()
-        }));
-
-        setCappedBadgeHistory(prev => [...newHistoryEntries, ...prev]);
-      }
-    }
-
-    prevBadgesRef.current = currentBadges;
-  }, [sessionHits, historyData, settings, setCappedBadgeHistory]);*/
 
   const registerHit = (isManual, duration) => {
     const now = Date.now();
@@ -789,11 +704,10 @@ function AppLayout({ ctx }) {
             />
           )}
           {activeTab === 'badges' && (
-            <BadgesView
+            <AchievementsView
               sessionHits={ctx.sessionHits}
               historyData={ctx.historyData}
               settings={ctx.settings}
-              badgeHistory={badgeHistory}
             />
           )}
           {activeTab === 'esp32' && (
