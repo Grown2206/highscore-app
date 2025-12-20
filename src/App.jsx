@@ -33,9 +33,31 @@ import { calculateBadges, calculateUserStats, detectUnlockedBadges } from './uti
 // --- FALLBACK / MOCK ---
 // Dieser Block sorgt dafür, dass die App auch ohne den Import nicht abstürzt.
 // Auf dem Handy wird 'window.Capacitor' automatisch verfügbar sein.
-const NativeCapacitor = (typeof window !== 'undefined' && window.Capacitor) 
-  ? window.Capacitor 
+const NativeCapacitor = (typeof window !== 'undefined' && window.Capacitor)
+  ? window.Capacitor
   : { isNativePlatform: () => false };
+
+/**
+ * Normalisiert Error-Objekte für konsistentes Logging
+ * Handhabt sowohl Error-Instanzen als auch primitive throws
+ *
+ * @param {any} error - Der geworfene Fehler (kann Error, String, Object, etc. sein)
+ * @returns {Object} Normalisierte Error-Metadaten
+ */
+const normalizeError = (error) => {
+  if (error instanceof Error) {
+    return {
+      errorMessage: error.message,
+      errorStack: error.stack,
+      errorType: error.name
+    };
+  }
+  // Non-Error throws (z.B. throw "string", throw null)
+  return {
+    errorValue: error,
+    errorType: typeof error
+  };
+};
 
 // IP Normalisierungs-Helper
 const normalizeIp = (ip) => {
@@ -286,12 +308,9 @@ export default function App() {
         sessionHitsCount: sessionHits?.length,
         historyDataCount: historyData?.length,
         hasSettings: !!settings,
-        settingsKeyCount: settings ? Object.keys(settings).length : 0,
-        // Guard gegen non-Error throws (z.B. throw "string")
-        ...(error instanceof Error && {
-          errorMessage: error.message,
-          errorStack: error.stack
-        })
+        // Null vs 0: Unterscheide "keine settings" von "settings mit 0 Keys"
+        settingsKeyCount: settings ? Object.keys(settings).length : null,
+        ...normalizeError(error)
       });
       // Early return - verhindert, dass fehlerhafte Badge-Daten verwendet werden
       return;
