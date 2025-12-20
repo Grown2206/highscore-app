@@ -285,9 +285,13 @@ export default function App() {
         context: 'Badge calculation failed',
         sessionHitsCount: sessionHits?.length,
         historyDataCount: historyData?.length,
-        settingsKeys: settings ? Object.keys(settings) : null,
-        errorMessage: error.message,
-        errorStack: error.stack
+        hasSettings: !!settings,
+        settingsKeyCount: settings ? Object.keys(settings).length : 0,
+        // Guard gegen non-Error throws (z.B. throw "string")
+        ...(error instanceof Error && {
+          errorMessage: error.message,
+          errorStack: error.stack
+        })
       });
       // Early return - verhindert, dass fehlerhafte Badge-Daten verwendet werden
       return;
