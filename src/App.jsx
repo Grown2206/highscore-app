@@ -319,50 +319,60 @@ export default function App() {
 
   // Badge Unlock Detection & Notifications
   useEffect(() => {
+    // Begrenze try-catch auf Badge-Berechnung, damit unrelated Fehler nicht verschluckt werden
+    let stats, currentBadges;
     try {
-      const stats = calculateUserStats(sessionHits, historyData, settings);
-      const currentBadges = calculateBadges(stats);
-
-      if (prevBadgesRef.current) {
-        const unlockedBadges = detectUnlockedBadges(prevBadgesRef.current, currentBadges);
-
-        if (unlockedBadges.length > 0) {
-          // Zeige Notification für das erste neue Badge, aber weise auf weitere hin
-          const badge = unlockedBadges[0];
-          const additionalCount = unlockedBadges.length - 1;
-          const additionalText =
-            additionalCount > 0 ? ` (+${additionalCount} weitere)` : '';
-
-          setNotification({
-            type: 'success',
-            message: `🏆 ${badge.name} ${badge.newLevel.icon} ${badge.newLevel.name} freigeschaltet${additionalText}!`,
-            icon: Trophy
-          });
-          setTimeout(() => setNotification(null), 5000);
-
-          // Vibration feedback
-          if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
-
-          // Speichere in Badge History (mit Größenbegrenzung)
-          const newHistoryEntries = unlockedBadges.map(b => ({
-            category: b.category,
-            name: b.name,
-            level: b.newLevel.id,
-            levelName: b.newLevel.name,
-            icon: b.newLevel.icon,
-            timestamp: Date.now()
-          }));
-
-          setCappedBadgeHistory(prev => [...newHistoryEntries, ...prev]);
-        }
-      }
-
-      prevBadgesRef.current = currentBadges;
+      stats = calculateUserStats(sessionHits, historyData, settings);
+      currentBadges = calculateBadges(stats);
     } catch (error) {
-      console.error('❌ Badge System Error:', error);
-      // Try-catch verhindert, dass Badge-Fehler die gesamte App crashen lassen
-      // Badge-System bleibt funktional, nur dieser eine Zyklus wird übersprungen
+      console.error('❌ Badge Calculation Error:', error, {
+        context: 'Badge calculation failed',
+        sessionHitsCount: sessionHits?.length,
+        historyDataCount: historyData?.length,
+        settingsKeys: settings ? Object.keys(settings) : null,
+        errorMessage: error.message,
+        errorStack: error.stack
+      });
+      // Early return - verhindert, dass fehlerhafte Badge-Daten verwendet werden
+      return;
     }
+
+    // Ab hier läuft der Code normal - Fehler werden nicht abgefangen
+    if (prevBadgesRef.current) {
+      const unlockedBadges = detectUnlockedBadges(prevBadgesRef.current, currentBadges);
+
+      if (unlockedBadges.length > 0) {
+        // Zeige Notification für das erste neue Badge, aber weise auf weitere hin
+        const badge = unlockedBadges[0];
+        const additionalCount = unlockedBadges.length - 1;
+        const additionalText =
+          additionalCount > 0 ? ` (+${additionalCount} weitere)` : '';
+
+        setNotification({
+          type: 'success',
+          message: `🏆 ${badge.name} ${badge.newLevel.icon} ${badge.newLevel.name} freigeschaltet${additionalText}!`,
+          icon: Trophy
+        });
+        setTimeout(() => setNotification(null), 5000);
+
+        // Vibration feedback
+        if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+
+        // Speichere in Badge History (mit Größenbegrenzung)
+        const newHistoryEntries = unlockedBadges.map(b => ({
+          category: b.category,
+          name: b.name,
+          level: b.newLevel.id,
+          levelName: b.newLevel.name,
+          icon: b.newLevel.icon,
+          timestamp: Date.now()
+        }));
+
+        setCappedBadgeHistory(prev => [...newHistoryEntries, ...prev]);
+      }
+    }
+
+    prevBadgesRef.current = currentBadges;
   }, [sessionHits, historyData, settings, setCappedBadgeHistory]);
 
   const registerHit = (isManual, duration) => {
