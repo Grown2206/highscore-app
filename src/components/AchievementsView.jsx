@@ -6,7 +6,7 @@ import { Trophy, Award, Star, Medal, Crown, Flame, Calendar, Zap } from 'lucide-
  * Einfach, robust, Mix aus Medaillen & Badges
  */
 
-function AchievementsView({ sessionHits = [], historyData = [], settings = {} }) {
+function AchievementsView({ sessionHits = [], historyData = [] }) {
   // Sichere Berechnung der Stats (mit Guards)
   const stats = useMemo(() => {
     try {
@@ -287,16 +287,34 @@ function calculateStreak(historyData) {
       new Date(b.date) - new Date(a.date)
     );
 
-    let streak = 0;
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+
+    const yesterday = new Date(today);
+    yesterday.setDate(today.getDate() - 1);
+
+    // Finde das neueste Datum
+    const latestDate = new Date(sorted[0].date);
+    latestDate.setHours(0, 0, 0, 0);
+
+    // Streak ist nur gültig wenn letzter Eintrag heute oder gestern war
+    const isToday = latestDate.getTime() === today.getTime();
+    const isYesterday = latestDate.getTime() === yesterday.getTime();
+
+    if (!isToday && !isYesterday) {
+      return 0; // Streak gebrochen (letzter Eintrag zu alt)
+    }
+
+    // Zähle Streak ab dem neuesten Datum rückwärts
+    let streak = 0;
+    const startDate = latestDate;
 
     for (let i = 0; i < sorted.length; i++) {
       const entryDate = new Date(sorted[i].date);
       entryDate.setHours(0, 0, 0, 0);
 
-      const expectedDate = new Date(today);
-      expectedDate.setDate(today.getDate() - i);
+      const expectedDate = new Date(startDate);
+      expectedDate.setDate(startDate.getDate() - i);
 
       if (entryDate.getTime() === expectedDate.getTime()) {
         streak++;

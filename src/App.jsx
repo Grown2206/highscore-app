@@ -707,7 +707,6 @@ function AppLayout({ ctx }) {
             <AchievementsView
               sessionHits={ctx.sessionHits}
               historyData={ctx.historyData}
-              settings={ctx.settings}
             />
           )}
           {activeTab === 'esp32' && (
