@@ -273,8 +273,8 @@ export default function App() {
     hasSyncedRef.current = false;
   }, [ip]);
 
-  // Badge Unlock Detection & Notifications - TEMPORARILY DISABLED FOR DEBUGGING
-  /*useEffect(() => {
+  // Badge Unlock Detection & Notifications
+  useEffect(() => {
     try {
       const stats = calculateUserStats(sessionHits, historyData, settings);
       const currentBadges = calculateBadges(stats);
@@ -316,9 +316,10 @@ export default function App() {
       prevBadgesRef.current = currentBadges;
     } catch (error) {
       console.error('❌ Badge System Error:', error);
-      // Verhindere, dass Badge-Fehler die gesamte App crashen lassen
+      // Try-catch verhindert, dass Badge-Fehler die gesamte App crashen lassen
+      // Badge-System bleibt funktional, nur dieser eine Zyklus wird übersprungen
     }
-  }, [sessionHits, historyData, settings, setCappedBadgeHistory]);*/
+  }, [sessionHits, historyData, settings, setCappedBadgeHistory]);
 
   const registerHit = (isManual, duration) => {
     const now = Date.now();
