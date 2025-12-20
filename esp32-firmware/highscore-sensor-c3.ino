@@ -328,6 +328,11 @@ void setupWiFi() {
       display.display();
       delay(2000);
       return;
+    } else {
+      // Verbindung fehlgeschlagen - WiFi explizit trennen
+      Serial.println("\nConnection failed - switching to AP mode");
+      WiFi.disconnect(true);
+      delay(1000);
     }
   }
 
@@ -335,13 +340,29 @@ void setupWiFi() {
   isAPMode = true;
   Serial.println("Starting AP Mode...");
 
+  // Sicherstellen dass WiFi sauber ist
+  WiFi.mode(WIFI_OFF);
+  delay(500);
+
   WiFi.mode(WIFI_AP);
-  WiFi.softAP(AP_SSID, AP_PASSWORD);
+  bool apStarted = WiFi.softAP(AP_SSID, AP_PASSWORD);
+
+  if (!apStarted) {
+    Serial.println("ERROR: AP Mode failed to start!");
+    // Retry
+    delay(1000);
+    WiFi.mode(WIFI_OFF);
+    delay(500);
+    WiFi.mode(WIFI_AP);
+    WiFi.softAP(AP_SSID, AP_PASSWORD);
+  }
 
   dnsServer.start(DNS_PORT, "*", WiFi.softAPIP());
 
   Serial.print("AP IP: ");
   Serial.println(WiFi.softAPIP());
+  Serial.print("AP SSID: ");
+  Serial.println(AP_SSID);
 
   display.clearDisplay();
   display.setCursor(0, 0);
