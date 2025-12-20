@@ -9,7 +9,8 @@ function BadgesView({ sessionHits, historyData, settings, badgeHistory = [] }) {
       return calculateUserStats(sessionHits, historyData, settings);
     } catch (error) {
       console.error('BadgesView: calculateUserStats failed', {
-        error: error instanceof Error ? error.message : String(error),
+        error,
+        errorMessage: error instanceof Error ? error.message : String(error),
         sessionHitsCount: sessionHits?.length,
         historyDataCount: historyData?.length,
         hasSettings: !!settings
@@ -24,7 +25,8 @@ function BadgesView({ sessionHits, historyData, settings, badgeHistory = [] }) {
       return calculateBadges(stats);
     } catch (error) {
       console.error('BadgesView: calculateBadges failed', {
-        error: error instanceof Error ? error.message : String(error),
+        error,
+        errorMessage: error instanceof Error ? error.message : String(error),
         hasStats: !!stats
       });
       return [];
@@ -41,7 +43,11 @@ function BadgesView({ sessionHits, historyData, settings, badgeHistory = [] }) {
           Die Badge-Statistiken konnten nicht berechnet werden.
         </p>
         <button
-          onClick={() => window.location.reload()}
+          onClick={() => {
+            if (typeof window !== 'undefined') {
+              window.location.reload();
+            }
+          }}
           className="bg-zinc-800 hover:bg-zinc-700 text-white px-4 py-2 rounded-lg transition-colors"
         >
           App neu laden
