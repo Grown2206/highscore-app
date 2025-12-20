@@ -294,21 +294,26 @@ function calculateStreak(historyData) {
     const yesterday = new Date(today);
     yesterday.setDate(today.getDate() - 1);
 
-    // Filter future entries BEFORE sorting (verhindert Streak-Alignment-Bugs)
-    const validEntries = historyData.filter(entry => {
-      const entryDate = normalizeToMidnight(entry.date);
-      return entryDate.getTime() <= today.getTime();
-    });
+    // Normalisiere alle Einträge EINMAL (effizienter + konsistent)
+    const normalizedEntries = historyData.map(entry => ({
+      originalEntry: entry,
+      normalizedDate: normalizeToMidnight(entry.date)
+    }));
+
+    // Filter future entries (verwendet normalisierte Dates)
+    const validEntries = normalizedEntries.filter(entry =>
+      entry.normalizedDate.getTime() <= today.getTime()
+    );
 
     if (validEntries.length === 0) return 0;
 
-    // Sortiere absteigend (neueste zuerst)
+    // Sortiere absteigend (verwendet normalisierte Dates - konsistent mit Filter)
     const sorted = [...validEntries].sort((a, b) =>
-      new Date(b.date) - new Date(a.date)
+      b.normalizedDate.getTime() - a.normalizedDate.getTime()
     );
 
     // Finde das neueste (gültige) Datum
-    const latestDate = normalizeToMidnight(sorted[0].date);
+    const latestDate = sorted[0].normalizedDate;
 
     // Streak ist nur gültig wenn letzter Eintrag heute oder gestern war
     const isToday = latestDate.getTime() === today.getTime();
@@ -323,7 +328,7 @@ function calculateStreak(historyData) {
     const startDate = latestDate;
 
     for (let i = 0; i < sorted.length; i++) {
-      const entryDate = normalizeToMidnight(sorted[i].date);
+      const entryDate = sorted[i].normalizedDate; // Bereits normalisiert!
       const expectedDate = new Date(startDate);
       expectedDate.setDate(startDate.getDate() - i);
 
