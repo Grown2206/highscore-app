@@ -213,7 +213,18 @@ export default function App() {
 
         // Stelle sicher, dass wir immer mit einem Array arbeiten
         if (!Array.isArray(next)) {
-          return next;
+          if (process.env.NODE_ENV !== 'production') {
+            // Bewahre die Invariante, dass Badge History immer ein Array ist
+            // und zeige ein klares Signal während der Entwicklung.
+            console.error(
+              'setCappedBadgeHistory expected an array, but received:',
+              next
+            );
+          }
+
+          // Konvertiere ungültige Werte zu einem leeren, begrenzten Array, sodass
+          // badgeHistory in allen Fällen ein begrenztes Array bleibt.
+          return [];
         }
 
         // Begrenze auf die letzten MAX_BADGE_HISTORY_LENGTH Einträge
