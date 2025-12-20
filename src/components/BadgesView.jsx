@@ -1,8 +1,8 @@
 import React, { useMemo, memo } from 'react';
-import { Trophy, Award, Star, Lock } from 'lucide-react';
+import { Trophy, Award, Star, Lock, Clock } from 'lucide-react';
 import { calculateBadges, calculateUserStats } from '../utils/badges';
 
-function BadgesView({ sessionHits, historyData, settings }) {
+function BadgesView({ sessionHits, historyData, settings, badgeHistory = [] }) {
   // Berechne User-Stats und Badges
   const stats = useMemo(
     () => calculateUserStats(sessionHits, historyData, settings),
@@ -28,6 +28,11 @@ function BadgesView({ sessionHits, historyData, settings }) {
       blue: unlocked ? 'from-blue-500 to-cyan-500 border-blue-500/30' : 'from-zinc-700 to-zinc-800 border-zinc-700',
       indigo: unlocked ? 'from-indigo-500 to-purple-500 border-indigo-500/30' : 'from-zinc-700 to-zinc-800 border-zinc-700',
       teal: unlocked ? 'from-teal-500 to-cyan-500 border-teal-500/30' : 'from-zinc-700 to-zinc-800 border-zinc-700',
+      pink: unlocked ? 'from-pink-500 to-rose-500 border-pink-500/30' : 'from-zinc-700 to-zinc-800 border-zinc-700',
+      rose: unlocked ? 'from-rose-500 to-pink-600 border-rose-500/30' : 'from-zinc-700 to-zinc-800 border-zinc-700',
+      cyan: unlocked ? 'from-cyan-500 to-blue-500 border-cyan-500/30' : 'from-zinc-700 to-zinc-800 border-zinc-700',
+      violet: unlocked ? 'from-violet-500 to-purple-500 border-violet-500/30' : 'from-zinc-700 to-zinc-800 border-zinc-700',
+      amber: unlocked ? 'from-amber-500 to-yellow-500 border-amber-500/30' : 'from-zinc-700 to-zinc-800 border-zinc-700',
     };
     return colors[color] || colors.orange;
   };
@@ -60,6 +65,38 @@ function BadgesView({ sessionHits, historyData, settings }) {
           <div className="text-xs text-zinc-500 uppercase">Badges</div>
         </div>
       </div>
+
+      {/* Recently Unlocked */}
+      {badgeHistory.length > 0 && (
+        <div className="bg-gradient-to-br from-yellow-500/10 to-orange-500/10 border border-yellow-500/20 rounded-2xl p-6">
+          <h3 className="text-sm font-bold text-yellow-400 uppercase mb-4 flex items-center gap-2">
+            <Clock size={16} />
+            Kürzlich freigeschaltet
+          </h3>
+          <div className="space-y-2">
+            {badgeHistory.slice(0, 5).map((entry, i) => {
+              const timeAgo = Math.floor((Date.now() - entry.timestamp) / 1000 / 60); // Minuten
+              const timeStr = timeAgo < 1 ? 'Gerade eben' :
+                             timeAgo < 60 ? `vor ${timeAgo}m` :
+                             timeAgo < 1440 ? `vor ${Math.floor(timeAgo / 60)}h` :
+                             `vor ${Math.floor(timeAgo / 1440)}d`;
+
+              return (
+                <div key={i} className="bg-zinc-900/50 border border-yellow-500/10 rounded-xl p-3 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl">{entry.icon}</span>
+                    <div>
+                      <div className="text-sm font-bold text-white">{entry.name}</div>
+                      <div className="text-xs text-yellow-400">{entry.levelName}</div>
+                    </div>
+                  </div>
+                  <div className="text-xs text-zinc-500">{timeStr}</div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Stats Übersicht */}
       <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
@@ -143,14 +180,24 @@ function BadgesView({ sessionHits, historyData, settings }) {
                       Nächstes Level: {badge.nextLevel.name}
                     </span>
                     <span className={unlocked ? 'text-white/60' : 'text-zinc-600'}>
-                      {badge.currentValue} / {badge.nextLevel.requirement}
+                      {badge.progress}%
                     </span>
                   </div>
                   <div className="h-2 bg-black/20 rounded-full overflow-hidden">
                     <div
-                      className={`h-full transition-all ${unlocked ? 'bg-white/30' : 'bg-zinc-700'}`}
+                      className={`h-full transition-all duration-500 ease-out ${unlocked ? 'bg-white/30' : 'bg-zinc-700'}`}
                       style={{ width: `${badge.progress}%` }}
                     />
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className={unlocked ? 'text-white/60' : 'text-zinc-600'}>
+                      {badge.currentValue} / {badge.nextLevel.requirement}
+                    </span>
+                    {badge.remaining > 0 && (
+                      <span className={`font-medium ${unlocked ? 'text-white/80' : 'text-zinc-500'}`}>
+                        {badge.remaining} verbleibend
+                      </span>
+                    )}
                   </div>
                 </div>
               )}
@@ -160,7 +207,7 @@ function BadgesView({ sessionHits, historyData, settings }) {
                 <div className="flex items-center gap-2 mt-3">
                   <Lock size={14} className="text-zinc-600" />
                   <span className="text-xs text-zinc-600">
-                    Noch {badge.nextLevel.requirement - badge.currentValue} fehlen
+                    Noch {badge.remaining} fehlen
                   </span>
                 </div>
               )}
