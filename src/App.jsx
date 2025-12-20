@@ -194,50 +194,6 @@ export default function App() {
   const [ip, setIp] = useLocalStorage(STORAGE_KEYS.DEVICE_IP, '192.168.178.XXX');
   const [badgeHistory, setBadgeHistory] = useLocalStorage(STORAGE_KEYS.BADGE_HISTORY, []);
 
-  // Badge History mit maximaler Größe
-  const MAX_BADGE_HISTORY_LENGTH = 100;
-
-  /**
-   * Wrapper um setBadgeHistory der sicherstellt, dass das History-Array
-   * auf die letzten MAX_BADGE_HISTORY_LENGTH Einträge begrenzt ist.
-   *
-   * Unterstützt sowohl funktionale als auch direkte Wert-Updates.
-   */
-  const setCappedBadgeHistory = useCallback(
-    (update) => {
-      setBadgeHistory((prev) => {
-        const next =
-          typeof update === 'function'
-            ? update(prev ?? [])
-            : update ?? [];
-
-        // Stelle sicher, dass wir immer mit einem Array arbeiten
-        if (!Array.isArray(next)) {
-          if (process.env.NODE_ENV !== 'production') {
-            // Bewahre die Invariante, dass Badge History immer ein Array ist
-            // und zeige ein klares Signal während der Entwicklung.
-            console.error(
-              'setCappedBadgeHistory expected an array, but received:',
-              next
-            );
-          }
-
-          // Konvertiere ungültige Werte zu einem leeren, begrenzten Array, sodass
-          // badgeHistory in allen Fällen ein begrenztes Array bleibt.
-          return [];
-        }
-
-        // Begrenze auf die letzten MAX_BADGE_HISTORY_LENGTH Einträge
-        if (next.length > MAX_BADGE_HISTORY_LENGTH) {
-          return next.slice(0, MAX_BADGE_HISTORY_LENGTH);
-        }
-
-        return next;
-      });
-    },
-    [setBadgeHistory]
-  );
-
   // Automatisch Testdaten hinzufügen wenn keine Daten vorhanden
   useEffect(() => {
     if (sessionHits.length === 0 && historyData.length === 0) {
@@ -673,7 +629,7 @@ export default function App() {
 
   const ctx = useMemo(() => ({
     settings, setSettings, historyData, setHistoryData, sessionHits, setSessionHits,
-    goals, setGoals, lastHitTime, badgeHistory,
+    goals, setGoals, lastHitTime,
     liveData, currentStrainId, setCurrentStrainId, isGuestMode, setIsGuestMode, guestHits, resetGuestHits,
     connected, setConnected, isSimulating, setIsSimulating, isSensorInhaling,
     ip, setIp, lastError, selectedSession, setSelectedSession, notification,
@@ -684,7 +640,7 @@ export default function App() {
     onHoldEnd: () => setIsManuallyHolding(false)
   }), [
     settings, setSettings, historyData, setHistoryData, sessionHits, setSessionHits,
-    goals, setGoals, lastHitTime, badgeHistory,
+    goals, setGoals, lastHitTime,
     liveData, currentStrainId, setCurrentStrainId, isGuestMode, setIsGuestMode, guestHits, resetGuestHits,
     connected, setConnected, isSimulating, setIsSimulating, isSensorInhaling,
     ip, setIp, lastError, selectedSession, setSelectedSession, notification,
@@ -803,7 +759,7 @@ function AppLayout({ ctx }) {
               sessionHits={ctx.sessionHits}
               historyData={ctx.historyData}
               settings={ctx.settings}
-              badgeHistory={ctx.badgeHistory}
+              badgeHistory={badgeHistory}
             />
           )}
           {activeTab === 'esp32' && (
