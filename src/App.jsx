@@ -312,6 +312,13 @@ export default function App() {
     }
   };
 
+  // GÄSTE-MODUS: Reset Funktion
+  const resetGuestHits = () => {
+    if (navigator.vibrate) navigator.vibrate(50);
+    setGuestHits(0);
+    console.log('🔄 Gäste-Hits zurückgesetzt');
+  };
+
   // AUTO-SYNC: Pending Hits vom ESP32 abrufen und importieren
   const syncPendingHits = useCallback(async () => {
     if (isSimulating || isSyncingRef.current || hasSyncedRef.current) return;
@@ -573,7 +580,7 @@ export default function App() {
   const ctx = useMemo(() => ({
     settings, setSettings, historyData, setHistoryData, sessionHits, setSessionHits,
     goals, setGoals, lastHitTime,
-    liveData, currentStrainId, setCurrentStrainId, isGuestMode, setIsGuestMode, guestHits,
+    liveData, currentStrainId, setCurrentStrainId, isGuestMode, setIsGuestMode, guestHits, resetGuestHits,
     connected, setConnected, isSimulating, setIsSimulating, isSensorInhaling,
     ip, setIp, lastError, selectedSession, setSelectedSession, notification,
     connectionLog, flameHistory, errorCount, isManuallyHolding,
@@ -584,7 +591,7 @@ export default function App() {
   }), [
     settings, setSettings, historyData, setHistoryData, sessionHits, setSessionHits,
     goals, setGoals, lastHitTime,
-    liveData, currentStrainId, setCurrentStrainId, isGuestMode, setIsGuestMode, guestHits,
+    liveData, currentStrainId, setCurrentStrainId, isGuestMode, setIsGuestMode, guestHits, resetGuestHits,
     connected, setConnected, isSimulating, setIsSimulating, isSensorInhaling,
     ip, setIp, lastError, selectedSession, setSelectedSession, notification,
     connectionLog, flameHistory, errorCount, isManuallyHolding,
