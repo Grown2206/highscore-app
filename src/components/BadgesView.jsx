@@ -75,7 +75,8 @@ function BadgesView({ sessionHits, historyData, settings, badgeHistory = [] }) {
           </h3>
           <div className="space-y-2">
             {badgeHistory.slice(0, 5).map((entry, i) => {
-              const timeAgo = Math.floor((Date.now() - entry.timestamp) / 1000 / 60); // Minuten
+              const diffMinutes = Math.floor((Date.now() - entry.timestamp) / 1000 / 60); // Minuten
+              const timeAgo = Math.max(0, diffMinutes); // Guard gegen zukünftige Timestamps
               const timeStr = timeAgo < 1 ? 'Gerade eben' :
                              timeAgo < 60 ? `vor ${timeAgo}m` :
                              timeAgo < 1440 ? `vor ${Math.floor(timeAgo / 60)}h` :
