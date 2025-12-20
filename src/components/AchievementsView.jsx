@@ -290,24 +290,27 @@ function calculateStreak(historyData) {
   if (!Array.isArray(historyData) || historyData.length === 0) return 0;
 
   try {
-    const sorted = [...historyData].sort((a, b) =>
-      new Date(b.date) - new Date(a.date)
-    );
-
     const today = normalizeToMidnight(new Date());
     const yesterday = new Date(today);
     yesterday.setDate(today.getDate() - 1);
 
-    // Finde das neueste Datum
-    let latestDate = normalizeToMidnight(new Date(sorted[0].date));
+    // Filter future entries BEFORE sorting (verhindert Streak-Alignment-Bugs)
+    const validEntries = historyData.filter(entry => {
+      const entryDate = normalizeToMidnight(entry.date);
+      return entryDate.getTime() <= today.getTime();
+    });
 
-    // Falls es (z.B. durch Clock Skew/Zeitzonenprobleme) Einträge in der Zukunft gibt,
-    // klemme das "neueste" Datum auf heute, damit der Streak nicht fälschlich auf 0 gesetzt wird
-    if (latestDate.getTime() > today.getTime()) {
-      latestDate = new Date(today);
-    }
+    if (validEntries.length === 0) return 0;
 
-    // Streak ist nur gültig wenn letzter (effektiver) Eintrag heute oder gestern war
+    // Sortiere absteigend (neueste zuerst)
+    const sorted = [...validEntries].sort((a, b) =>
+      new Date(b.date) - new Date(a.date)
+    );
+
+    // Finde das neueste (gültige) Datum
+    const latestDate = normalizeToMidnight(sorted[0].date);
+
+    // Streak ist nur gültig wenn letzter Eintrag heute oder gestern war
     const isToday = latestDate.getTime() === today.getTime();
     const isYesterday = latestDate.getTime() === yesterday.getTime();
 
@@ -320,7 +323,7 @@ function calculateStreak(historyData) {
     const startDate = latestDate;
 
     for (let i = 0; i < sorted.length; i++) {
-      const entryDate = normalizeToMidnight(new Date(sorted[i].date));
+      const entryDate = normalizeToMidnight(sorted[i].date);
       const expectedDate = new Date(startDate);
       expectedDate.setDate(startDate.getDate() - i);
 
@@ -330,7 +333,7 @@ function calculateStreak(historyData) {
         // Entry ist älter als erwartet - keine weiteren Matches möglich (Array ist sortiert)
         break;
       }
-      // Falls entryDate > expectedDate: Skip (future entry) und weitermachen
+      // Falls entryDate > expectedDate sollte nie vorkommen (gefiltert), aber skip zur Sicherheit
     }
 
     return streak;
