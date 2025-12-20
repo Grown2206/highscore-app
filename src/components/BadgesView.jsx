@@ -1,18 +1,43 @@
 import React, { useMemo, memo } from 'react';
-import { Trophy, Award, Star, Lock, Clock } from 'lucide-react';
+import { Trophy, Award, Star, Lock, Clock, AlertTriangle } from 'lucide-react';
 import { calculateBadges, calculateUserStats } from '../utils/badges';
 
 function BadgesView({ sessionHits, historyData, settings, badgeHistory = [] }) {
-  // Berechne User-Stats und Badges
-  const stats = useMemo(
-    () => calculateUserStats(sessionHits, historyData, settings),
-    [sessionHits, historyData, settings]
-  );
+  // Berechne User-Stats und Badges mit Error-Handling
+  const stats = useMemo(() => {
+    try {
+      return calculateUserStats(sessionHits, historyData, settings);
+    } catch (error) {
+      console.error('❌ calculateUserStats Error:', error);
+      return null;
+    }
+  }, [sessionHits, historyData, settings]);
 
-  const badges = useMemo(
-    () => calculateBadges(stats),
-    [stats]
-  );
+  const badges = useMemo(() => {
+    try {
+      if (!stats) return [];
+      return calculateBadges(stats);
+    } catch (error) {
+      console.error('❌ calculateBadges Error:', error);
+      return [];
+    }
+  }, [stats]);
+
+  // Error State - Zeige Fehler-UI wenn Stats nicht berechnet werden konnten
+  if (!stats) {
+    return (
+      <div className="flex flex-col items-center justify-center h-screen bg-zinc-950 text-zinc-100 p-6">
+        <AlertTriangle size={48} className="text-red-500 mb-4" />
+        <h2 className="text-xl font-bold text-white mb-2">Badge-System Fehler</h2>
+        <p className="text-zinc-400 text-center mb-4">
+          Die Badge-Statistiken konnten nicht berechnet werden.
+        </p>
+        <p className="text-xs text-zinc-600 text-center">
+          Bitte überprüfe die Browser-Konsole (F12) für Details.
+        </p>
+      </div>
+    );
+  }
 
   // Zähle erreichte Badges
   const unlockedCount = badges.filter(b => b.unlockedLevel).length;
