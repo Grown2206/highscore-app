@@ -8,9 +8,7 @@ function BadgesView({ sessionHits, historyData, settings, badgeHistory = [] }) {
     try {
       return calculateUserStats(sessionHits, historyData, settings);
     } catch (error) {
-      console.error('BadgesView: calculateUserStats failed', {
-        error,
-        errorMessage: error instanceof Error ? error.message : String(error),
+      console.error('BadgesView: calculateUserStats failed', error, {
         sessionHitsCount: sessionHits?.length,
         historyDataCount: historyData?.length,
         hasSettings: !!settings
@@ -24,9 +22,7 @@ function BadgesView({ sessionHits, historyData, settings, badgeHistory = [] }) {
       if (!stats) return [];
       return calculateBadges(stats);
     } catch (error) {
-      console.error('BadgesView: calculateBadges failed', {
-        error,
-        errorMessage: error instanceof Error ? error.message : String(error),
+      console.error('BadgesView: calculateBadges failed', error, {
         hasStats: !!stats
       });
       return [];
@@ -42,16 +38,14 @@ function BadgesView({ sessionHits, historyData, settings, badgeHistory = [] }) {
         <p className="text-zinc-400 text-center mb-4">
           Die Badge-Statistiken konnten nicht berechnet werden.
         </p>
-        <button
-          onClick={() => {
-            if (typeof window !== 'undefined') {
-              window.location.reload();
-            }
-          }}
-          className="bg-zinc-800 hover:bg-zinc-700 text-white px-4 py-2 rounded-lg transition-colors"
-        >
-          App neu laden
-        </button>
+        {typeof window !== 'undefined' && (
+          <button
+            onClick={() => window.location.reload()}
+            className="bg-zinc-800 hover:bg-zinc-700 text-white px-4 py-2 rounded-lg transition-colors"
+          >
+            App neu laden
+          </button>
+        )}
       </div>
     );
   }
