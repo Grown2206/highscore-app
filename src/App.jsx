@@ -295,8 +295,8 @@ export default function App() {
     hasSyncedRef.current = false;
   }, [ip]);
 
-  // Badge Unlock Detection & Notifications
-  useEffect(() => {
+  // Badge Unlock Detection & Notifications - DEAKTIVIERT zum Debuggen
+  /*useEffect(() => {
     // Begrenze try-catch auf Badge-Berechnung, damit unrelated Fehler nicht verschluckt werden
     let stats, currentBadges;
     try {
@@ -352,7 +352,7 @@ export default function App() {
     }
 
     prevBadgesRef.current = currentBadges;
-  }, [sessionHits, historyData, settings, setCappedBadgeHistory]);
+  }, [sessionHits, historyData, settings, setCappedBadgeHistory]);*/
 
   const registerHit = (isManual, duration) => {
     const now = Date.now();
