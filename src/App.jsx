@@ -317,47 +317,52 @@ export default function App() {
     hasSyncedRef.current = false;
   }, [ip]);
 
-  // Badge Unlock Detection & Notifications
-  useEffect(() => {
-    const stats = calculateUserStats(sessionHits, historyData, settings);
-    const currentBadges = calculateBadges(stats);
+  // Badge Unlock Detection & Notifications - TEMPORARILY DISABLED FOR DEBUGGING
+  /*useEffect(() => {
+    try {
+      const stats = calculateUserStats(sessionHits, historyData, settings);
+      const currentBadges = calculateBadges(stats);
 
-    if (prevBadgesRef.current) {
-      const unlockedBadges = detectUnlockedBadges(prevBadgesRef.current, currentBadges);
+      if (prevBadgesRef.current) {
+        const unlockedBadges = detectUnlockedBadges(prevBadgesRef.current, currentBadges);
 
-      if (unlockedBadges.length > 0) {
-        // Zeige Notification für das erste neue Badge, aber weise auf weitere hin
-        const badge = unlockedBadges[0];
-        const additionalCount = unlockedBadges.length - 1;
-        const additionalText =
-          additionalCount > 0 ? ` (+${additionalCount} weitere)` : '';
+        if (unlockedBadges.length > 0) {
+          // Zeige Notification für das erste neue Badge, aber weise auf weitere hin
+          const badge = unlockedBadges[0];
+          const additionalCount = unlockedBadges.length - 1;
+          const additionalText =
+            additionalCount > 0 ? ` (+${additionalCount} weitere)` : '';
 
-        setNotification({
-          type: 'success',
-          message: `🏆 ${badge.name} ${badge.newLevel.icon} ${badge.newLevel.name} freigeschaltet${additionalText}!`,
-          icon: Trophy
-        });
-        setTimeout(() => setNotification(null), 5000);
+          setNotification({
+            type: 'success',
+            message: `🏆 ${badge.name} ${badge.newLevel.icon} ${badge.newLevel.name} freigeschaltet${additionalText}!`,
+            icon: Trophy
+          });
+          setTimeout(() => setNotification(null), 5000);
 
-        // Vibration feedback
-        if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+          // Vibration feedback
+          if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
 
-        // Speichere in Badge History (mit Größenbegrenzung)
-        const newHistoryEntries = unlockedBadges.map(b => ({
-          category: b.category,
-          name: b.name,
-          level: b.newLevel.id,
-          levelName: b.newLevel.name,
-          icon: b.newLevel.icon,
-          timestamp: Date.now()
-        }));
+          // Speichere in Badge History (mit Größenbegrenzung)
+          const newHistoryEntries = unlockedBadges.map(b => ({
+            category: b.category,
+            name: b.name,
+            level: b.newLevel.id,
+            levelName: b.newLevel.name,
+            icon: b.newLevel.icon,
+            timestamp: Date.now()
+          }));
 
-        setCappedBadgeHistory(prev => [...newHistoryEntries, ...prev]);
+          setCappedBadgeHistory(prev => [...newHistoryEntries, ...prev]);
+        }
       }
-    }
 
-    prevBadgesRef.current = currentBadges;
-  }, [sessionHits, historyData, settings, setCappedBadgeHistory]);
+      prevBadgesRef.current = currentBadges;
+    } catch (error) {
+      console.error('❌ Badge System Error:', error);
+      // Verhindere, dass Badge-Fehler die gesamte App crashen lassen
+    }
+  }, [sessionHits, historyData, settings, setCappedBadgeHistory]);*/
 
   const registerHit = (isManual, duration) => {
     const now = Date.now();
