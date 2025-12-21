@@ -2,9 +2,9 @@
 
 **Die smarte Cannabis-Tracking App mit Hardware-Integration**
 
-Verfolge deinen Konsum, analysiere Muster, erreiche Badges und behalte die volle Kontrolle – mit optionaler ESP32-Sensor-Hardware für automatisches Tracking.
+Verfolge deinen Konsum, analysiere Muster, erreiche Erfolge und behalte die volle Kontrolle – mit optionaler ESP32-Sensor-Hardware für automatisches Tracking.
 
-[![Version](https://img.shields.io/badge/version-7.0-brightgreen.svg)](https://github.com/Grown2206/highscore-app)
+[![Version](https://img.shields.io/badge/version-7.1-brightgreen.svg)](https://github.com/Grown2206/highscore-app)
 [![React](https://img.shields.io/badge/React-18.2-blue.svg)](https://reactjs.org/)
 [![Capacitor](https://img.shields.io/badge/Capacitor-5.0-purple.svg)](https://capacitorjs.com/)
 [![License](https://img.shields.io/badge/license-MIT-orange.svg)](LICENSE)
@@ -19,18 +19,19 @@ Verfolge deinen Konsum, analysiere Muster, erreiche Badges und behalte die volle
 - **Visualisierungen**: Interaktive Charts für Konsum-Muster und Trends
 - **Kalender-Ansicht**: Historischer Überblick mit Farb-Kodierung
 
-### 🏆 **Badge-System** (NEU in v7.0)
-- **8 Kategorien** mit je 4 Levels (Bronze, Silber, Gold, Platin):
-  - Sessions (Gesamtanzahl)
-  - Streaks (Konsistenz)
-  - Tagesrekord (Max Hits/Tag)
-  - Ausgaben (Budget-Tracking)
-  - Sorten (Vielfalt)
-  - Frühaufsteher (Morgensessions)
-  - Nachteule (Nachtsessions)
-  - Effizienz (Ø Hits/Session)
+### 🏆 **Achievements-System v2.0** (NEU in v7.1)
+- **8 Kategorien** mit 30+ Medaillen und lustigen Namen:
+  - **Sitzungen** (6 Stufen) - Neuling → Meister des Universums
+  - **Streaks** (6 Stufen) - Auf Kurs → Zeitlos
+  - **Tagesrekord** (6 Stufen) - Guter Tag → Götterstatus
+  - **Ausgaben** (5 Stufen) - Sparschwein → Geldbaum
+  - **Sorten** (6 Stufen) - Neugierig → Botaniker
+  - **Frühaufsteher** (4 Stufen) - Morgenmuffel → Sonnenanbeter
+  - **Nachteule** (4 Stufen) - Nachtaktiv → Vampir
+  - **Effizienz** (4 Stufen) - Effizient → Perfektion
+- **Lustige Bezeichnungen**: Gewohnheitstier, Stammgast, Party Mode, Hardcore, High Roller, Sommelier, Mitternachtskrieger, etc.
 - **Echtzeit-Fortschritt**: Visualisierte Progress-Bars für jede Kategorie
-- **Dynamische Berechnung**: Keine localStorage-Bugs mehr!
+- **Dynamische Berechnung**: Keine localStorage-Bugs, komplett robust!
 
 ### 💾 **Auto-Backup-System** (NEU in v7.0)
 - **Multi-Layer Backup**:
@@ -143,7 +144,7 @@ highscore-app/
 │   ├── components/          # React Components
 │   │   ├── App.jsx         # Haupt-App mit Routing
 │   │   ├── Dashboard.jsx   # Hauptübersicht
-│   │   ├── BadgesView.jsx  # Badge-System (NEU)
+│   │   ├── AchievementsView.jsx  # Achievements v2.0 (NEU)
 │   │   ├── DataRecovery.jsx # Backup-Wiederherstellung (NEU)
 │   │   ├── CalendarView.jsx
 │   │   ├── GoalsView.jsx
@@ -151,7 +152,6 @@ highscore-app/
 │   │   └── ...
 │   ├── utils/              # Helper Functions
 │   │   ├── autoBackup.js   # Backup-System (NEU)
-│   │   ├── badges.js       # Badge-Logik (NEU)
 │   │   ├── constants.js    # Shared Constants
 │   │   ├── charts.js       # Chart-Konfigurationen
 │   │   └── testDataGenerator.js
@@ -240,29 +240,34 @@ npx cap open ios
 
 ---
 
-## 📊 Badge-System Details
+## 🏆 Achievements-System v2.0 Details
 
-### Kategorien & Anforderungen
+### Kategorien & Medaillen-Stufen
 
-| Kategorie | Bronze | Silber | Gold | Platin |
-|-----------|--------|--------|------|--------|
-| **Sessions** | 10 | 50 | 100 | 500 |
-| **Streaks** | 3 | 7 | 14 | 30 |
-| **Tagesrekord** | 5 | 10 | 20 | 50 |
-| **Ausgaben** | 50€ | 200€ | 500€ | 1000€ |
-| **Sorten** | 3 | 5 | 10 | 20 |
-| **Frühaufsteher** | 5 | 15 | 30 | 100 |
-| **Nachteule** | 5 | 15 | 30 | 100 |
-| **Effizienz** | 3 Ø | 5 Ø | 8 Ø | 12 Ø |
+| Kategorie | Stufe 1 | Stufe 2 | Stufe 3 | Stufe 4 | Stufe 5 | Stufe 6 |
+|-----------|---------|---------|---------|---------|---------|---------|
+| **Sitzungen** | 🌱 Neuling (1) | 🥉 Gewohnheitstier (10) | 🥈 Stammgast (50) | 🥇 Veteran (100) | 💎 Legende (250) | 👑 Meister des Universums (500) |
+| **Streaks** | 📈 Auf Kurs (3) | 🔥 Wochenkönig (7) | ⚡ Unaufhaltsam (14) | 🏃 Marathon-Läufer (30) | 🛡️ Eiserne Disziplin (60) | ♾️ Zeitlos (100) |
+| **Tagesrekord** | 😊 Guter Tag (5) | 🎉 Party Mode (10) | 💪 Hardcore (15) | 🤯 Absolut Wild (20) | 🦸 Übermenschlich (25) | ⚡👑 Götterstatus (30) |
+| **Ausgaben** | 🐷 Sparschwein (50€) | 💼 Investor (200€) | 🎰 High Roller (500€) | 💎 Tycoon (1000€) | 🌳💰 Geldbaum (2000€) | - |
+| **Sorten** | 🔍 Neugierig (3) | 🌿 Entdecker (5) | 🍃 Kenner (10) | 🎩 Sommelier (15) | 🏆 Meister-Sammler (20) | 🔬🌱 Botaniker (30) |
+| **Frühaufsteher** | 🌅 Morgenmuffel (5) | ☕ Frühaufsteher (15) | 🌄 Morgenröte (30) | ☀️ Sonnenanbeter (50) | - | - |
+| **Nachteule** | 🌙 Nachtaktiv (5) | 🦉 Nachteule (15) | 🌃 Mitternachtskrieger (30) | 🧛 Vampir (50) | - | - |
+| **Effizienz** | 📈 Effizient (2 Ø) | ⚡ Produktiv (3 Ø) | 🎯 Optimiert (4 Ø) | 💯 Perfektion (5 Ø) | - | - |
 
 ### Berechnung
 
-Badges werden dynamisch berechnet aus:
-- `sessionHits` - Array aller Sessions
-- `historyData` - Tägliche Zusammenfassungen
-- `settings` - Bowl-Größe, Weed-Ratio
+Achievements werden dynamisch berechnet aus:
+- `sessionHits` - Array aller Sessions (mit timestamp für Frühaufsteher/Nachteule)
+- `historyData` - Tägliche Zusammenfassungen (für Streaks & Tagesrekord)
+- Keine Settings mehr nötig!
 
-**Vorteil**: Keine localStorage-Bugs mehr, da keine Persistierung nötig!
+**Vorteile**:
+- ✅ **30+ Medaillen** statt 8 Badges
+- ✅ **Lustige Namen** motivieren mehr
+- ✅ **Erweiterte Stats** (Frühaufsteher, Nachteule, Effizienz)
+- ✅ **Keine localStorage-Bugs** - alles dynamisch berechnet
+- ✅ **Komplett robust** gegen Fehler
 
 ---
 
