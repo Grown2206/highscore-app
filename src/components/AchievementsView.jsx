@@ -1,12 +1,14 @@
 import React, { useMemo } from 'react';
+import { Trophy, Award, Star, Medal, Crown } from 'lucide-react';
 import {
-  Trophy, Award, Star, Medal, Crown, Flame, Calendar, Zap,
-  Coffee, Moon, TrendingUp, Coins, Sparkles, Target, Gift, Rocket
-} from 'lucide-react';
+  PROGRESS_BADGES,
+  generateMedals,
+  getNextTarget
+} from '../utils/achievementsConfig';
 
 /**
- * ERWEITERTES ACHIEVEMENTS-SYSTEM v2.0
- * 8 Kategorien, 30+ Medaillen, lustige Bezeichnungen
+ * ACHIEVEMENTS-SYSTEM v2.0
+ * Nutzt zentrale Config für alle Medaillen & Badges
  */
 
 function AchievementsView({ sessionHits = [], historyData = [] }) {
@@ -26,21 +28,25 @@ function AchievementsView({ sessionHits = [], historyData = [] }) {
       const uniqueStrains = new Set(safeHits.map(h => h?.strain).filter(Boolean)).size || 0;
       const totalSpending = safeHits.reduce((sum, h) => sum + (parseFloat(h?.price) || 0), 0);
 
-      // Erweiterte Stats: Frühaufsteher (vor 10 Uhr)
-      const earlyBirdSessions = safeHits.filter(h => {
-        if (!h?.timestamp) return false;
-        const hour = new Date(h.timestamp).getHours();
-        return hour >= 5 && hour < 10;
-      }).length;
+      // PERFORMANCE: Single-pass für earlyBird & nightOwl (statt 2 separate filter-Aufrufe)
+      let earlyBirdSessions = 0;
+      let nightOwlSessions = 0;
 
-      // Nachteule (nach 22 Uhr)
-      const nightOwlSessions = safeHits.filter(h => {
-        if (!h?.timestamp) return false;
+      safeHits.forEach(h => {
+        if (!h?.timestamp) return;
         const hour = new Date(h.timestamp).getHours();
-        return hour >= 22 || hour < 5;
-      }).length;
 
-      // Effizienz (Ø Hits pro Session)
+        // Frühaufsteher: 5-10 Uhr
+        if (hour >= 5 && hour < 10) {
+          earlyBirdSessions++;
+        }
+        // Nachteule: 22-5 Uhr
+        if (hour >= 22 || hour < 5) {
+          nightOwlSessions++;
+        }
+      });
+
+      // Effizienz (Ø Hits pro Session) - auf 1 Dezimale gerundet
       const efficiency = totalSessions > 0
         ? Math.round((totalHits / totalSessions) * 10) / 10
         : 0;
@@ -51,7 +57,7 @@ function AchievementsView({ sessionHits = [], historyData = [] }) {
         dailyRecord,
         currentStreak,
         uniqueStrains,
-        totalSpending,
+        totalSpending: Math.round(totalSpending), // Konsistent: Integer für Euro
         earlyBirdSessions,
         nightOwlSessions,
         efficiency
@@ -72,385 +78,33 @@ function AchievementsView({ sessionHits = [], historyData = [] }) {
     }
   }, [sessionHits, historyData]);
 
-  // MASSIV erweiterte Medaillen mit lustigen Namen
-  const medals = useMemo(() => {
-    const earned = [];
+  // Generiere Medaillen aus Config
+  const medals = useMemo(() => generateMedals(stats), [stats]);
 
-    // 🔥 SITZUNGEN (Gesamtanzahl) - 6 Stufen
-    if (stats.totalSessions >= 1) earned.push({
-      name: 'Neuling',
-      icon: '🌱',
-      desc: 'Erste Session abgeschlossen',
-      color: 'from-green-400 to-green-500',
-      category: 'Sitzungen'
-    });
-    if (stats.totalSessions >= 10) earned.push({
-      name: 'Gewohnheitstier',
-      icon: '🥉',
-      desc: '10 Sessions erreicht',
-      color: 'from-amber-600 to-amber-500',
-      category: 'Sitzungen'
-    });
-    if (stats.totalSessions >= 50) earned.push({
-      name: 'Stammgast',
-      icon: '🥈',
-      desc: '50 Sessions erreicht',
-      color: 'from-zinc-400 to-zinc-300',
-      category: 'Sitzungen'
-    });
-    if (stats.totalSessions >= 100) earned.push({
-      name: 'Veteran',
-      icon: '🥇',
-      desc: '100 Sessions erreicht',
-      color: 'from-yellow-500 to-yellow-400',
-      category: 'Sitzungen'
-    });
-    if (stats.totalSessions >= 250) earned.push({
-      name: 'Legende',
-      icon: '💎',
-      desc: '250 Sessions erreicht',
-      color: 'from-cyan-400 to-blue-500',
-      category: 'Sitzungen'
-    });
-    if (stats.totalSessions >= 500) earned.push({
-      name: 'Meister des Universums',
-      icon: '👑',
-      desc: '500 Sessions erreicht',
-      color: 'from-purple-500 to-pink-500',
-      category: 'Sitzungen'
-    });
+  // Generiere Progress-Badges aus Config
+  const progressBadges = useMemo(() => {
+    return PROGRESS_BADGES.map(badgeConfig => {
+      const current = stats[badgeConfig.key] || 0;
+      const target = getNextTarget(current, badgeConfig.targets);
+      const progress = target > 0
+        ? Math.min(100, Math.round((current / target) * 100))
+        : 100;
+      const remaining = Math.max(0, target - current);
 
-    // 🔥 STREAKS (Konsistenz) - 6 Stufen
-    if (stats.currentStreak >= 3) earned.push({
-      name: 'Auf Kurs',
-      icon: '📈',
-      desc: '3 Tage Streak',
-      color: 'from-blue-400 to-blue-500',
-      category: 'Streaks'
+      return {
+        ...badgeConfig,
+        current,
+        target,
+        progress,
+        remaining
+      };
     });
-    if (stats.currentStreak >= 7) earned.push({
-      name: 'Wochenkönig',
-      icon: '🔥',
-      desc: '7 Tage Streak',
-      color: 'from-orange-500 to-red-500',
-      category: 'Streaks'
-    });
-    if (stats.currentStreak >= 14) earned.push({
-      name: 'Unaufhaltsam',
-      icon: '⚡',
-      desc: '14 Tage Streak',
-      color: 'from-purple-500 to-pink-500',
-      category: 'Streaks'
-    });
-    if (stats.currentStreak >= 30) earned.push({
-      name: 'Marathon-Läufer',
-      icon: '🏃',
-      desc: '30 Tage Streak',
-      color: 'from-green-500 to-emerald-500',
-      category: 'Streaks'
-    });
-    if (stats.currentStreak >= 60) earned.push({
-      name: 'Eiserne Disziplin',
-      icon: '🛡️',
-      desc: '60 Tage Streak',
-      color: 'from-gray-600 to-gray-500',
-      category: 'Streaks'
-    });
-    if (stats.currentStreak >= 100) earned.push({
-      name: 'Zeitlos',
-      icon: '♾️',
-      desc: '100 Tage Streak',
-      color: 'from-indigo-500 to-purple-500',
-      category: 'Streaks'
-    });
-
-    // 🎯 TAGESREKORD (Maximale Hits/Tag) - 6 Stufen
-    if (stats.dailyRecord >= 5) earned.push({
-      name: 'Guter Tag',
-      icon: '😊',
-      desc: '5+ Hits an einem Tag',
-      color: 'from-yellow-400 to-yellow-500',
-      category: 'Tagesrekord'
-    });
-    if (stats.dailyRecord >= 10) earned.push({
-      name: 'Party Mode',
-      icon: '🎉',
-      desc: '10+ Hits an einem Tag',
-      color: 'from-pink-500 to-rose-500',
-      category: 'Tagesrekord'
-    });
-    if (stats.dailyRecord >= 15) earned.push({
-      name: 'Hardcore',
-      icon: '💪',
-      desc: '15+ Hits an einem Tag',
-      color: 'from-red-500 to-orange-500',
-      category: 'Tagesrekord'
-    });
-    if (stats.dailyRecord >= 20) earned.push({
-      name: 'Absolut Wild',
-      icon: '🤯',
-      desc: '20+ Hits an einem Tag',
-      color: 'from-purple-600 to-pink-600',
-      category: 'Tagesrekord'
-    });
-    if (stats.dailyRecord >= 25) earned.push({
-      name: 'Übermenschlich',
-      icon: '🦸',
-      desc: '25+ Hits an einem Tag',
-      color: 'from-blue-600 to-cyan-500',
-      category: 'Tagesrekord'
-    });
-    if (stats.dailyRecord >= 30) earned.push({
-      name: 'Götterstatus',
-      icon: '⚡👑',
-      desc: '30+ Hits an einem Tag',
-      color: 'from-yellow-500 to-orange-600',
-      category: 'Tagesrekord'
-    });
-
-    // 💰 AUSGABEN (Budget-Tracking) - 5 Stufen
-    if (stats.totalSpending >= 50) earned.push({
-      name: 'Sparschwein',
-      icon: '🐷',
-      desc: '50€ investiert',
-      color: 'from-pink-400 to-pink-500',
-      category: 'Ausgaben'
-    });
-    if (stats.totalSpending >= 200) earned.push({
-      name: 'Investor',
-      icon: '💼',
-      desc: '200€ investiert',
-      color: 'from-blue-500 to-indigo-500',
-      category: 'Ausgaben'
-    });
-    if (stats.totalSpending >= 500) earned.push({
-      name: 'High Roller',
-      icon: '🎰',
-      desc: '500€ investiert',
-      color: 'from-green-500 to-emerald-500',
-      category: 'Ausgaben'
-    });
-    if (stats.totalSpending >= 1000) earned.push({
-      name: 'Tycoon',
-      icon: '💎',
-      desc: '1000€ investiert',
-      color: 'from-cyan-500 to-blue-600',
-      category: 'Ausgaben'
-    });
-    if (stats.totalSpending >= 2000) earned.push({
-      name: 'Geldbaum',
-      icon: '🌳💰',
-      desc: '2000€ investiert',
-      color: 'from-yellow-500 to-green-600',
-      category: 'Ausgaben'
-    });
-
-    // 🌿 SORTEN (Vielfalt) - 6 Stufen
-    if (stats.uniqueStrains >= 3) earned.push({
-      name: 'Neugierig',
-      icon: '🔍',
-      desc: '3+ Sorten probiert',
-      color: 'from-blue-400 to-blue-500',
-      category: 'Sorten'
-    });
-    if (stats.uniqueStrains >= 5) earned.push({
-      name: 'Entdecker',
-      icon: '🌿',
-      desc: '5+ Sorten probiert',
-      color: 'from-green-500 to-emerald-500',
-      category: 'Sorten'
-    });
-    if (stats.uniqueStrains >= 10) earned.push({
-      name: 'Kenner',
-      icon: '🍃',
-      desc: '10+ Sorten probiert',
-      color: 'from-emerald-500 to-teal-500',
-      category: 'Sorten'
-    });
-    if (stats.uniqueStrains >= 15) earned.push({
-      name: 'Sommelier',
-      icon: '🎩',
-      desc: '15+ Sorten probiert',
-      color: 'from-purple-500 to-pink-500',
-      category: 'Sorten'
-    });
-    if (stats.uniqueStrains >= 20) earned.push({
-      name: 'Meister-Sammler',
-      icon: '🏆',
-      desc: '20+ Sorten probiert',
-      color: 'from-yellow-500 to-orange-500',
-      category: 'Sorten'
-    });
-    if (stats.uniqueStrains >= 30) earned.push({
-      name: 'Botaniker',
-      icon: '🔬🌱',
-      desc: '30+ Sorten probiert',
-      color: 'from-green-600 to-teal-600',
-      category: 'Sorten'
-    });
-
-    // ☀️ FRÜHAUFSTEHER (Morgensessions vor 10 Uhr) - 4 Stufen
-    if (stats.earlyBirdSessions >= 5) earned.push({
-      name: 'Morgenmuffel',
-      icon: '🌅',
-      desc: '5+ Morgensessions',
-      color: 'from-orange-400 to-yellow-400',
-      category: 'Frühaufsteher'
-    });
-    if (stats.earlyBirdSessions >= 15) earned.push({
-      name: 'Frühaufsteher',
-      icon: '☕',
-      desc: '15+ Morgensessions',
-      color: 'from-yellow-500 to-orange-500',
-      category: 'Frühaufsteher'
-    });
-    if (stats.earlyBirdSessions >= 30) earned.push({
-      name: 'Morgenröte',
-      icon: '🌄',
-      desc: '30+ Morgensessions',
-      color: 'from-pink-400 to-orange-400',
-      category: 'Frühaufsteher'
-    });
-    if (stats.earlyBirdSessions >= 50) earned.push({
-      name: 'Sonnenanbeter',
-      icon: '☀️',
-      desc: '50+ Morgensessions',
-      color: 'from-yellow-400 to-orange-600',
-      category: 'Frühaufsteher'
-    });
-
-    // 🌙 NACHTEULE (Nachtsessions nach 22 Uhr) - 4 Stufen
-    if (stats.nightOwlSessions >= 5) earned.push({
-      name: 'Nachtaktiv',
-      icon: '🌙',
-      desc: '5+ Nachtsessions',
-      color: 'from-indigo-500 to-purple-500',
-      category: 'Nachteule'
-    });
-    if (stats.nightOwlSessions >= 15) earned.push({
-      name: 'Nachteule',
-      icon: '🦉',
-      desc: '15+ Nachtsessions',
-      color: 'from-purple-500 to-pink-500',
-      category: 'Nachteule'
-    });
-    if (stats.nightOwlSessions >= 30) earned.push({
-      name: 'Mitternachtskrieger',
-      icon: '🌃',
-      desc: '30+ Nachtsessions',
-      color: 'from-blue-600 to-purple-600',
-      category: 'Nachteule'
-    });
-    if (stats.nightOwlSessions >= 50) earned.push({
-      name: 'Vampir',
-      icon: '🧛',
-      desc: '50+ Nachtsessions',
-      color: 'from-red-600 to-purple-700',
-      category: 'Nachteule'
-    });
-
-    // 📊 EFFIZIENZ (Ø Hits pro Session) - 4 Stufen
-    if (stats.efficiency >= 2.0) earned.push({
-      name: 'Effizient',
-      icon: '📈',
-      desc: 'Ø 2+ Hits/Session',
-      color: 'from-blue-400 to-cyan-400',
-      category: 'Effizienz'
-    });
-    if (stats.efficiency >= 3.0) earned.push({
-      name: 'Produktiv',
-      icon: '⚡',
-      desc: 'Ø 3+ Hits/Session',
-      color: 'from-green-500 to-teal-500',
-      category: 'Effizienz'
-    });
-    if (stats.efficiency >= 4.0) earned.push({
-      name: 'Optimiert',
-      icon: '🎯',
-      desc: 'Ø 4+ Hits/Session',
-      color: 'from-yellow-500 to-orange-500',
-      category: 'Effizienz'
-    });
-    if (stats.efficiency >= 5.0) earned.push({
-      name: 'Perfektion',
-      icon: '💯',
-      desc: 'Ø 5+ Hits/Session',
-      color: 'from-purple-500 to-pink-500',
-      category: 'Effizienz'
-    });
-
-    return earned;
   }, [stats]);
 
-  // Fortschritts-Badges (8 Kategorien)
-  const progressBadges = useMemo(() => [
-    {
-      name: 'Sitzungen',
-      icon: Flame,
-      current: stats.totalSessions,
-      target: getNextTarget(stats.totalSessions, [1, 10, 50, 100, 250, 500, 1000]),
-      color: 'orange',
-      gradient: 'from-orange-500 to-red-500'
-    },
-    {
-      name: 'Streak',
-      icon: Calendar,
-      current: stats.currentStreak,
-      target: getNextTarget(stats.currentStreak, [3, 7, 14, 30, 60, 100]),
-      color: 'purple',
-      gradient: 'from-purple-500 to-pink-500'
-    },
-    {
-      name: 'Tages-Rekord',
-      icon: Star,
-      current: stats.dailyRecord,
-      target: getNextTarget(stats.dailyRecord, [5, 10, 15, 20, 25, 30]),
-      color: 'yellow',
-      gradient: 'from-yellow-500 to-amber-500'
-    },
-    {
-      name: 'Ausgaben',
-      icon: Coins,
-      current: Math.round(stats.totalSpending),
-      target: getNextTarget(stats.totalSpending, [50, 200, 500, 1000, 2000]),
-      color: 'green',
-      gradient: 'from-green-500 to-emerald-500',
-      suffix: '€'
-    },
-    {
-      name: 'Sorten',
-      icon: Sparkles,
-      current: stats.uniqueStrains,
-      target: getNextTarget(stats.uniqueStrains, [3, 5, 10, 15, 20, 30]),
-      color: 'emerald',
-      gradient: 'from-emerald-500 to-teal-500'
-    },
-    {
-      name: 'Frühaufsteher',
-      icon: Coffee,
-      current: stats.earlyBirdSessions,
-      target: getNextTarget(stats.earlyBirdSessions, [5, 15, 30, 50]),
-      color: 'yellow',
-      gradient: 'from-yellow-400 to-orange-500'
-    },
-    {
-      name: 'Nachteule',
-      icon: Moon,
-      current: stats.nightOwlSessions,
-      target: getNextTarget(stats.nightOwlSessions, [5, 15, 30, 50]),
-      color: 'indigo',
-      gradient: 'from-indigo-500 to-purple-500'
-    },
-    {
-      name: 'Effizienz',
-      icon: TrendingUp,
-      current: stats.efficiency,
-      target: getNextTarget(stats.efficiency, [2, 3, 4, 5]),
-      color: 'cyan',
-      gradient: 'from-cyan-500 to-blue-500',
-      suffix: ' Ø'
-    }
-  ], [stats]);
+  // Format-Helper: Formatiert Zahlen basierend auf decimals-Property
+  const formatNumber = (value, decimals = 0) => {
+    return value.toFixed(decimals);
+  };
 
   return (
     <div className="space-y-6 pb-20">
@@ -518,7 +172,7 @@ function AchievementsView({ sessionHits = [], historyData = [] }) {
             <div className="text-xs text-zinc-600 mt-1">Sorten</div>
           </div>
           <div className="bg-zinc-950 rounded-xl p-3 text-center">
-            <div className="text-2xl font-bold text-emerald-400">{stats.totalSpending.toFixed(0)}€</div>
+            <div className="text-2xl font-bold text-emerald-400">{stats.totalSpending}€</div>
             <div className="text-xs text-zinc-600 mt-1">Ausgaben</div>
           </div>
           <div className="bg-zinc-950 rounded-xl p-3 text-center">
@@ -540,14 +194,10 @@ function AchievementsView({ sessionHits = [], historyData = [] }) {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {progressBadges.map((badge) => {
           const IconComponent = badge.icon;
-          const progress = badge.target > 0
-            ? Math.min(100, Math.round((badge.current / badge.target) * 100))
-            : 100;
-          const remaining = Math.max(0, badge.target - badge.current);
 
           return (
             <div
-              key={badge.name}
+              key={badge.key}
               className={`bg-gradient-to-br ${badge.gradient} border border-white/10 rounded-2xl p-6 transition-all hover:scale-[1.02]`}
             >
               {/* Header */}
@@ -558,10 +208,10 @@ function AchievementsView({ sessionHits = [], historyData = [] }) {
                 <div className="flex-1">
                   <h4 className="font-bold text-white">{badge.name}</h4>
                   <p className="text-xs text-white/60">
-                    {badge.current}{badge.suffix || ''} / {badge.target}{badge.suffix || ''}
+                    {formatNumber(badge.current, badge.decimals)}{badge.suffix} / {formatNumber(badge.target, badge.decimals)}{badge.suffix}
                   </p>
                 </div>
-                {progress >= 100 && (
+                {badge.progress >= 100 && (
                   <Crown size={20} className="text-yellow-300" />
                 )}
               </div>
@@ -570,17 +220,17 @@ function AchievementsView({ sessionHits = [], historyData = [] }) {
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-xs text-white/80">
                   <span>Fortschritt</span>
-                  <span>{progress}%</span>
+                  <span>{badge.progress}%</span>
                 </div>
                 <div className="h-2 bg-black/20 rounded-full overflow-hidden">
                   <div
                     className="h-full bg-white/30 transition-all duration-500"
-                    style={{ width: `${progress}%` }}
+                    style={{ width: `${badge.progress}%` }}
                   />
                 </div>
-                {remaining > 0 && (
+                {badge.remaining > 0 && (
                   <div className="text-xs text-white/60 text-right">
-                    noch {remaining.toFixed(badge.suffix ? 1 : 0)}{badge.suffix || ''} verbleibend
+                    noch {formatNumber(badge.remaining, badge.decimals)}{badge.suffix} verbleibend
                   </div>
                 )}
               </div>
@@ -671,12 +321,6 @@ function calculateStreak(historyData) {
     console.error('calculateStreak failed', error);
     return 0;
   }
-}
-
-// Hilfsfunktion: Finde nächstes Target
-function getNextTarget(current, targets) {
-  const next = targets.find(t => t > current);
-  return next || targets[targets.length - 1] || current;
 }
 
 export default AchievementsView;
