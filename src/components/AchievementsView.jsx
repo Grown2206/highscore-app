@@ -1,140 +1,110 @@
 import React, { useMemo } from 'react';
-import { Trophy, Award, Star, Medal, Crown, Flame, Calendar, Zap } from 'lucide-react';
+import { Trophy, Award, Star, Medal, Crown } from 'lucide-react';
+import {
+  PROGRESS_BADGES,
+  generateMedals,
+  getNextTarget
+} from '../utils/achievementsConfig';
 
 /**
- * NEUES ACHIEVEMENTS-SYSTEM
- * Einfach, robust, Mix aus Medaillen & Badges
+ * ACHIEVEMENTS-SYSTEM v2.0
+ * Nutzt zentrale Config für alle Medaillen & Badges
  */
 
 function AchievementsView({ sessionHits = [], historyData = [] }) {
-  // Sichere Berechnung der Stats (mit Guards)
+  // Sichere & erweiterte Stats-Berechnung
   const stats = useMemo(() => {
     try {
       const safeHits = Array.isArray(sessionHits) ? sessionHits : [];
       const safeHistory = Array.isArray(historyData) ? historyData : [];
 
+      // Basis-Stats
+      const totalSessions = safeHits.length || 0;
+      const totalHits = safeHistory.reduce((sum, day) => sum + (day?.count || 0), 0);
+      const dailyRecord = safeHistory.length > 0
+        ? Math.max(...safeHistory.map(d => d?.count || 0))
+        : 0;
+      const currentStreak = calculateStreak(safeHistory);
+      const uniqueStrains = new Set(safeHits.map(h => h?.strain).filter(Boolean)).size || 0;
+      const totalSpending = safeHits.reduce((sum, h) => sum + (parseFloat(h?.price) || 0), 0);
+
+      // PERFORMANCE: Single-pass für earlyBird & nightOwl (statt 2 separate filter-Aufrufe)
+      let earlyBirdSessions = 0;
+      let nightOwlSessions = 0;
+
+      safeHits.forEach(h => {
+        if (!h?.timestamp) return;
+        const hour = new Date(h.timestamp).getHours();
+
+        // Frühaufsteher: 5-10 Uhr
+        if (hour >= 5 && hour < 10) {
+          earlyBirdSessions++;
+        }
+        // Nachteule: 22-5 Uhr
+        if (hour >= 22 || hour < 5) {
+          nightOwlSessions++;
+        }
+      });
+
+      // Effizienz (Ø Hits pro Session) - auf 1 Dezimale gerundet
+      const efficiency = totalSessions > 0
+        ? Math.round((totalHits / totalSessions) * 10) / 10
+        : 0;
+
       return {
-        totalSessions: safeHits.length || 0,
-        totalHits: safeHistory.reduce((sum, day) => sum + (day?.count || 0), 0),
-        dailyRecord: safeHistory.length > 0
-          ? Math.max(...safeHistory.map(d => d?.count || 0))
-          : 0,
-        currentStreak: calculateStreak(safeHistory),
-        uniqueStrains: new Set(safeHits.map(h => h?.strain).filter(Boolean)).size || 0,
-        totalSpending: safeHits.reduce((sum, h) => sum + (parseFloat(h?.price) || 0), 0)
+        totalSessions,
+        totalHits,
+        dailyRecord,
+        currentStreak,
+        uniqueStrains,
+        totalSpending: Math.round(totalSpending), // Konsistent: Integer für Euro
+        earlyBirdSessions,
+        nightOwlSessions,
+        efficiency
       };
     } catch (error) {
       console.error('AchievementsView: stats calculation failed', error);
-      // Fallback: Leere Stats
       return {
         totalSessions: 0,
         totalHits: 0,
         dailyRecord: 0,
         currentStreak: 0,
         uniqueStrains: 0,
-        totalSpending: 0
+        totalSpending: 0,
+        earlyBirdSessions: 0,
+        nightOwlSessions: 0,
+        efficiency: 0
       };
     }
   }, [sessionHits, historyData]);
 
-  // Medaillen-Definitionen (Einfache Milestones)
-  const medals = useMemo(() => {
-    const earned = [];
+  // Generiere Medaillen aus Config
+  const medals = useMemo(() => generateMedals(stats), [stats]);
 
-    // Session Medaillen
-    if (stats.totalSessions >= 10) earned.push({
-      name: 'Erste Schritte',
-      icon: '🥉',
-      desc: '10 Sessions erreicht',
-      color: 'from-amber-600 to-amber-500'
-    });
-    if (stats.totalSessions >= 50) earned.push({
-      name: 'Fortgeschritten',
-      icon: '🥈',
-      desc: '50 Sessions erreicht',
-      color: 'from-zinc-400 to-zinc-300'
-    });
-    if (stats.totalSessions >= 100) earned.push({
-      name: 'Veteran',
-      icon: '🥇',
-      desc: '100 Sessions erreicht',
-      color: 'from-yellow-500 to-yellow-400'
-    });
+  // Generiere Progress-Badges aus Config
+  const progressBadges = useMemo(() => {
+    return PROGRESS_BADGES.map(badgeConfig => {
+      const current = stats[badgeConfig.key] || 0;
+      const target = getNextTarget(current, badgeConfig.targets);
+      const progress = target > 0
+        ? Math.min(100, Math.round((current / target) * 100))
+        : 100;
+      const remaining = Math.max(0, target - current);
 
-    // Streak Medaillen
-    if (stats.currentStreak >= 7) earned.push({
-      name: 'Wochenkönig',
-      icon: '🔥',
-      desc: '7 Tage Streak',
-      color: 'from-orange-500 to-red-500'
+      return {
+        ...badgeConfig,
+        current,
+        target,
+        progress,
+        remaining
+      };
     });
-    if (stats.currentStreak >= 14) earned.push({
-      name: 'Unaufhaltsam',
-      icon: '⚡',
-      desc: '14 Tage Streak',
-      color: 'from-purple-500 to-pink-500'
-    });
-
-    // Rekord Medaillen
-    if (stats.dailyRecord >= 10) earned.push({
-      name: 'Party Mode',
-      icon: '🎉',
-      desc: '10+ Hits an einem Tag',
-      color: 'from-pink-500 to-rose-500'
-    });
-
-    // Explorer Medaillen
-    if (stats.uniqueStrains >= 5) earned.push({
-      name: 'Entdecker',
-      icon: '🌿',
-      desc: '5+ Sorten probiert',
-      color: 'from-green-500 to-emerald-500'
-    });
-    if (stats.uniqueStrains >= 10) earned.push({
-      name: 'Kenner',
-      icon: '🍃',
-      desc: '10+ Sorten probiert',
-      color: 'from-emerald-500 to-teal-500'
-    });
-
-    return earned;
   }, [stats]);
 
-  // Fortschritts-Badges (Aktuelle Ziele)
-  const progressBadges = useMemo(() => [
-    {
-      name: 'Sessions',
-      icon: Flame,
-      current: stats.totalSessions,
-      target: getNextTarget(stats.totalSessions, [10, 50, 100, 250, 500]),
-      color: 'orange',
-      gradient: 'from-orange-500 to-red-500'
-    },
-    {
-      name: 'Streak',
-      icon: Calendar,
-      current: stats.currentStreak,
-      target: getNextTarget(stats.currentStreak, [3, 7, 14, 30, 60]),
-      color: 'purple',
-      gradient: 'from-purple-500 to-pink-500'
-    },
-    {
-      name: 'Tages-Rekord',
-      icon: Star,
-      current: stats.dailyRecord,
-      target: getNextTarget(stats.dailyRecord, [5, 10, 15, 20, 25]),
-      color: 'yellow',
-      gradient: 'from-yellow-500 to-amber-500'
-    },
-    {
-      name: 'Sorten',
-      icon: Zap,
-      current: stats.uniqueStrains,
-      target: getNextTarget(stats.uniqueStrains, [3, 5, 10, 15, 20]),
-      color: 'green',
-      gradient: 'from-green-500 to-emerald-500'
-    }
-  ], [stats]);
+  // Format-Helper: Formatiert Zahlen basierend auf decimals-Property
+  const formatNumber = (value, decimals = 0) => {
+    return value.toFixed(decimals);
+  };
 
   return (
     <div className="space-y-6 pb-20">
@@ -146,7 +116,7 @@ function AchievementsView({ sessionHits = [], historyData = [] }) {
             Erfolge
           </h2>
           <p className="text-sm text-zinc-500 mt-1">
-            {medals.length} Medaillen verdient
+            {medals.length} Medaillen verdient • {progressBadges.length} Kategorien
           </p>
         </div>
         <div className="bg-gradient-to-br from-yellow-500/10 to-orange-500/10 border border-yellow-500/30 rounded-xl p-4 text-center">
@@ -155,22 +125,23 @@ function AchievementsView({ sessionHits = [], historyData = [] }) {
         </div>
       </div>
 
-      {/* Medaillen */}
+      {/* Medaillen Grid */}
       {medals.length > 0 && (
         <div className="bg-gradient-to-br from-yellow-500/10 to-orange-500/10 border border-yellow-500/20 rounded-2xl p-6">
           <h3 className="text-sm font-bold text-yellow-400 uppercase mb-4 flex items-center gap-2">
             <Medal size={16} />
             Verdiente Medaillen
           </h3>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
             {medals.map((medal, i) => (
               <div
                 key={i}
-                className={`bg-gradient-to-br ${medal.color} border border-white/10 rounded-xl p-4 text-center`}
+                className={`bg-gradient-to-br ${medal.color} border border-white/10 rounded-xl p-4 text-center transition-all hover:scale-105`}
               >
                 <div className="text-4xl mb-2">{medal.icon}</div>
                 <div className="text-sm font-bold text-white">{medal.name}</div>
                 <div className="text-xs text-white/60 mt-1">{medal.desc}</div>
+                <div className="text-[10px] text-white/40 mt-1 uppercase">{medal.category}</div>
               </div>
             ))}
           </div>
@@ -183,7 +154,7 @@ function AchievementsView({ sessionHits = [], historyData = [] }) {
           <Star size={16} />
           Deine Stats
         </h3>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <div className="bg-zinc-950 rounded-xl p-3 text-center">
             <div className="text-2xl font-bold text-orange-400">{stats.totalSessions}</div>
             <div className="text-xs text-zinc-600 mt-1">Sessions</div>
@@ -201,29 +172,33 @@ function AchievementsView({ sessionHits = [], historyData = [] }) {
             <div className="text-xs text-zinc-600 mt-1">Sorten</div>
           </div>
           <div className="bg-zinc-950 rounded-xl p-3 text-center">
-            <div className="text-2xl font-bold text-blue-400">{stats.totalHits}</div>
-            <div className="text-xs text-zinc-600 mt-1">Total Hits</div>
+            <div className="text-2xl font-bold text-emerald-400">{stats.totalSpending}€</div>
+            <div className="text-xs text-zinc-600 mt-1">Ausgaben</div>
           </div>
           <div className="bg-zinc-950 rounded-xl p-3 text-center">
-            <div className="text-2xl font-bold text-emerald-400">{stats.totalSpending.toFixed(0)}€</div>
-            <div className="text-xs text-zinc-600 mt-1">Ausgaben</div>
+            <div className="text-2xl font-bold text-yellow-400">{stats.earlyBirdSessions}</div>
+            <div className="text-xs text-zinc-600 mt-1">Morgen</div>
+          </div>
+          <div className="bg-zinc-950 rounded-xl p-3 text-center">
+            <div className="text-2xl font-bold text-indigo-400">{stats.nightOwlSessions}</div>
+            <div className="text-xs text-zinc-600 mt-1">Nacht</div>
+          </div>
+          <div className="bg-zinc-950 rounded-xl p-3 text-center">
+            <div className="text-2xl font-bold text-cyan-400">{stats.efficiency.toFixed(1)}</div>
+            <div className="text-xs text-zinc-600 mt-1">Ø Hits/Session</div>
           </div>
         </div>
       </div>
 
-      {/* Fortschritts-Badges */}
+      {/* Fortschritts-Badges Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {progressBadges.map((badge) => {
           const IconComponent = badge.icon;
-          const progress = badge.target > 0
-            ? Math.min(100, Math.round((badge.current / badge.target) * 100))
-            : 100;
-          const remaining = Math.max(0, badge.target - badge.current);
 
           return (
             <div
-              key={badge.name}
-              className={`bg-gradient-to-br ${badge.gradient} border border-white/10 rounded-2xl p-6`}
+              key={badge.key}
+              className={`bg-gradient-to-br ${badge.gradient} border border-white/10 rounded-2xl p-6 transition-all hover:scale-[1.02]`}
             >
               {/* Header */}
               <div className="flex items-center gap-3 mb-4">
@@ -233,10 +208,10 @@ function AchievementsView({ sessionHits = [], historyData = [] }) {
                 <div className="flex-1">
                   <h4 className="font-bold text-white">{badge.name}</h4>
                   <p className="text-xs text-white/60">
-                    {badge.current} / {badge.target}
+                    {formatNumber(badge.current, badge.decimals)}{badge.suffix} / {formatNumber(badge.target, badge.decimals)}{badge.suffix}
                   </p>
                 </div>
-                {progress >= 100 && (
+                {badge.progress >= 100 && (
                   <Crown size={20} className="text-yellow-300" />
                 )}
               </div>
@@ -245,17 +220,17 @@ function AchievementsView({ sessionHits = [], historyData = [] }) {
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-xs text-white/80">
                   <span>Fortschritt</span>
-                  <span>{progress}%</span>
+                  <span>{badge.progress}%</span>
                 </div>
                 <div className="h-2 bg-black/20 rounded-full overflow-hidden">
                   <div
                     className="h-full bg-white/30 transition-all duration-500"
-                    style={{ width: `${progress}%` }}
+                    style={{ width: `${badge.progress}%` }}
                   />
                 </div>
-                {remaining > 0 && (
+                {badge.remaining > 0 && (
                   <div className="text-xs text-white/60 text-right">
-                    noch {remaining} verbleibend
+                    noch {formatNumber(badge.remaining, badge.decimals)}{badge.suffix} verbleibend
                   </div>
                 )}
               </div>
@@ -269,8 +244,9 @@ function AchievementsView({ sessionHits = [], historyData = [] }) {
         <div className="flex items-start gap-3">
           <Award size={16} className="text-yellow-500 flex-shrink-0 mt-0.5" />
           <p className="text-xs text-zinc-400 leading-relaxed">
-            <span className="font-bold text-white">Erfolge:</span> Verdiene Medaillen durch Meilensteine
-            und tracke deinen Fortschritt mit Badges. Deine Erfolge werden automatisch freigeschaltet!
+            <span className="font-bold text-white">Erfolge v2.0:</span> 8 Kategorien, 30+ Medaillen
+            mit lustigen Bezeichnungen! Tracke Sitzungen, Streaks, Tagesrekorde, Ausgaben, Sorten,
+            Morgen-/Nachtsessions und Effizienz. Deine Erfolge werden automatisch freigeschaltet! 🚀
           </p>
         </div>
       </div>
@@ -338,7 +314,6 @@ function calculateStreak(historyData) {
         // Entry ist älter als erwartet - keine weiteren Matches möglich (Array ist sortiert)
         break;
       }
-      // Falls entryDate > expectedDate sollte nie vorkommen (gefiltert), aber skip zur Sicherheit
     }
 
     return streak;
@@ -346,12 +321,6 @@ function calculateStreak(historyData) {
     console.error('calculateStreak failed', error);
     return 0;
   }
-}
-
-// Hilfsfunktion: Finde nächstes Target
-function getNextTarget(current, targets) {
-  const next = targets.find(t => t > current);
-  return next || targets[targets.length - 1] || current;
 }
 
 export default AchievementsView;
