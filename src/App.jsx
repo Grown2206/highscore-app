@@ -347,21 +347,39 @@ export default function App() {
         json = await res.json();
       }
 
-      const { pendingHits = [], pendingCount = 0 } = json;
+      const { pendingHits = [], pendingCount = 0, espUptime = 0 } = json;
 
       if (pendingCount > 0 && pendingHits.length > 0) {
         console.log(`🔄 Auto-Sync: ${pendingCount} pending hits gefunden`);
 
         // Konvertiere ESP32 Hits in App-Format
         const strain = settings.strains.find(s => s.id == currentStrainId) || settings.strains[0] || { name: '?', price: 0 };
-        const importedHits = pendingHits.map(hit => ({
-          id: hit.timestamp,
-          timestamp: hit.timestamp,
-          type: 'Sensor',
-          strainName: strain.name,
-          strainPrice: strain.price,
-          duration: hit.duration || 0
-        }));
+        const now = Date.now();
+
+        const importedHits = pendingHits.map(hit => {
+          let realTimestamp;
+
+          // FIX: Auto-detect timestamp format
+          // Wenn timestamp > 1000000000000 (~ Sept 2001), ist es bereits Unix timestamp
+          // Sonst ist es millis() und muss konvertiert werden
+          if (hit.timestamp > 1000000000000) {
+            // NEU: ESP32 mit NTP sendet echte Unix timestamps
+            realTimestamp = hit.timestamp;
+          } else {
+            // ALT: ESP32 ohne NTP sendet millis() → konvertiere mit espUptime
+            const hitAgeMs = espUptime - hit.timestamp;
+            realTimestamp = now - hitAgeMs;
+          }
+
+          return {
+            id: realTimestamp, // Nutze echten Timestamp als eindeutige ID
+            timestamp: realTimestamp,
+            type: 'Sensor',
+            strainName: strain.name,
+            strainPrice: strain.price,
+            duration: hit.duration || 0
+          };
+        });
 
         // Importiere Hits in sessionHits mit Duplikatsprüfung im functional updater
         // (verhindert Race Conditions bei concurrent updates)
@@ -707,6 +725,7 @@ function AppLayout({ ctx }) {
             <AchievementsView
               sessionHits={ctx.sessionHits}
               historyData={ctx.historyData}
+              settings={ctx.settings}
             />
           )}
           {activeTab === 'esp32' && (

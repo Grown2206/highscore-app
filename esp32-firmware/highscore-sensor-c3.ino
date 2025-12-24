@@ -52,6 +52,7 @@
 #include <Preferences.h>
 #include <ArduinoJson.h>
 #include <DNSServer.h>
+#include <time.h> // FIX: NTP Time Sync
 
 // ===== HARDWARE PINS (ESP32-C3) =====
 #define I2C_SDA 5
@@ -81,6 +82,11 @@
 #define AP_SSID "HighScore-Setup"
 #define AP_PASSWORD "" // Kein Passwort für Setup
 const byte DNS_PORT = 53;
+
+// NTP Time Sync (NEU v7.1)
+const char* ntpServer = "pool.ntp.org";
+const long gmtOffset_sec = 3600;  // GMT+1 für Deutschland
+const int daylightOffset_sec = 3600;  // Sommerzeit
 
 // Display Screens
 #define NUM_SCREENS 3
@@ -122,10 +128,11 @@ String lastSessionDate = "";
 // WiFi
 bool wifiConnected = false;
 bool isAPMode = false;
+bool timeSync = false; // FIX: NTP Time Sync Status
 
 // Offline Sync - Pending Hits Speicherung
 struct PendingHit {
-  unsigned long timestamp;  // Zeitstempel (millis seit ESP32 Start)
+  unsigned long timestamp;  // FIX: Unix Timestamp in Millisekunden (seit 1970)
   unsigned long duration;   // Session-Dauer in ms
 };
 
@@ -355,6 +362,20 @@ void setupWiFi() {
       Serial.println("\nConnected!");
       Serial.print("IP: ");
       Serial.println(localIP);
+
+      // FIX: NTP Time Sync initialisieren
+      Serial.print("Syncing time with NTP...");
+      configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
+      struct tm timeinfo;
+      if (getLocalTime(&timeinfo)) {
+        timeSync = true;
+        Serial.println(" OK!");
+        Serial.print("Current time: ");
+        Serial.println(&timeinfo, "%A, %B %d %Y %H:%M:%S");
+      } else {
+        Serial.println(" FAILED!");
+        timeSync = false;
+      }
 
       display.clearDisplay();
       display.setCursor(0, 0);
@@ -656,6 +677,22 @@ void detectSession() {
   }
 }
 
+// ===== ZEIT-HELPER: Unix Timestamp in Millisekunden =====
+unsigned long getCurrentTimestamp() {
+  if (!timeSync) {
+    // Fallback: millis() wenn keine Zeit-Sync
+    return millis();
+  }
+
+  struct tm timeinfo;
+  if (!getLocalTime(&timeinfo)) {
+    return millis(); // Fallback bei Fehler
+  }
+
+  time_t now_sec = mktime(&timeinfo);
+  return (unsigned long)now_sec * 1000; // Sekunden → Millisekunden
+}
+
 // ===== HIT REGISTRIEREN =====
 void registerHit(unsigned long duration) {
   todayHits++;
@@ -678,8 +715,11 @@ void registerHit(unsigned long duration) {
   prefs.putInt("longestStreak", longestStreak);
 
   // **NEU v7.0: Pending Hit für Offline-Sync speichern**
+  // FIX v7.1: Nutze echten Unix Timestamp statt millis()
+  unsigned long currentTimestamp = getCurrentTimestamp();
+
   if (pendingHitsCount < MAX_PENDING_HITS) {
-    pendingHits[pendingHitsCount].timestamp = millis();
+    pendingHits[pendingHitsCount].timestamp = currentTimestamp;
     pendingHits[pendingHitsCount].duration = duration;
     pendingHitsCount++;
 
@@ -688,7 +728,7 @@ void registerHit(unsigned long duration) {
 
     // Jeden Hit einzeln speichern (für Persistenz nach Neustart)
     String key = "pHit_" + String(pendingHitsCount - 1);
-    prefs.putULong((key + "_ts").c_str(), millis());
+    prefs.putULong((key + "_ts").c_str(), currentTimestamp);
     prefs.putULong((key + "_dur").c_str(), duration);
 
     Serial.print("Pending Hit gespeichert (");
@@ -700,7 +740,7 @@ void registerHit(unsigned long duration) {
     for (int i = 0; i < MAX_PENDING_HITS - 1; i++) {
       pendingHits[i] = pendingHits[i + 1];
     }
-    pendingHits[MAX_PENDING_HITS - 1].timestamp = millis();
+    pendingHits[MAX_PENDING_HITS - 1].timestamp = currentTimestamp;
     pendingHits[MAX_PENDING_HITS - 1].duration = duration;
   }
 
