@@ -11,7 +11,7 @@ import {
  * Nutzt zentrale Config für alle Medaillen & Badges
  */
 
-function AchievementsView({ sessionHits = [], historyData = [] }) {
+function AchievementsView({ sessionHits = [], historyData = [], settings = {} }) {
   // Sichere & erweiterte Stats-Berechnung
   const stats = useMemo(() => {
     try {
@@ -25,8 +25,15 @@ function AchievementsView({ sessionHits = [], historyData = [] }) {
         ? Math.max(...safeHistory.map(d => d?.count || 0))
         : 0;
       const currentStreak = calculateStreak(safeHistory);
-      const uniqueStrains = new Set(safeHits.map(h => h?.strain).filter(Boolean)).size || 0;
-      const totalSpending = safeHits.reduce((sum, h) => sum + (parseFloat(h?.price) || 0), 0);
+      const uniqueStrains = new Set(safeHits.map(h => h?.strainName).filter(Boolean)).size || 0; // FIX: strainName statt strain
+
+      // FIX: Korrekte Ausgaben-Berechnung mit bowlSize & weedRatio
+      const bowlSize = settings?.bowlSize || 0.3;
+      const weedRatio = settings?.weedRatio || 80;
+      const totalSpending = safeHits.reduce((sum, h) => {
+        const price = parseFloat(h?.strainPrice) || 0;
+        return sum + (bowlSize * (weedRatio / 100) * price);
+      }, 0);
 
       // PERFORMANCE: Single-pass für earlyBird & nightOwl (statt 2 separate filter-Aufrufe)
       let earlyBirdSessions = 0;
@@ -76,7 +83,7 @@ function AchievementsView({ sessionHits = [], historyData = [] }) {
         efficiency: 0
       };
     }
-  }, [sessionHits, historyData]);
+  }, [sessionHits, historyData, settings]); // FIX: settings dependency hinzugefügt
 
   // Generiere Medaillen aus Config
   const medals = useMemo(() => generateMedals(stats), [stats]);
