@@ -318,6 +318,47 @@ export default function App() {
     console.log('🔄 Gäste-Hits zurückgesetzt');
   };
 
+  // DELETE HIT: Einzelnen Hit löschen
+  const deleteHit = (hitId) => {
+    if (navigator.vibrate) navigator.vibrate(30);
+
+    // Find hit to delete
+    const hitToDelete = sessionHits.find(h => h.id === hitId);
+    if (!hitToDelete) {
+      console.warn('⚠️ Hit nicht gefunden:', hitId);
+      return;
+    }
+
+    // Remove from sessionHits
+    setSessionHits(prev => prev.filter(h => h.id !== hitId));
+
+    // Update historyData (decrement count for that day)
+    const hitDate = new Date(hitToDelete.timestamp).toISOString().split('T')[0];
+    setHistoryData(prev => {
+      const updated = [...prev];
+      const idx = updated.findIndex(d => d.date === hitDate);
+      if (idx >= 0) {
+        const newCount = Math.max(0, updated[idx].count - 1);
+        if (newCount === 0) {
+          // Remove day if count reaches 0
+          updated.splice(idx, 1);
+        } else {
+          updated[idx] = { ...updated[idx], count: newCount };
+        }
+      }
+      return updated;
+    });
+
+    console.log('🗑️ Hit gelöscht:', hitId);
+
+    setNotification({
+      type: 'success',
+      message: '✅ Hit gelöscht',
+      icon: Trash2
+    });
+    setTimeout(() => setNotification(null), 2000);
+  };
+
   // AUTO-SYNC: Pending Hits vom ESP32 abrufen und importieren
   const syncPendingHits = useCallback(async () => {
     if (isSimulating || isSyncingRef.current || hasSyncedRef.current) return;
@@ -405,9 +446,6 @@ export default function App() {
             return updated;
           });
 
-          // Sync erfolgreich - Bestätige an ESP32
-          await completeSyncRequest();
-
           setNotification({
             type: 'success',
             message: `✅ ${actuallyImportedCount} Offline-Hits importiert!`,
@@ -419,6 +457,10 @@ export default function App() {
         } else {
           console.log(`✓ Auto-Sync: Alle ${pendingCount} hits bereits vorhanden (Duplikate)`);
         }
+
+        // FIX: Sync Complete IMMER aufrufen (auch bei Duplikaten!)
+        // Sonst bleiben Pending Hits auf ESP32 und werden immer wieder gesendet
+        await completeSyncRequest();
       } else {
         console.log('✓ Auto-Sync: Keine pending hits');
       }
@@ -597,7 +639,7 @@ export default function App() {
   const ctx = useMemo(() => ({
     settings, setSettings, historyData, setHistoryData, sessionHits, setSessionHits,
     goals, setGoals, lastHitTime,
-    liveData, currentStrainId, setCurrentStrainId, isGuestMode, setIsGuestMode, guestHits, resetGuestHits,
+    liveData, currentStrainId, setCurrentStrainId, isGuestMode, setIsGuestMode, guestHits, resetGuestHits, deleteHit,
     connected, setConnected, isSimulating, setIsSimulating, isSensorInhaling,
     ip, setIp, lastError, selectedSession, setSelectedSession, notification,
     connectionLog, flameHistory, errorCount, isManuallyHolding,
@@ -608,7 +650,7 @@ export default function App() {
   }), [
     settings, setSettings, historyData, setHistoryData, sessionHits, setSessionHits,
     goals, setGoals, lastHitTime,
-    liveData, currentStrainId, setCurrentStrainId, isGuestMode, setIsGuestMode, guestHits, resetGuestHits,
+    liveData, currentStrainId, setCurrentStrainId, isGuestMode, setIsGuestMode, guestHits, resetGuestHits, deleteHit,
     connected, setConnected, isSimulating, setIsSimulating, isSensorInhaling,
     ip, setIp, lastError, selectedSession, setSelectedSession, notification,
     connectionLog, flameHistory, errorCount, isManuallyHolding,
@@ -683,7 +725,9 @@ function AppLayout({ ctx }) {
               isGuestMode={ctx.isGuestMode}
               setIsGuestMode={ctx.setIsGuestMode}
               guestHits={ctx.guestHits}
+              resetGuestHits={ctx.resetGuestHits}
               sessionHits={ctx.sessionHits}
+              deleteHit={ctx.deleteHit}
               onManualTrigger={ctx.onManualTrigger}
               onHoldStart={ctx.onHoldStart}
               onHoldEnd={ctx.onHoldEnd}

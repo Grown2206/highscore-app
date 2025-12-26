@@ -61,6 +61,14 @@
 #define BUTTON_PIN 9
 #define BUZZER_PIN 10
 #define LED_PIN 8
+#define BATTERY_ADC_PIN 0  // NEU v7.1: Akku-Spannung messen (GPIO0/ADC1_CH0)
+
+// Battery Monitoring (NEU v7.1)
+// HINWEIS: Für LiPo (3.7V-4.2V) wird Spannungsteiler benötigt!
+// Spannungsteiler: R1=100kΩ (zu Akku+), R2=100kΩ (zu GND)
+// → Akku 4.2V → ADC liest 2.1V (max. 3.3V!)
+// Formel: Batterie_Volt = ADC_Volt * 2.0
+#define BATTERY_VOLTAGE_DIVIDER 2.0  // Teiler-Verhältnis (R1+R2)/R2
 
 // ===== DISPLAY CONFIG (0.42" OLED 72x40) =====
 #define SCREEN_WIDTH 72
@@ -73,6 +81,15 @@
 #define SESSION_TIMEOUT 5000   // Max Session-Dauer in ms
 #define COOLDOWN_TIME 3000     // Cooldown nach Hit in ms
 #define DISPLAY_TIMEOUT 20000  // Display nach 20 Sekunden ausschalten
+
+// FIX v7.1: Fehlauslösungen verhindern
+#define MIN_SESSION_DURATION 800   // Mindestens 0.8s für gültigen Hit (verhindert Fehlauslösungen)
+#define MAX_SESSION_DURATION 4500  // Maximal 4.5s für gültigen Hit (verhindert Sensor-Stuck)
+
+// HINWEIS: B05 Flame Sensor Empfindlichkeit am Potentiometer einstellen!
+// - Im Uhrzeigersinn drehen = weniger empfindlich (weniger Fehlauslösungen)
+// - Gegen Uhrzeigersinn = empfindlicher (bessere Erkennung)
+// - Optimal: LED leuchtet NUR bei Flamme in 5-10cm Entfernung
 
 // Offline Sync Einstellungen
 #define MAX_PENDING_HITS 50    // Maximale Anzahl gespeicherter unsynced hits
@@ -146,6 +163,37 @@ String savedPassword = "";
 int animFrame = 0;
 unsigned long lastAnimUpdate = 0;
 
+// Battery (NEU v7.1)
+float batteryVoltage = 0.0;
+int batteryPercent = 0;
+unsigned long lastBatteryRead = 0;
+#define BATTERY_READ_INTERVAL 30000  // Alle 30 Sekunden
+
+// ===== BATTERY FUNCTIONS =====
+void readBatteryVoltage() {
+  // ADC lesen (0-4095 entspricht 0-3.3V)
+  int rawADC = analogRead(BATTERY_ADC_PIN);
+  float adcVoltage = (rawADC / 4095.0) * 3.3;
+
+  // Mit Spannungsteiler zurückrechnen
+  batteryVoltage = adcVoltage * BATTERY_VOLTAGE_DIVIDER;
+
+  // Prozent berechnen (LiPo: 4.2V = 100%, 3.0V = 0%)
+  if (batteryVoltage >= 4.2) {
+    batteryPercent = 100;
+  } else if (batteryVoltage <= 3.0) {
+    batteryPercent = 0;
+  } else {
+    batteryPercent = (int)((batteryVoltage - 3.0) / 1.2 * 100);
+  }
+
+  Serial.print("🔋 Battery: ");
+  Serial.print(batteryVoltage, 2);
+  Serial.print("V (");
+  Serial.print(batteryPercent);
+  Serial.println("%)");
+}
+
 // ===== SETUP =====
 void setup() {
   Serial.begin(115200);
@@ -207,6 +255,10 @@ void setup() {
   // HTTP Server
   setupServer();
 
+  // NEU v7.1: Initiale Akku-Messung
+  analogSetAttenuation(ADC_11db);  // 0-3.3V Bereich
+  readBatteryVoltage();
+
   // Ready!
   playTone(1000, 100);
   delay(50);
@@ -222,6 +274,12 @@ void setup() {
 // ===== MAIN LOOP =====
 void loop() {
   server.handleClient();
+
+  // NEU v7.1: Periodische Akku-Messung (alle 30s)
+  if (millis() - lastBatteryRead >= BATTERY_READ_INTERVAL) {
+    readBatteryVoltage();
+    lastBatteryRead = millis();
+  }
 
   // DNS Server für Captive Portal (nur im AP Mode)
   if (isAPMode) {
@@ -509,6 +567,9 @@ void setupServer() {
     doc["streak"] = currentStreak;
     doc["longestStreak"] = longestStreak;
     doc["uptime"] = millis() / 1000;
+    // NEU v7.1: Battery Monitoring
+    doc["batteryVoltage"] = batteryVoltage;
+    doc["batteryPercent"] = batteryPercent;
 
     String json;
     serializeJson(doc, json);
@@ -655,10 +716,26 @@ void detectSession() {
   if (!isFlameDetected && isInSession) {
     unsigned long duration = now - sessionStartTime;
 
-    // Nur registrieren wenn Session länger als 500ms UND nicht im Cooldown
-    if (duration > 500 && duration < SESSION_TIMEOUT && !inCooldown) {
+    // FIX v7.1: Konfigurierbare Dauer-Grenzen zur Fehlauslösungs-Vermeidung
+    if (duration >= MIN_SESSION_DURATION && duration <= MAX_SESSION_DURATION && !inCooldown) {
+      Serial.print("✓ Valid Hit: ");
+      Serial.print(duration / 1000.0, 2);
+      Serial.println("s");
       registerHit(duration);
       cooldownUntil = now + COOLDOWN_TIME;  // 3 Sekunden Cooldown
+    } else {
+      // Fehlauslösung oder zu lange Session
+      if (duration < MIN_SESSION_DURATION) {
+        Serial.print("✗ REJECTED: Too short (");
+        Serial.print(duration);
+        Serial.println("ms) - False trigger?");
+      } else if (duration > MAX_SESSION_DURATION) {
+        Serial.print("✗ REJECTED: Too long (");
+        Serial.print(duration);
+        Serial.println("ms) - Sensor stuck?");
+      } else if (inCooldown) {
+        Serial.println("✗ REJECTED: In cooldown");
+      }
     }
 
     // Session IMMER beenden, auch wenn kein Hit registriert wird

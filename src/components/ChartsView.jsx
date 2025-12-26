@@ -114,6 +114,10 @@ export default function ChartsView({ historyData, sessionHits, settings }) {
     const months = {};
     sessionHits.forEach(hit => {
       const date = new Date(hit.timestamp);
+      // DEBUG: Log first few timestamps to check format
+      if (Object.keys(months).length < 3) {
+        console.log('MonthlyTrend Debug - Hit timestamp:', hit.timestamp, '→ Date:', date.toISOString());
+      }
       const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
       if (!months[monthKey]) {
         months[monthKey] = { month: monthKey, count: 0, cost: 0 };
@@ -123,7 +127,9 @@ export default function ChartsView({ historyData, sessionHits, settings }) {
       const price = strain?.price || hit.strainPrice || 0;
       months[monthKey].cost += (settings?.bowlSize || 0.3) * ((settings?.weedRatio || 80) / 100) * price;
     });
-    return Object.values(months).sort((a, b) => a.month.localeCompare(b.month)).slice(-6); // Letzte 6 Monate
+    const result = Object.values(months).sort((a, b) => a.month.localeCompare(b.month)).slice(-6);
+    console.log('MonthlyTrend Result:', result); // DEBUG
+    return result;
   }, [sessionHits, settings]);
 
   const maxMonthlyCount = Math.max(...monthlyTrend.map(m => m.count), 1);
