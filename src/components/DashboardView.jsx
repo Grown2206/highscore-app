@@ -1,9 +1,91 @@
-import React, { useState, useEffect } from 'react';
-import { User, Users, Tag, Wind, Scale, Coins, List, Clock, Shield, Radio, Flame, Zap, RotateCcw } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { User, Users, Tag, Wind, Scale, Coins, List, Clock, Shield, Radio, Flame, Zap, RotateCcw, Trash2 } from 'lucide-react';
 import HoldButton from './HoldButton';
 import { MetricCard, AdminMetric } from './UIComponents';
 
-export default function DashboardView({ liveData, lastHitTime, settings, isGuestMode, setIsGuestMode, guestHits, resetGuestHits, sessionHits, onManualTrigger, onHoldStart, onHoldEnd, currentStrainId, setCurrentStrainId, isSensorInhaling }) {
+// Swipeable Hit Row Component
+function SwipeableHitRow({ hit, hitNumber, onDelete }) {
+  const [swipeX, setSwipeX] = useState(0);
+  const [isSwiping, setIsSwiping] = useState(false);
+  const startX = useRef(0);
+  const currentX = useRef(0);
+
+  const handleTouchStart = (e) => {
+    startX.current = e.touches[0].clientX;
+    setIsSwiping(true);
+  };
+
+  const handleTouchMove = (e) => {
+    if (!isSwiping) return;
+    currentX.current = e.touches[0].clientX;
+    const diff = currentX.current - startX.current;
+    // Only allow left swipe
+    if (diff < 0) {
+      setSwipeX(Math.max(diff, -100));
+    }
+  };
+
+  const handleTouchEnd = () => {
+    setIsSwiping(false);
+    if (swipeX < -60) {
+      // Swiped far enough - show delete button
+      setSwipeX(-80);
+    } else {
+      // Reset
+      setSwipeX(0);
+    }
+  };
+
+  const handleDelete = () => {
+    if (navigator.vibrate) navigator.vibrate(50);
+    onDelete(hit.id);
+  };
+
+  return (
+    <tr className="relative">
+      <td colSpan="4" className="p-0">
+        <div className="relative overflow-hidden">
+          {/* Delete button background */}
+          <div className="absolute inset-0 bg-red-600 flex items-center justify-end pr-4">
+            <button
+              onClick={handleDelete}
+              className="flex items-center gap-2 text-white font-bold"
+            >
+              <Trash2 size={16} />
+              Löschen
+            </button>
+          </div>
+
+          {/* Swipeable content */}
+          <div
+            className="relative bg-zinc-900 flex items-center transition-transform duration-200"
+            style={{ transform: `translateX(${swipeX}px)` }}
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
+          >
+            <div className="w-full flex items-center py-3 px-4 hover:bg-zinc-800/50">
+              <div className="flex-none w-12 font-mono text-zinc-600 text-xs">#{hitNumber}</div>
+              <div className="flex-none w-16 text-white text-xs">
+                {new Date(hit.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </div>
+              <div className="flex-1 text-zinc-400 text-xs px-2">{hit.strainName}</div>
+              <div className="flex-none text-right text-xs">
+                {hit.duration > 0 && (
+                  <span className="bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 px-1.5 py-0.5 rounded">
+                    {(hit.duration / 1000).toFixed(1)}s
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </td>
+    </tr>
+  );
+}
+
+export default function DashboardView({ liveData, lastHitTime, settings, isGuestMode, setIsGuestMode, guestHits, resetGuestHits, sessionHits, deleteHit, onManualTrigger, onHoldStart, onHoldEnd, currentStrainId, setCurrentStrainId, isSensorInhaling }) {
   const [timeSince, setTimeSince] = useState("00:00:00");
   
   useEffect(() => {
@@ -78,18 +160,22 @@ export default function DashboardView({ liveData, lastHitTime, settings, isGuest
       </div>
 
       <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
-        <div className="bg-zinc-950 px-4 py-3 border-b border-zinc-800 flex items-center gap-2"><Clock size={14} className="text-zinc-500"/><span className="text-xs font-bold uppercase text-zinc-500">Timeline</span></div>
+        <div className="bg-zinc-950 px-4 py-3 border-b border-zinc-800 flex items-center gap-2">
+          <Clock size={14} className="text-zinc-500"/>
+          <span className="text-xs font-bold uppercase text-zinc-500">Timeline</span>
+          <span className="text-[10px] text-zinc-600 ml-auto">← Wische zum Löschen</span>
+        </div>
         <div className="max-h-48 overflow-y-auto">
           {sessionHits.length === 0 ? <div className="p-4 text-center text-zinc-600 text-xs italic">Warte auf den ersten Zug...</div> :
           <table className="w-full text-left text-xs text-zinc-400">
              <tbody className="divide-y divide-zinc-800">
                {sessionHits.map((hit, i) => (
-                 <tr key={hit.id} className="hover:bg-zinc-800/50">
-                   <td className="px-4 py-3 font-mono text-zinc-600">#{sessionHits.length - i}</td>
-                   <td className="px-4 py-3 text-white">{new Date(hit.timestamp).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</td>
-                   <td className="px-4 py-3">{hit.strainName}</td>
-                   <td className="px-4 py-3 text-right">{hit.duration > 0 && <span className="bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 px-1.5 py-0.5 rounded">{(hit.duration/1000).toFixed(1)}s</span>}</td>
-                 </tr>
+                 <SwipeableHitRow
+                   key={hit.id}
+                   hit={hit}
+                   hitNumber={sessionHits.length - i}
+                   onDelete={deleteHit}
+                 />
                ))}
              </tbody>
           </table>}
