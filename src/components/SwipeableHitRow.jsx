@@ -6,7 +6,6 @@ export default function SwipeableHitRow({ hit, hitNumber, onDelete }) {
   const [swipeX, setSwipeX] = useState(0);
   const [isSwiping, setIsSwiping] = useState(false);
   const [showDeleteBtn, setShowDeleteBtn] = useState(false); // Desktop hover state
-  const [showDetails, setShowDetails] = useState(false);
   const startX = useRef(0);
   const currentX = useRef(0);
 
@@ -26,17 +25,14 @@ export default function SwipeableHitRow({ hit, hitNumber, onDelete }) {
   const handleTouchEnd = () => {
     setIsSwiping(false);
     if (swipeX < -60) {
-      // Swiped left - show delete button
+      // Swiped left - lock at delete position
       setSwipeX(-80);
-      setShowDetails(false);
     } else if (swipeX > 60) {
-      // Swiped right - show details
+      // Swiped right - lock at info position
       setSwipeX(80);
-      setShowDetails(true);
     } else {
-      // Reset
+      // Reset to center
       setSwipeX(0);
-      setShowDetails(false);
     }
   };
 
@@ -62,42 +58,40 @@ export default function SwipeableHitRow({ hit, hitNumber, onDelete }) {
     }
   };
 
-  // Normalize ID for display (handle string/number/null/undefined)
+  // Normalize ID for display (only handle string/number, fallback to '–' for anything else)
   const idLabel = typeof hit.id === 'string'
     ? hit.id.slice(0, 8)
-    : String(hit.id ?? '').slice(0, 8);
+    : typeof hit.id === 'number'
+      ? String(hit.id).slice(0, 8)
+      : '–';
 
   return (
     <tr className="relative">
       <td colSpan="4" className="p-0">
         <div className="relative overflow-hidden">
-          {/* Info background (right swipe) - only visible when committed right swipe */}
-          {showDetails && (
-            <div className="absolute inset-0 bg-blue-600 flex items-center justify-start pl-4">
-              <div className="flex items-center gap-2 text-white font-bold text-xs">
-                <Info size={16} />
-                <div className="flex flex-col">
-                  <span className="text-[10px] text-blue-200">ID: {idLabel || '–'}</span>
-                  <span className="text-[10px] text-blue-200">
-                    {new Date(hit.timestamp).toLocaleString('de-DE')}
-                  </span>
-                </div>
+          {/* Info background (right swipe) - always mounted, revealed by swipe */}
+          <div className="absolute inset-0 bg-blue-600 flex items-center justify-start pl-4">
+            <div className="flex items-center gap-2 text-white font-bold text-xs">
+              <Info size={16} />
+              <div className="flex flex-col">
+                <span className="text-[10px] text-blue-200">ID: {idLabel}</span>
+                <span className="text-[10px] text-blue-200">
+                  {new Date(hit.timestamp).toLocaleString('de-DE')}
+                </span>
               </div>
             </div>
-          )}
+          </div>
 
-          {/* Delete button background (left swipe) - only visible when committed left swipe */}
-          {swipeX < -60 && (
-            <div className="absolute inset-0 bg-red-600 flex items-center justify-end pr-4">
-              <button
-                onClick={handleDelete}
-                className="flex items-center gap-2 text-white font-bold"
-              >
-                <Trash2 size={16} />
-                Löschen
-              </button>
-            </div>
-          )}
+          {/* Delete button background (left swipe) - always mounted, revealed by swipe */}
+          <div className="absolute inset-0 bg-red-600 flex items-center justify-end pr-4">
+            <button
+              onClick={handleDelete}
+              className="flex items-center gap-2 text-white font-bold"
+            >
+              <Trash2 size={16} />
+              Löschen
+            </button>
+          </div>
 
           {/* Swipeable content */}
           <div
