@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo, memo } from 'react';
 import { Save, Wind, Scale, Coins, Clock, Tag, TrendingUp, TrendingDown, Minus, Calendar } from 'lucide-react';
+import SwipeableHitRow from './SwipeableHitRow';
 
-function CalendarView({ historyData, setHistoryData, sessionHits, settings }) {
+function CalendarView({ historyData, setHistoryData, sessionHits, settings, deleteHit }) {
     const [sel, setSel] = useState(new Date().toISOString().split('T')[0]);
     const [note, setNote] = useState("");
 
@@ -258,27 +259,25 @@ function CalendarView({ historyData, setHistoryData, sessionHits, settings }) {
 
                {/* Session-Timeline */}
                {dayStats.sessions.length > 0 && (
-                   <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-3">
-                       <p className="text-xs text-zinc-600 uppercase font-bold mb-3">Timeline</p>
-                       <div className="space-y-2 max-h-48 overflow-y-auto">
-                           {dayStats.sessions.map((session, i) => (
-                               <div key={session.id} className="flex items-center gap-3 text-sm">
-                                   <span className="text-xs text-zinc-600 font-mono w-12">
-                                       {new Date(session.timestamp).toLocaleTimeString('de-DE', {
-                                           hour: '2-digit',
-                                           minute: '2-digit'
-                                       })}
-                                   </span>
-                                   <div className="flex-1 bg-zinc-900 rounded-lg px-3 py-1.5 flex items-center justify-between">
-                                       <span className="text-white truncate">{session.strainName}</span>
-                                       {session.duration > 0 && (
-                                           <span className="text-xs text-emerald-500 font-mono">
-                                               {(session.duration / 1000).toFixed(1)}s
-                                           </span>
-                                       )}
-                                   </div>
-                               </div>
-                           ))}
+                   <div className="bg-zinc-950 border border-zinc-800 rounded-xl overflow-hidden">
+                       <div className="bg-zinc-900 px-4 py-2 border-b border-zinc-800 flex items-center gap-2">
+                           <Clock size={12} className="text-zinc-600"/>
+                           <p className="text-xs text-zinc-600 uppercase font-bold">Timeline</p>
+                           <span className="text-[10px] text-zinc-600 ml-auto">← Wische zum Löschen</span>
+                       </div>
+                       <div className="max-h-48 overflow-y-auto">
+                           <table className="w-full text-left text-xs text-zinc-400">
+                               <tbody className="divide-y divide-zinc-800">
+                                   {dayStats.sessions.map((session, i) => (
+                                       <SwipeableHitRow
+                                           key={session.id}
+                                           hit={session}
+                                           hitNumber={i + 1}
+                                           onDelete={deleteHit}
+                                       />
+                                   ))}
+                               </tbody>
+                           </table>
                        </div>
                    </div>
                )}

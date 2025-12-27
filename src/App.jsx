@@ -207,7 +207,13 @@ export default function App() {
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const [liveData, setLiveData] = useState({ flame: false, today: 0, total: 0 });
+  const [liveData, setLiveData] = useState({
+    flame: false,
+    today: 0,
+    total: 0,
+    batteryVoltage: null,
+    batteryPercent: null
+  });
   const [currentStrainId, setCurrentStrainId] = useState(settings.strains[0]?.id || 0);
   const [isGuestMode, setIsGuestMode] = useState(false);
   const [guestHits, setGuestHits] = useState(0);
@@ -581,7 +587,9 @@ export default function App() {
           setLiveData({
             flame: flameDetected,
             today: json.today + manualOffset,
-            total: json.total + manualOffset
+            total: json.total + manualOffset,
+            batteryVoltage: json.batteryVoltage || null,
+            batteryPercent: json.batteryPercent || null
           });
 
           // Success
@@ -742,6 +750,7 @@ function AppLayout({ ctx }) {
               setHistoryData={ctx.setHistoryData}
               sessionHits={ctx.sessionHits}
               settings={ctx.settings}
+              deleteHit={ctx.deleteHit}
             />
           )}
           {activeTab === 'strains' && (
