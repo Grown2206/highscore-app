@@ -45,13 +45,15 @@ function SwipeableHitRow({ hit, hitNumber, onDelete }) {
     onDelete(hit.id);
   };
 
-  // Desktop hover handlers
+  // Desktop hover and focus handlers
   const handleMouseEnter = () => setShowDeleteBtn(true);
   const handleMouseLeave = () => setShowDeleteBtn(false);
+  const handleFocus = () => setShowDeleteBtn(true);
+  const handleBlur = () => setShowDeleteBtn(false);
 
-  // Keyboard handler (Delete or Backspace key)
+  // Keyboard handler (Delete, Backspace, Enter, or Space key)
   const handleKeyDown = (e) => {
-    if (e.key === 'Delete' || e.key === 'Backspace') {
+    if (e.key === 'Delete' || e.key === 'Backspace' || e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
       handleDelete();
     }
@@ -81,8 +83,12 @@ function SwipeableHitRow({ hit, hitNumber, onDelete }) {
             onTouchEnd={handleTouchEnd}
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
+            onFocus={handleFocus}
+            onBlur={handleBlur}
             onKeyDown={handleKeyDown}
+            role="button"
             tabIndex={0}
+            aria-label={`Hit #${hitNumber} löschen - ${hit.strainName} um ${new Date(hit.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}
           >
             <div className="w-full flex items-center py-3 px-4 hover:bg-zinc-800/50">
               <div className="flex-none w-12 font-mono text-zinc-600 text-xs">#{hitNumber}</div>
