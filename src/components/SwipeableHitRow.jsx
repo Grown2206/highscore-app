@@ -70,7 +70,10 @@ export default function SwipeableHitRow({ hit, hitNumber, onDelete }) {
       <td colSpan="4" className="p-0">
         <div className="relative overflow-hidden">
           {/* Info background (right swipe) - always mounted, revealed by swipe */}
-          <div className="absolute inset-0 bg-blue-600 flex items-center justify-start pl-4">
+          <div
+            className="absolute inset-0 bg-blue-600 flex items-center justify-start pl-4"
+            style={{ zIndex: swipeX > 0 ? 2 : 1 }}
+          >
             <div className="flex items-center gap-2 text-white font-bold text-xs">
               <Info size={16} />
               <div className="flex flex-col">
@@ -83,7 +86,10 @@ export default function SwipeableHitRow({ hit, hitNumber, onDelete }) {
           </div>
 
           {/* Delete button background (left swipe) - always mounted, revealed by swipe */}
-          <div className="absolute inset-0 bg-red-600 flex items-center justify-end pr-4">
+          <div
+            className="absolute inset-0 bg-red-600 flex items-center justify-end pr-4"
+            style={{ zIndex: swipeX < 0 ? 2 : 1 }}
+          >
             <button
               onClick={handleDelete}
               className="flex items-center gap-2 text-white font-bold"
@@ -96,7 +102,7 @@ export default function SwipeableHitRow({ hit, hitNumber, onDelete }) {
           {/* Swipeable content */}
           <div
             className="relative bg-zinc-900 flex items-center transition-transform duration-200"
-            style={{ transform: `translateX(${swipeX}px)` }}
+            style={{ transform: `translateX(${swipeX}px)`, zIndex: 3 }}
             onTouchStart={handleTouchStart}
             onTouchMove={handleTouchMove}
             onTouchEnd={handleTouchEnd}
