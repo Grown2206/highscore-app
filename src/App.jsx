@@ -207,7 +207,13 @@ export default function App() {
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const [liveData, setLiveData] = useState({ flame: false, today: 0, total: 0 });
+  const [liveData, setLiveData] = useState({
+    flame: false,
+    today: 0,
+    total: 0,
+    batteryVoltage: null,
+    batteryPercent: null
+  });
   const [currentStrainId, setCurrentStrainId] = useState(settings.strains[0]?.id || 0);
   const [isGuestMode, setIsGuestMode] = useState(false);
   const [guestHits, setGuestHits] = useState(0);
@@ -225,6 +231,24 @@ export default function App() {
 
   // Auto-Backup System: Speichert automatisch bei Änderungen
   useAutoBackup(settings, historyData, sessionHits, goals);
+
+  // Low-Battery Warning (v7.1)
+  const [lowBatteryWarningShown, setLowBatteryWarningShown] = useState(false);
+  useEffect(() => {
+    if (liveData.batteryPercent !== null && liveData.batteryPercent < 20 && !lowBatteryWarningShown && connected) {
+      setNotification({
+        type: 'warning',
+        message: '⚠️ Akku niedrig - bitte aufladen!',
+        icon: () => <span className="text-amber-500">🔋</span>
+      });
+      setTimeout(() => setNotification(null), 5000);
+      setLowBatteryWarningShown(true);
+    }
+    // Reset warning wenn Akku wieder über 20%
+    if (liveData.batteryPercent !== null && liveData.batteryPercent >= 30) {
+      setLowBatteryWarningShown(false);
+    }
+  }, [liveData.batteryPercent, lowBatteryWarningShown, connected]);
 
   // Recovery Handler
   const handleDataRestore = useCallback((backupData) => {
@@ -581,7 +605,9 @@ export default function App() {
           setLiveData({
             flame: flameDetected,
             today: json.today + manualOffset,
-            total: json.total + manualOffset
+            total: json.total + manualOffset,
+            batteryVoltage: json.batteryVoltage || null,
+            batteryPercent: json.batteryPercent || null
           });
 
           // Success
@@ -742,6 +768,7 @@ function AppLayout({ ctx }) {
               setHistoryData={ctx.setHistoryData}
               sessionHits={ctx.sessionHits}
               settings={ctx.settings}
+              deleteHit={ctx.deleteHit}
             />
           )}
           {activeTab === 'strains' && (
