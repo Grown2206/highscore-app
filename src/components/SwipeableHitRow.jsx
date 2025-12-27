@@ -62,33 +62,42 @@ export default function SwipeableHitRow({ hit, hitNumber, onDelete }) {
     }
   };
 
+  // Normalize ID for display (handle string/number/null/undefined)
+  const idLabel = typeof hit.id === 'string'
+    ? hit.id.slice(0, 8)
+    : String(hit.id ?? '').slice(0, 8);
+
   return (
     <tr className="relative">
       <td colSpan="4" className="p-0">
         <div className="relative overflow-hidden">
-          {/* Info background (right swipe) */}
-          <div className="absolute inset-0 bg-blue-600 flex items-center justify-start pl-4">
-            <div className="flex items-center gap-2 text-white font-bold text-xs">
-              <Info size={16} />
-              <div className="flex flex-col">
-                <span className="text-[10px] text-blue-200">ID: {hit.id.slice(0, 8)}</span>
-                <span className="text-[10px] text-blue-200">
-                  {new Date(hit.timestamp).toLocaleString('de-DE')}
-                </span>
+          {/* Info background (right swipe) - only visible when committed right swipe */}
+          {showDetails && (
+            <div className="absolute inset-0 bg-blue-600 flex items-center justify-start pl-4">
+              <div className="flex items-center gap-2 text-white font-bold text-xs">
+                <Info size={16} />
+                <div className="flex flex-col">
+                  <span className="text-[10px] text-blue-200">ID: {idLabel || '–'}</span>
+                  <span className="text-[10px] text-blue-200">
+                    {new Date(hit.timestamp).toLocaleString('de-DE')}
+                  </span>
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
-          {/* Delete button background (left swipe) */}
-          <div className="absolute inset-0 bg-red-600 flex items-center justify-end pr-4">
-            <button
-              onClick={handleDelete}
-              className="flex items-center gap-2 text-white font-bold"
-            >
-              <Trash2 size={16} />
-              Löschen
-            </button>
-          </div>
+          {/* Delete button background (left swipe) - only visible when committed left swipe */}
+          {swipeX < -60 && (
+            <div className="absolute inset-0 bg-red-600 flex items-center justify-end pr-4">
+              <button
+                onClick={handleDelete}
+                className="flex items-center gap-2 text-white font-bold"
+              >
+                <Trash2 size={16} />
+                Löschen
+              </button>
+            </div>
+          )}
 
           {/* Swipeable content */}
           <div

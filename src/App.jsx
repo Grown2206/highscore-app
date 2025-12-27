@@ -606,8 +606,8 @@ export default function App() {
             flame: flameDetected,
             today: json.today + manualOffset,
             total: json.total + manualOffset,
-            batteryVoltage: json.batteryVoltage || null,
-            batteryPercent: json.batteryPercent || null
+            batteryVoltage: json.batteryVoltage ?? null,
+            batteryPercent: json.batteryPercent ?? null
           });
 
           // Success
