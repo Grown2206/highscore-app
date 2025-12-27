@@ -118,6 +118,11 @@ export default function DashboardView({ liveData, lastHitTime, settings, isGuest
                    ? `${liveData.batteryPercent}%`
                    : 'N/A'
                }
+               subtitle={
+                 liveData.batteryVoltage !== null
+                   ? `${liveData.batteryVoltage.toFixed(2)}V`
+                   : ''
+               }
                active={liveData.batteryPercent !== null && liveData.batteryPercent < 20}
                icon={<Battery size={12}/>}
              />

@@ -232,6 +232,24 @@ export default function App() {
   // Auto-Backup System: Speichert automatisch bei Änderungen
   useAutoBackup(settings, historyData, sessionHits, goals);
 
+  // Low-Battery Warning (v7.1)
+  const [lowBatteryWarningShown, setLowBatteryWarningShown] = useState(false);
+  useEffect(() => {
+    if (liveData.batteryPercent !== null && liveData.batteryPercent < 20 && !lowBatteryWarningShown && connected) {
+      setNotification({
+        type: 'warning',
+        message: '⚠️ Akku niedrig - bitte aufladen!',
+        icon: () => <span className="text-amber-500">🔋</span>
+      });
+      setTimeout(() => setNotification(null), 5000);
+      setLowBatteryWarningShown(true);
+    }
+    // Reset warning wenn Akku wieder über 20%
+    if (liveData.batteryPercent !== null && liveData.batteryPercent >= 30) {
+      setLowBatteryWarningShown(false);
+    }
+  }, [liveData.batteryPercent, lowBatteryWarningShown, connected]);
+
   // Recovery Handler
   const handleDataRestore = useCallback((backupData) => {
     try {

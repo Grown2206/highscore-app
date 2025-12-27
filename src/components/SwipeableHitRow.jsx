@@ -1,11 +1,12 @@
 import React, { useState, useRef } from 'react';
-import { Trash2 } from 'lucide-react';
+import { Trash2, Info } from 'lucide-react';
 
 // Swipeable Hit Row Component - used in DashboardView and CalendarView
 export default function SwipeableHitRow({ hit, hitNumber, onDelete }) {
   const [swipeX, setSwipeX] = useState(0);
   const [isSwiping, setIsSwiping] = useState(false);
   const [showDeleteBtn, setShowDeleteBtn] = useState(false); // Desktop hover state
+  const [showDetails, setShowDetails] = useState(false);
   const startX = useRef(0);
   const currentX = useRef(0);
 
@@ -18,20 +19,24 @@ export default function SwipeableHitRow({ hit, hitNumber, onDelete }) {
     if (!isSwiping) return;
     currentX.current = e.touches[0].clientX;
     const diff = currentX.current - startX.current;
-    // Only allow left swipe
-    if (diff < 0) {
-      setSwipeX(Math.max(diff, -100));
-    }
+    // Allow both left and right swipe
+    setSwipeX(Math.max(Math.min(diff, 100), -100));
   };
 
   const handleTouchEnd = () => {
     setIsSwiping(false);
     if (swipeX < -60) {
-      // Swiped far enough - show delete button
+      // Swiped left - show delete button
       setSwipeX(-80);
+      setShowDetails(false);
+    } else if (swipeX > 60) {
+      // Swiped right - show details
+      setSwipeX(80);
+      setShowDetails(true);
     } else {
       // Reset
       setSwipeX(0);
+      setShowDetails(false);
     }
   };
 
@@ -61,7 +66,20 @@ export default function SwipeableHitRow({ hit, hitNumber, onDelete }) {
     <tr className="relative">
       <td colSpan="4" className="p-0">
         <div className="relative overflow-hidden">
-          {/* Delete button background */}
+          {/* Info background (right swipe) */}
+          <div className="absolute inset-0 bg-blue-600 flex items-center justify-start pl-4">
+            <div className="flex items-center gap-2 text-white font-bold text-xs">
+              <Info size={16} />
+              <div className="flex flex-col">
+                <span className="text-[10px] text-blue-200">ID: {hit.id.slice(0, 8)}</span>
+                <span className="text-[10px] text-blue-200">
+                  {new Date(hit.timestamp).toLocaleString('de-DE')}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Delete button background (left swipe) */}
           <div className="absolute inset-0 bg-red-600 flex items-center justify-end pr-4">
             <button
               onClick={handleDelete}
@@ -86,7 +104,7 @@ export default function SwipeableHitRow({ hit, hitNumber, onDelete }) {
             onKeyDown={handleKeyDown}
             role="button"
             tabIndex={0}
-            aria-label={`Hit #${hitNumber} löschen - ${hit.strainName} um ${new Date(hit.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}
+            aria-label={`Hit #${hitNumber} - ${hit.strainName} um ${new Date(hit.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - Links wischen zum Löschen, Rechts für Details`}
           >
             <div className="w-full flex items-center py-3 px-4 hover:bg-zinc-800/50">
               <div className="flex-none w-12 font-mono text-zinc-600 text-xs">#{hitNumber}</div>

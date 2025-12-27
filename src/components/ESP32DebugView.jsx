@@ -276,6 +276,96 @@ function ESP32DebugView({ ip, setIp, connected, isSimulating, setIsSimulating, l
         </div>
       </div>
 
+      {/* Sensor Kalibrierung */}
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 space-y-4">
+        <div className="flex items-center gap-2">
+          <SettingsIcon size={16} className="text-purple-500"/>
+          <h3 className="text-sm font-bold text-zinc-400 uppercase">Sensor Kalibrierung</h3>
+        </div>
+
+        {/* Live Flame Status mit Visualisierung */}
+        <div className="bg-zinc-950 rounded-xl p-4 border border-zinc-800">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs text-zinc-500 font-bold uppercase">Live Status</span>
+            <div className="flex items-center gap-2">
+              <div className={`w-3 h-3 rounded-full ${liveData.flame ? 'bg-orange-500 animate-pulse' : 'bg-zinc-700'}`}></div>
+              <span className={`text-sm font-bold ${liveData.flame ? 'text-orange-400' : 'text-zinc-500'}`}>
+                {liveData.flame ? 'FLAMME ERKANNT' : 'Bereit'}
+              </span>
+            </div>
+          </div>
+
+          {/* Test-Hinweis */}
+          <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3">
+            <p className="text-[10px] text-blue-300 leading-relaxed">
+              <strong>Test-Modus:</strong> Halte ein Feuerzeug vor den Sensor (ca. 10-20cm Abstand).
+              Die Anzeige oben sollte "FLAMME ERKANNT" zeigen. Falls nicht → Potentiometer justieren.
+            </p>
+          </div>
+        </div>
+
+        {/* Potentiometer Kalibrierung Anleitung */}
+        <div className="bg-zinc-950 rounded-xl p-4 border border-zinc-800 space-y-3">
+          <p className="text-xs font-bold text-purple-300 uppercase">Hardware-Kalibrierung (Potentiometer)</p>
+
+          <div className="space-y-2 text-xs text-zinc-400">
+            <div className="flex items-start gap-2">
+              <span className="text-purple-400 font-bold">1.</span>
+              <p>Potentiometer am B05 Sensor finden (blaues Rädchen)</p>
+            </div>
+            <div className="flex items-start gap-2">
+              <span className="text-purple-400 font-bold">2.</span>
+              <p>Feuerzeug anzünden, 10-15cm vor Sensor halten</p>
+            </div>
+            <div className="flex items-start gap-2">
+              <span className="text-purple-400 font-bold">3.</span>
+              <p>Potentiometer drehen bis LED am Sensor aufleuchtet</p>
+            </div>
+            <div className="flex items-start gap-2">
+              <span className="text-purple-400 font-bold">4.</span>
+              <p>Feuerzeug wegnehmen → LED sollte ausgehen</p>
+            </div>
+            <div className="flex items-start gap-2">
+              <span className="text-purple-400 font-bold">5.</span>
+              <p>Mehrmals testen um Konsistenz sicherzustellen</p>
+            </div>
+          </div>
+
+          <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-2">
+            <p className="text-[10px] text-amber-300">
+              <strong>Wichtig:</strong> Zu empfindlich → Viele Fehlauslösungen.
+              Zu unempfindlich → Flamme wird nicht erkannt.
+            </p>
+          </div>
+        </div>
+
+        {/* False Trigger Prevention Info */}
+        <div className="bg-zinc-950 rounded-xl p-4 border border-zinc-800">
+          <p className="text-xs font-bold text-emerald-300 mb-3 uppercase">False Trigger Prevention (v7.1)</p>
+
+          <div className="grid grid-cols-2 gap-3 text-xs">
+            <div className="bg-zinc-900 rounded-lg p-3 border border-zinc-800">
+              <p className="text-[10px] text-zinc-600 uppercase mb-1">Min. Dauer</p>
+              <p className="text-lg font-bold text-emerald-400">0.8s</p>
+              <p className="text-[9px] text-zinc-600">Mindest-Session</p>
+            </div>
+
+            <div className="bg-zinc-900 rounded-lg p-3 border border-zinc-800">
+              <p className="text-[10px] text-zinc-600 uppercase mb-1">Max. Dauer</p>
+              <p className="text-lg font-bold text-amber-400">4.5s</p>
+              <p className="text-[9px] text-zinc-600">Maximum-Session</p>
+            </div>
+          </div>
+
+          <div className="mt-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-2">
+            <p className="text-[10px] text-emerald-300 leading-relaxed">
+              Sessions außerhalb 0.8-4.5s werden als Fehlauslösungen verworfen.
+              Zu kurz → Flackern, Zu lang → Sensor hängt fest.
+            </p>
+          </div>
+        </div>
+      </div>
+
       {/* Stromverbrauch */}
       <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 space-y-4">
         <div className="flex items-center gap-2">
