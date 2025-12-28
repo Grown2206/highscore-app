@@ -549,7 +549,7 @@ export default function AnalyticsView({ historyData, sessionHits, settings }) {
       {/* WOCHENENDE VS WERKTAG ANALYSE */}
       <div className="bg-gradient-to-br from-violet-900/20 to-zinc-900 border border-violet-500/30 rounded-2xl p-6 space-y-4">
         <div className="flex items-center gap-2 mb-4">
-          <CalendarIcon size={16} className="text-violet-500"/>
+          <Calendar size={16} className="text-violet-500"/>
           <h3 className="text-sm font-bold text-violet-400 uppercase">Wochenende vs Werktag</h3>
         </div>
 
