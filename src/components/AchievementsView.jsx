@@ -2,7 +2,6 @@ import React, { useMemo, useState } from 'react';
 import { Trophy, Award, Star, Medal, Crown, Filter } from 'lucide-react';
 import {
   PROGRESS_BADGES,
-  MEDAL_DEFINITIONS,
   generateMedals,
   getNextTarget,
   FAST_SESSION_MS,
@@ -15,53 +14,6 @@ import {
  * - Kategorie-Filter für bessere Übersicht
  * - Cleanes Design ohne Overload
  */
-
-// Sentinel value for invalid timestamps (used for sorting invalid values to end of list)
-const INVALID_TIMESTAMP_SENTINEL = -Infinity;
-
-// Maximum number of medals to display in "Alle" category
-const MAX_MEDALS = 16;
-
-/**
- * Normalize achievement timestamp for consistent sorting
- *
- * @param {number|string|Date|null|undefined} value - Timestamp to normalize:
- *   - `number`: Unix timestamp in milliseconds (finite numbers only; NaN/±Infinity treated as invalid)
- *   - `string`: ISO date string or any Date-parseable format
- *   - `Date`: JavaScript Date object
- *   - `null`/`undefined`: Treated as invalid
- * @returns {number} Normalized timestamp (ms since epoch) or INVALID_TIMESTAMP_SENTINEL
- *
- * NOTE: All invalid inputs collapse to the same sentinel value (INVALID_TIMESTAMP_SENTINEL).
- * This includes: null, undefined, NaN, Infinity, -Infinity, invalid date strings, etc.
- *
- * If you need to distinguish between different types of invalid inputs (e.g., null vs malformed string),
- * check the value BEFORE calling this function and handle accordingly.
- *
- * Examples:
- *   normalizeAchievementTimestamp(1234567890)      → 1234567890 (valid)
- *   normalizeAchievementTimestamp(null)            → INVALID_TIMESTAMP_SENTINEL
- *   normalizeAchievementTimestamp(undefined)       → INVALID_TIMESTAMP_SENTINEL
- *   normalizeAchievementTimestamp(NaN)             → INVALID_TIMESTAMP_SENTINEL (NaN is type 'number')
- *   normalizeAchievementTimestamp(Infinity)        → INVALID_TIMESTAMP_SENTINEL (±Infinity are type 'number')
- *   normalizeAchievementTimestamp("invalid date")  → INVALID_TIMESTAMP_SENTINEL
- */
-function normalizeAchievementTimestamp(value) {
-  // Handle null/undefined explicitly before new Date() call
-  if (value == null) {
-    return INVALID_TIMESTAMP_SENTINEL;
-  }
-
-  // Handle numeric values (including NaN, Infinity, -Infinity)
-  // Only accept finite numbers as valid timestamps
-  if (typeof value === 'number') {
-    return Number.isFinite(value) ? value : INVALID_TIMESTAMP_SENTINEL;
-  }
-
-  // Handle strings and Date objects
-  const ts = new Date(value).getTime();
-  return Number.isFinite(ts) ? ts : INVALID_TIMESTAMP_SENTINEL;
-}
 
 function AchievementsView({ sessionHits = [], historyData = [], settings = {} }) {
   const [selectedCategory, setSelectedCategory] = useState('Alle');
@@ -157,37 +109,15 @@ function AchievementsView({ sessionHits = [], historyData = [], settings = {} })
 
   // Generiere Medaillen (nur verdiente)
   const allMedals = useMemo(() => {
-    if (!stats) return [];
     const baseMedals = generateMedals(stats);
 
     // Nur für Sitzungen-Medaillen können wir akkurate Zeitstempel berechnen
     const safeHits = Array.isArray(sessionHits) ? sessionHits : [];
-
-    // Pre-normalize timestamps (O(n)) to avoid NaN in comparator
-    const hitsWithNormalizedTime = safeHits.map(hit => {
-      let normalizedTime;
-
-      if (typeof hit.timestamp === 'number') {
-        normalizedTime = hit.timestamp;
-      } else if (hit.timestamp) {
-        const parsed = new Date(hit.timestamp).getTime();
-        // Invalid timestamps (NaN) are pushed to end for stable sorting
-        normalizedTime = isNaN(parsed) ? Infinity : parsed;
-      } else {
-        // Missing timestamps go to end
-        normalizedTime = Infinity;
-      }
-
-      return { ...hit, normalizedTime };
+    const sortedHits = [...safeHits].sort((a, b) => {
+      const aTime = typeof a.timestamp === 'number' ? a.timestamp : new Date(a.timestamp).getTime();
+      const bTime = typeof b.timestamp === 'number' ? b.timestamp : new Date(b.timestamp).getTime();
+      return aTime - bTime;
     });
-
-    // Sort by pre-normalized timestamp (efficient O(n log n) with simple numeric comparison)
-    // Filter out invalid timestamps (Infinity) to keep only valid sessions
-    // NOTE: Sessions without valid timestamps cannot be used for achievement date calculation
-    // They are still counted in stats.totalSessions, just excluded from chronological ordering
-    const sortedHits = hitsWithNormalizedTime
-      .sort((a, b) => a.normalizedTime - b.normalizedTime)
-      .filter(hit => hit.normalizedTime !== Infinity);
 
     return baseMedals.map(medal => {
       // Nur für Sitzungen-Kategorie Zeitstempel berechnen
@@ -206,25 +136,11 @@ function AchievementsView({ sessionHits = [], historyData = [], settings = {} })
   // Filter Medaillen nach Kategorie
   const filteredMedals = useMemo(() => {
     if (selectedCategory === 'Alle') {
-      // **FIX v8.0**: Zeige ALLE Medaillen, nicht nur die mit Zeitstempel
-      // Sortiere: Medaillen MIT Zeitstempel zuerst (neueste), dann ohne
+      // Zeige nur die Top 12 neuesten Medaillen (sortiert nach achievedAt)
       return [...allMedals]
-        .sort((a, b) => {
-          // Medaillen mit Zeitstempel kommen zuerst
-          if (a.achievedAt && !b.achievedAt) return -1;
-          if (!a.achievedAt && b.achievedAt) return 1;
-
-          // Beide haben Zeitstempel → sortiere nach Datum (newest first)
-          if (a.achievedAt && b.achievedAt) {
-            const tA = normalizeAchievementTimestamp(a.achievedAt);
-            const tB = normalizeAchievementTimestamp(b.achievedAt);
-            return tB - tA;
-          }
-
-          // Beide haben keinen Zeitstempel → sortiere nach Threshold (höher = besser)
-          return (b.threshold || 0) - (a.threshold || 0);
-        })
-        .slice(0, MAX_MEDALS);
+        .filter(m => m.achievedAt) // Nur welche mit Zeitstempel
+        .sort((a, b) => b.achievedAt - a.achievedAt)
+        .slice(0, 12);
     }
     // Kategorie-spezifisch: zeige alle dieser Kategorie
     return allMedals.filter(m => m.category === selectedCategory);
@@ -236,17 +152,11 @@ function AchievementsView({ sessionHits = [], historyData = [], settings = {} })
     return ['Alle', ...Array.from(cats)];
   }, [allMedals]);
 
-  // Gesamtfortschritt - basierend auf allen möglichen Medaillen
+  // Gesamtfortschritt
   const overallProgress = useMemo(() => {
-    // Berechne Gesamtzahl aller möglichen Medaillen aus Config
-    const totalPossibleMedals = Object.values(MEDAL_DEFINITIONS).reduce((sum, categoryMedals) => {
-      return sum + (Array.isArray(categoryMedals) ? categoryMedals.length : 0);
-    }, 0);
-
-    // allMedals enthält nur verdiente Medaillen (von generateMedals)
-    const earnedMedals = allMedals.length;
-
-    return totalPossibleMedals > 0 ? Math.round((earnedMedals / totalPossibleMedals) * 100) : 0;
+    const totalPossible = allMedals.length;
+    const earned = allMedals.length; // Alle generierten sind verdient
+    return totalPossible > 0 ? Math.round((earned / totalPossible) * 100) : 0;
   }, [allMedals]);
 
   // Progress Badges (nächste Ziele)
@@ -316,7 +226,7 @@ function AchievementsView({ sessionHits = [], historyData = [], settings = {} })
               }`}
             >
               {cat}
-              {cat === 'Alle' && ` (${allMedals.length})`}
+              {cat === 'Alle' && ` (${allMedals.filter(m => m.achievedAt).length})`}
             </button>
           ))}
         </div>
@@ -339,7 +249,7 @@ function AchievementsView({ sessionHits = [], historyData = [], settings = {} })
               >
                 <div className="text-4xl mb-2">{medal.icon}</div>
                 <div className="text-sm font-bold text-white">{medal.name}</div>
-                <div className="text-xs text-white/60 mt-1">{medal.desc}</div>
+                <div className="text-xs text-white/60 mt-1">{medal.description}</div>
 
                 {/* Zeitstempel nur wenn vorhanden */}
                 {medal.achievedAt && (
@@ -401,75 +311,21 @@ function AchievementsView({ sessionHits = [], historyData = [], settings = {} })
 function calculateStreak(historyData) {
   if (!Array.isArray(historyData) || historyData.length === 0) return 0;
 
-  // Finde nur Einträge mit count > 0
-  const validEntries = historyData.filter(d => d && d.date && (d.count || 0) > 0);
-  if (validEntries.length === 0) return 0;
+  const sorted = [...historyData].sort((a, b) => new Date(b.date) - new Date(a.date));
+  let streak = 0;
+  let currentDate = new Date();
+  currentDate.setHours(0, 0, 0, 0);
 
-  // Normalisiere Datumswerte (ohne Uhrzeit) und validiere
-  const normalized = validEntries
-    .map(d => {
-      const date = new Date(d.date);
-      const timestamp = date.getTime();
+  for (const day of sorted) {
+    const dayDate = new Date(day.date);
+    dayDate.setHours(0, 0, 0, 0);
 
-      // Skip invalid dates
-      if (isNaN(timestamp)) {
-        return null;
-      }
+    const diffDays = Math.floor((currentDate - dayDate) / (1000 * 60 * 60 * 24));
 
-      date.setHours(0, 0, 0, 0);
-      return {
-        ...d,
-        normalizedDate: date,
-        normalizedTimestamp: date.getTime()
-      };
-    })
-    .filter(d => d !== null);
-
-  if (normalized.length === 0) return 0;
-
-  // Deduplicate by date (keep only one entry per calendar day)
-  // Map: timestamp → entry
-  const uniqueDatesMap = new Map();
-  normalized.forEach(entry => {
-    const ts = entry.normalizedTimestamp;
-    // Keep first entry for each unique date (could also merge counts if needed)
-    if (!uniqueDatesMap.has(ts)) {
-      uniqueDatesMap.set(ts, entry);
-    }
-  });
-
-  // Convert back to array and sort (neueste zuerst)
-  const uniqueDates = Array.from(uniqueDatesMap.values())
-    .sort((a, b) => b.normalizedTimestamp - a.normalizedTimestamp);
-
-  // Finde das neueste (gültige) Datum
-  const latestDate = uniqueDates[0].normalizedDate;
-
-  // Heute und Gestern (normalisiert)
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const yesterday = new Date(today);
-  yesterday.setDate(yesterday.getDate() - 1);
-
-  // Streak ist nur gültig wenn letzter Eintrag heute oder gestern war
-  const isToday = latestDate.getTime() === today.getTime();
-  const isYesterday = latestDate.getTime() === yesterday.getTime();
-
-  if (!isToday && !isYesterday) {
-    return 0; // Streak gebrochen (letzter Eintrag zu alt)
-  }
-
-  // Zähle aufeinanderfolgende Tage (rückwärts vom neuesten)
-  let streak = 1;
-  let expectedDate = new Date(latestDate);
-
-  for (let i = 1; i < uniqueDates.length; i++) {
-    expectedDate.setDate(expectedDate.getDate() - 1);
-
-    if (uniqueDates[i].normalizedDate.getTime() === expectedDate.getTime()) {
+    if (diffDays === streak && day.count > 0) {
       streak++;
-    } else {
-      break; // Lücke gefunden
+    } else if (diffDays > streak) {
+      break;
     }
   }
 
