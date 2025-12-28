@@ -21,13 +21,15 @@ function AchievementsView({ sessionHits = [], historyData = [], settings = {} })
       const safeHistory = Array.isArray(historyData) ? historyData : [];
 
       // Basis-Stats
+      // WICHTIG: totalHits = tatsächliche Anzahl erfasster Sessions aus sessionHits
+      // NICHT historyData verwenden (aggregierte Daten können Diskrepanzen haben)
       const totalSessions = safeHits.length || 0;
-      const totalHits = safeHistory.reduce((sum, day) => sum + (day?.count || 0), 0);
+      const totalHits = safeHits.length || 0; // FIX: Verwende sessionHits als Quelle der Wahrheit
       const dailyRecord = safeHistory.length > 0
         ? Math.max(...safeHistory.map(d => d?.count || 0))
         : 0;
       const currentStreak = calculateStreak(safeHistory);
-      const uniqueStrains = new Set(safeHits.map(h => h?.strainName).filter(Boolean)).size || 0; // FIX: strainName statt strain
+      const uniqueStrains = new Set(safeHits.map(h => h?.strainName).filter(Boolean)).size || 0;
 
       // FIX: Korrekte Ausgaben-Berechnung mit bowlSize & weedRatio
       const bowlSize = settings?.bowlSize || 0.3;
@@ -120,10 +122,32 @@ function AchievementsView({ sessionHits = [], historyData = [], settings = {} })
     }
   }, [sessionHits, historyData, settings]); // FIX: settings dependency hinzugefügt
 
-  // Generiere Medaillen aus Config
-  const medals = useMemo(() => generateMedals(stats), [stats]);
+  // Generiere Medaillen aus Config mit Timestamps
+  const medals = useMemo(() => {
+    const baseMedals = generateMedals(stats);
 
-  // Generiere Progress-Badges aus Config
+    // Füge achievedAt Timestamps hinzu (geschätzt aus sessionHits)
+    // Für Sessions-basierte Achievements können wir den ungefähren Zeitpunkt berechnen
+    const safeHits = Array.isArray(sessionHits) ? sessionHits : [];
+    const sortedHits = [...safeHits].sort((a, b) => a.timestamp - b.timestamp);
+
+    return baseMedals.map(medal => {
+      let achievedAt = null;
+
+      // Schätze Zeitpunkt basierend auf Kategorie
+      if (medal.category === 'Sitzungen' && medal.threshold <= sortedHits.length) {
+        // Der Zeitstempel des N-ten Hits
+        achievedAt = sortedHits[medal.threshold - 1]?.timestamp;
+      }
+
+      return {
+        ...medal,
+        achievedAt: achievedAt || Date.now() // Fallback auf jetzt
+      };
+    });
+  }, [stats, sessionHits]);
+
+  // Generiere Progress-Badges aus Config mit erweiterten Infos
   const progressBadges = useMemo(() => {
     return PROGRESS_BADGES.map(badgeConfig => {
       const current = stats[badgeConfig.key] || 0;
@@ -133,12 +157,22 @@ function AchievementsView({ sessionHits = [], historyData = [], settings = {} })
         : 100;
       const remaining = Math.max(0, target - current);
 
+      // Berechne aktuellen Level (wie viele Targets bereits erreicht)
+      const currentLevel = badgeConfig.targets.filter(t => current >= t).length;
+      const maxLevel = badgeConfig.targets.length;
+
+      // Finde letzten erreichten Threshold
+      const lastAchieved = badgeConfig.targets.filter(t => current >= t).pop();
+
       return {
         ...badgeConfig,
         current,
         target,
         progress,
-        remaining
+        remaining,
+        currentLevel,
+        maxLevel,
+        lastAchieved
       };
     });
   }, [stats]);
@@ -213,7 +247,7 @@ function AchievementsView({ sessionHits = [], historyData = [], settings = {} })
             </h3>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-4 gap-3">
             {medals.map((medal, i) => (
               <div
                 key={i}
@@ -221,34 +255,41 @@ function AchievementsView({ sessionHits = [], historyData = [], settings = {} })
                 style={{ animationDelay: `${i * 50}ms` }}
               >
                 {/* Glow-Effekt */}
-                <div className={`absolute inset-0 bg-gradient-to-br ${medal.color} opacity-0 group-hover:opacity-20 blur-xl transition-all duration-500 rounded-2xl`}></div>
+                <div className={`absolute inset-0 bg-gradient-to-br ${medal.color} opacity-0 group-hover:opacity-20 blur-xl transition-all duration-500 rounded-xl`}></div>
 
-                {/* Medal Card */}
-                <div className={`relative bg-gradient-to-br ${medal.color} border-2 border-white/20 rounded-2xl p-5 text-center transition-all duration-300 hover:scale-105 hover:rotate-2 hover:border-white/40 shadow-lg hover:shadow-2xl`}>
+                {/* Medal Card - kompakter */}
+                <div className={`relative bg-gradient-to-br ${medal.color} border-2 border-white/20 rounded-xl p-3 text-center transition-all duration-300 hover:scale-105 hover:border-white/40 shadow-lg hover:shadow-2xl`}>
                   {/* Shine-Effekt */}
-                  <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 rounded-2xl"></div>
+                  <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 rounded-xl"></div>
 
-                  {/* Icon mit Pulse */}
+                  {/* Icon - kleiner */}
                   <div className="relative">
-                    <div className="text-5xl mb-3 animate-pulse group-hover:animate-bounce" style={{ animationDuration: '2s' }}>
+                    <div className="text-3xl mb-2 animate-pulse group-hover:animate-bounce" style={{ animationDuration: '2s' }}>
                       {medal.icon}
                     </div>
-                    <div className="absolute inset-0 bg-white/20 blur-2xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                    <div className="absolute inset-0 bg-white/20 blur-xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
                   </div>
 
-                  {/* Text */}
-                  <div className="text-sm font-bold text-white drop-shadow-md">{medal.name}</div>
-                  <div className="text-xs text-white/80 mt-1.5 leading-tight">{medal.desc}</div>
+                  {/* Text - kompakter */}
+                  <div className="text-xs font-bold text-white drop-shadow-md leading-tight">{medal.name}</div>
+                  <div className="text-[10px] text-white/70 mt-1 leading-tight line-clamp-2">{medal.desc}</div>
 
-                  {/* Category Badge */}
-                  <div className="mt-2 inline-block">
-                    <span className="text-[10px] text-white/60 uppercase font-bold bg-black/20 px-2 py-1 rounded-full">
+                  {/* Category Badge - kleiner */}
+                  <div className="mt-1.5 inline-block">
+                    <span className="text-[9px] text-white/50 uppercase font-bold bg-black/20 px-1.5 py-0.5 rounded-full">
                       {medal.category}
                     </span>
                   </div>
 
+                  {/* Timestamp Info - NEU */}
+                  {medal.achievedAt && (
+                    <div className="mt-1.5 text-[9px] text-white/40">
+                      {new Date(medal.achievedAt).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: '2-digit' })}
+                    </div>
+                  )}
+
                   {/* Sparkle-Effekt in Ecke */}
-                  <div className="absolute top-2 right-2 text-yellow-300 opacity-0 group-hover:opacity-100 transition-opacity animate-pulse">✨</div>
+                  <div className="absolute top-1.5 right-1.5 text-yellow-300 opacity-0 group-hover:opacity-100 transition-opacity animate-pulse text-sm">✨</div>
                 </div>
               </div>
             ))}
@@ -396,6 +437,10 @@ function AchievementsView({ sessionHits = [], historyData = [], settings = {} })
                         <h4 className="font-bold text-white text-base">{badge.name}</h4>
                         <p className="text-xs text-white/70 mt-0.5 font-mono">
                           {formatNumber(badge.current, badge.decimals)}{badge.suffix} / {formatNumber(badge.target, badge.decimals)}{badge.suffix}
+                        </p>
+                        <p className="text-[10px] text-white/50 mt-1">
+                          Level {badge.currentLevel}/{badge.maxLevel}
+                          {badge.lastAchieved && ` • Letztes Ziel: ${badge.lastAchieved}`}
                         </p>
                       </div>
                     </div>

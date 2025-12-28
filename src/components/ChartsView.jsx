@@ -132,7 +132,8 @@ export default function ChartsView({ historyData, sessionHits, settings }) {
   // Gesamt-Statistiken
   const totalStats = useMemo(() => {
     const activeDays = historyData.filter(h => h.count > 0).length;
-    const totalHits = historyData.reduce((sum, h) => sum + h.count, 0); // FIX: sum + h.count statt nur h.count
+    // FIX: Verwende sessionHits.length als Quelle der Wahrheit (nicht historyData aggregieren)
+    const totalHits = sessionHits.length;
     const avgPerDay = activeDays > 0 ? totalHits / activeDays : 0;
 
     let totalCost = 0;
