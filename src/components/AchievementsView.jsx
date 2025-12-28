@@ -129,7 +129,30 @@ function AchievementsView({ sessionHits = [], historyData = [], settings = {} })
     // Füge achievedAt Timestamps hinzu (geschätzt aus sessionHits)
     // Für Sessions-basierte Achievements können wir den ungefähren Zeitpunkt berechnen
     const safeHits = Array.isArray(sessionHits) ? sessionHits : [];
-    const sortedHits = [...safeHits].sort((a, b) => a.timestamp - b.timestamp);
+
+    // Pre-normalize timestamps once (O(n)) to avoid repeated Date construction in comparator
+    const hitsWithNormalizedTime = safeHits.map(hit => {
+      let normalizedTime;
+
+      if (typeof hit.timestamp === 'number') {
+        normalizedTime = hit.timestamp;
+      } else if (hit.timestamp) {
+        const parsed = new Date(hit.timestamp).getTime();
+        // Invalid timestamps (NaN) are pushed to end for stable sorting
+        normalizedTime = isNaN(parsed) ? Infinity : parsed;
+      } else {
+        // Missing timestamps go to end
+        normalizedTime = Infinity;
+      }
+
+      return { ...hit, normalizedTime };
+    });
+
+    // Sort by pre-normalized timestamp (efficient O(n log n) with simple numeric comparison)
+    // Filter out invalid timestamps (Infinity) to keep only valid sessions
+    const sortedHits = hitsWithNormalizedTime
+      .sort((a, b) => a.normalizedTime - b.normalizedTime)
+      .filter(hit => hit.normalizedTime !== Infinity);
 
     return baseMedals.map(medal => {
       let achievedAt = null;
@@ -142,7 +165,9 @@ function AchievementsView({ sessionHits = [], historyData = [], settings = {} })
 
       return {
         ...medal,
-        achievedAt: achievedAt || Date.now() // Fallback auf jetzt
+        // achievedAt can be null when unknown - downstream consumers MUST handle null
+        // (UI conditionally renders with {medal.achievedAt && ...} which is safe)
+        achievedAt
       };
     });
   }, [stats, sessionHits]);
