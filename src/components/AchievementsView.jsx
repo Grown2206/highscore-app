@@ -16,21 +16,22 @@ import {
  * - Cleanes Design ohne Overload
  */
 
-// Helper: Normalize achievement timestamp (handles numbers, strings, Date objects, null, undefined, NaN)
+// Helper: Normalize achievement timestamp (handles numbers, strings, Date objects, null, undefined, NaN, Infinity)
 function normalizeAchievementTimestamp(value) {
   // Handle null/undefined explicitly before new Date() call
   if (value == null) {
     return -Infinity;
   }
 
-  // Handle numeric values (including numeric NaN)
+  // Handle numeric values (including NaN, Infinity, -Infinity)
+  // Only accept finite numbers as valid timestamps
   if (typeof value === 'number') {
-    return Number.isNaN(value) ? -Infinity : value;
+    return Number.isFinite(value) ? value : -Infinity;
   }
 
   // Handle strings and Date objects
   const ts = new Date(value).getTime();
-  return Number.isNaN(ts) ? -Infinity : ts; // Invalid → -Infinity (end of list)
+  return Number.isFinite(ts) ? ts : -Infinity; // Invalid → -Infinity (end of list)
 }
 
 function AchievementsView({ sessionHits = [], historyData = [], settings = {} }) {
