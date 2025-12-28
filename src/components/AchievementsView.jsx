@@ -16,22 +16,44 @@ import {
  * - Cleanes Design ohne Overload
  */
 
-// Helper: Normalize achievement timestamp (handles numbers, strings, Date objects, null, undefined, NaN, Infinity)
+// Sentinel value for invalid timestamps (used for sorting invalid values to end of list)
+const INVALID_TIMESTAMP_SENTINEL = -Infinity;
+
+/**
+ * Normalize achievement timestamp for consistent sorting
+ *
+ * @param {any} value - Timestamp in any format (number, string, Date, null, undefined, etc.)
+ * @returns {number} Normalized timestamp (ms since epoch) or INVALID_TIMESTAMP_SENTINEL
+ *
+ * NOTE: All invalid inputs collapse to the same sentinel value (INVALID_TIMESTAMP_SENTINEL).
+ * This includes: null, undefined, NaN, Infinity, -Infinity, invalid date strings, etc.
+ *
+ * If you need to distinguish between different types of invalid inputs (e.g., null vs malformed string),
+ * check the value BEFORE calling this function and handle accordingly.
+ *
+ * Examples:
+ *   normalizeAchievementTimestamp(1234567890)      → 1234567890 (valid)
+ *   normalizeAchievementTimestamp(null)            → -Infinity (invalid)
+ *   normalizeAchievementTimestamp(undefined)       → -Infinity (invalid)
+ *   normalizeAchievementTimestamp(NaN)             → -Infinity (invalid)
+ *   normalizeAchievementTimestamp(Infinity)        → -Infinity (invalid)
+ *   normalizeAchievementTimestamp("invalid date")  → -Infinity (invalid)
+ */
 function normalizeAchievementTimestamp(value) {
   // Handle null/undefined explicitly before new Date() call
   if (value == null) {
-    return -Infinity;
+    return INVALID_TIMESTAMP_SENTINEL;
   }
 
   // Handle numeric values (including NaN, Infinity, -Infinity)
   // Only accept finite numbers as valid timestamps
   if (typeof value === 'number') {
-    return Number.isFinite(value) ? value : -Infinity;
+    return Number.isFinite(value) ? value : INVALID_TIMESTAMP_SENTINEL;
   }
 
   // Handle strings and Date objects
   const ts = new Date(value).getTime();
-  return Number.isFinite(ts) ? ts : -Infinity; // Invalid → -Infinity (end of list)
+  return Number.isFinite(ts) ? ts : INVALID_TIMESTAMP_SENTINEL;
 }
 
 function AchievementsView({ sessionHits = [], historyData = [], settings = {} }) {
