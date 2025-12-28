@@ -111,7 +111,7 @@ export default function DashboardView({ liveData, lastHitTime, settings, isGuest
           <div className="grid grid-cols-2 md:grid-cols-4 gap-px bg-zinc-800">
              <AdminMetric label="Flame Sensor" value={liveData.flame ? 'DETECTED' : 'Ready'} active={liveData.flame} icon={<Flame size={12}/>} />
              <AdminMetric label="Inhaling" value={isSensorInhaling ? 'YES' : 'NO'} active={isSensorInhaling} icon={<Zap size={12}/>} />
-             <AdminMetric label="Session Hits" value={sessionHits.length} icon={<List size={12}/>} />
+             <AdminMetric label="Session Hits" value={liveData.total} icon={<List size={12}/>} />
              <AdminMetric
                label="Battery"
                value={
