@@ -163,24 +163,24 @@ export default function AnalyticsView({ historyData, sessionHits, settings }) {
     // Faktoren: Häufigkeit (40%), Menge pro Tag (40%), Pausen (20%)
     const frequencyScore = Math.min(100, (activeDays / 7) * 100);
     const volumeScore = Math.min(100, (avgDaily / 15) * 100); // 15 Hits = 100%
-    const pauseScore = Math.max(0, 100 - frequencyScore); // Mehr Pausen = niedrigerer Index
+    const pauseScore = frequencyScore; // Mehr Pausen (niedrigerer frequencyScore) = niedrigerer Index
 
     const index = Math.round((frequencyScore * 0.4) + (volumeScore * 0.4) + (pauseScore * 0.2));
 
     let level = 'Niedrig';
-    let color = 'emerald';
+    let colorKey = 'low';
     if (index > 70) {
       level = 'Hoch';
-      color = 'rose';
+      colorKey = 'high';
     } else if (index > 40) {
       level = 'Mittel';
-      color = 'amber';
+      colorKey = 'medium';
     }
 
     return {
       index,
       level,
-      color,
+      colorKey,
       activeDays,
       avgDaily: avgDaily.toFixed(1),
       avgSessionsPerDay: avgSessionsPerDay.toFixed(1)
@@ -471,57 +471,85 @@ export default function AnalyticsView({ historyData, sessionHits, settings }) {
       </div>
 
       {/* TOLERANZ-INDEX */}
-      {toleranceIndex && (
-        <div className={`bg-gradient-to-br from-${toleranceIndex.color}-900/20 to-zinc-900 border border-${toleranceIndex.color}-500/30 rounded-2xl p-6 space-y-4`}>
-          <div className="flex items-center gap-2 mb-4">
-            <Activity size={16} className={`text-${toleranceIndex.color}-500`}/>
-            <h3 className="text-sm font-bold text-zinc-400 uppercase">Toleranz-Index</h3>
-          </div>
+      {toleranceIndex && (() => {
+        // Fixed Tailwind class mapping to avoid JIT purge issues
+        const colorClasses = {
+          low: {
+            containerBg: 'bg-gradient-to-br from-emerald-900/20 to-zinc-900',
+            containerBorder: 'border-emerald-500/30',
+            iconText: 'text-emerald-500',
+            valueText: 'text-emerald-400',
+            progressBg: 'bg-gradient-to-r from-emerald-500 to-emerald-600'
+          },
+          medium: {
+            containerBg: 'bg-gradient-to-br from-amber-900/20 to-zinc-900',
+            containerBorder: 'border-amber-500/30',
+            iconText: 'text-amber-500',
+            valueText: 'text-amber-400',
+            progressBg: 'bg-gradient-to-r from-amber-500 to-amber-600'
+          },
+          high: {
+            containerBg: 'bg-gradient-to-br from-rose-900/20 to-zinc-900',
+            containerBorder: 'border-rose-500/30',
+            iconText: 'text-rose-500',
+            valueText: 'text-rose-400',
+            progressBg: 'bg-gradient-to-r from-rose-500 to-rose-600'
+          }
+        };
+        const classes = colorClasses[toleranceIndex.colorKey];
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="col-span-2 bg-zinc-950 p-6 rounded-xl border border-zinc-800 text-center">
-              <div className="flex items-center justify-center gap-4 mb-3">
-                <div className={`text-6xl font-bold text-${toleranceIndex.color}-400`}>
-                  {toleranceIndex.index}
+        return (
+          <div className={`${classes.containerBg} border ${classes.containerBorder} rounded-2xl p-6 space-y-4`}>
+            <div className="flex items-center gap-2 mb-4">
+              <Activity size={16} className={classes.iconText}/>
+              <h3 className="text-sm font-bold text-zinc-400 uppercase">Toleranz-Index</h3>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="col-span-2 bg-zinc-950 p-6 rounded-xl border border-zinc-800 text-center">
+                <div className="flex items-center justify-center gap-4 mb-3">
+                  <div className={`text-6xl font-bold ${classes.valueText}`}>
+                    {toleranceIndex.index}
+                  </div>
+                  <div className="text-left">
+                    <div className={`text-2xl font-bold ${classes.valueText}`}>{toleranceIndex.level}</div>
+                    <div className="text-xs text-zinc-600 uppercase">Toleranz-Level</div>
+                  </div>
                 </div>
-                <div className="text-left">
-                  <div className={`text-2xl font-bold text-${toleranceIndex.color}-400`}>{toleranceIndex.level}</div>
-                  <div className="text-xs text-zinc-600 uppercase">Toleranz-Level</div>
+
+                <div className="w-full h-3 bg-zinc-800 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full ${classes.progressBg} transition-all rounded-full`}
+                    style={{ width: `${toleranceIndex.index}%` }}
+                  />
                 </div>
               </div>
 
-              <div className="w-full h-3 bg-zinc-800 rounded-full overflow-hidden">
-                <div
-                  className={`h-full bg-gradient-to-r from-${toleranceIndex.color}-500 to-${toleranceIndex.color}-600 transition-all rounded-full`}
-                  style={{ width: `${toleranceIndex.index}%` }}
-                />
+              <div className="bg-zinc-950 p-4 rounded-xl border border-zinc-800 text-center">
+                <p className="text-2xl font-bold text-white">{toleranceIndex.activeDays}/7</p>
+                <p className="text-xs text-zinc-600 uppercase mt-1">Aktive Tage</p>
+              </div>
+
+              <div className="bg-zinc-950 p-4 rounded-xl border border-zinc-800 text-center">
+                <p className="text-2xl font-bold text-white">{toleranceIndex.avgDaily}</p>
+                <p className="text-xs text-zinc-600 uppercase mt-1">Ø Hits/Tag</p>
               </div>
             </div>
 
-            <div className="bg-zinc-950 p-4 rounded-xl border border-zinc-800 text-center">
-              <p className="text-2xl font-bold text-white">{toleranceIndex.activeDays}/7</p>
-              <p className="text-xs text-zinc-600 uppercase mt-1">Aktive Tage</p>
-            </div>
-
-            <div className="bg-zinc-950 p-4 rounded-xl border border-zinc-800 text-center">
-              <p className="text-2xl font-bold text-white">{toleranceIndex.avgDaily}</p>
-              <p className="text-xs text-zinc-600 uppercase mt-1">Ø Hits/Tag</p>
+            <div className="bg-zinc-950/50 p-3 rounded-xl">
+              <p className="text-xs text-zinc-500 leading-relaxed">
+                Der Toleranz-Index berechnet sich aus Nutzungshäufigkeit (40%), täglichem Volumen (40%) und Pausen (20%).
+                Niedrige Werte = bessere Wirkung, höhere Werte = möglicherweise erhöhte Toleranz.
+              </p>
             </div>
           </div>
-
-          <div className="bg-zinc-950/50 p-3 rounded-xl">
-            <p className="text-xs text-zinc-500 leading-relaxed">
-              Der Toleranz-Index berechnet sich aus Nutzungshäufigkeit (40%), täglichem Volumen (40%) und Pausen (20%).
-              Niedrige Werte = bessere Wirkung, höhere Werte = möglicherweise erhöhte Toleranz.
-            </p>
-          </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* WOCHENENDE VS WERKTAG ANALYSE */}
       <div className="bg-gradient-to-br from-violet-900/20 to-zinc-900 border border-violet-500/30 rounded-2xl p-6 space-y-4">
         <div className="flex items-center gap-2 mb-4">
-          <CalendarIcon size={16} className="text-violet-500"/>
+          <Calendar size={16} className="text-violet-500"/>
           <h3 className="text-sm font-bold text-violet-400 uppercase">Wochenende vs Werktag</h3>
         </div>
 
