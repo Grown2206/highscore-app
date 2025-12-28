@@ -214,7 +214,18 @@ export default function App() {
     batteryVoltage: null,
     batteryPercent: null
   });
-  const [currentStrainId, setCurrentStrainId] = useState(settings.strains[0]?.id || 0);
+
+  // Load persisted strain ID from localStorage, fallback to first strain
+  const [currentStrainId, setCurrentStrainId] = useState(() => {
+    const saved = localStorage.getItem('currentStrainId');
+    return saved ? parseInt(saved, 10) : (settings.strains[0]?.id || 0);
+  });
+
+  // Persist currentStrainId whenever it changes
+  useEffect(() => {
+    localStorage.setItem('currentStrainId', String(currentStrainId));
+  }, [currentStrainId]);
+
   const [isGuestMode, setIsGuestMode] = useState(false);
   const [guestHits, setGuestHits] = useState(0);
   const [connected, setConnected] = useState(false);

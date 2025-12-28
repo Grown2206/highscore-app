@@ -1,6 +1,13 @@
 import React, { useState, useRef } from 'react';
 import { Trash2, Info } from 'lucide-react';
 
+// Z-index constants for layer stacking
+const Z_INDEX = {
+  BACKGROUND_INACTIVE: 1,
+  BACKGROUND_ACTIVE: 2,
+  CONTENT: 3,
+};
+
 // Swipeable Hit Row Component - used in DashboardView and CalendarView
 export default function SwipeableHitRow({ hit, hitNumber, onDelete }) {
   const [swipeX, setSwipeX] = useState(0);
@@ -71,8 +78,8 @@ export default function SwipeableHitRow({ hit, hitNumber, onDelete }) {
         <div className="relative overflow-hidden">
           {/* Info background (right swipe) - always mounted, revealed by swipe */}
           <div
-            className="absolute inset-0 bg-blue-600 flex items-center justify-start pl-4"
-            style={{ zIndex: swipeX > 0 ? 2 : 1 }}
+            className="absolute inset-0 bg-blue-600 flex items-center justify-start pl-4 pointer-events-none"
+            style={{ zIndex: swipeX > 0 ? Z_INDEX.BACKGROUND_ACTIVE : Z_INDEX.BACKGROUND_INACTIVE }}
           >
             <div className="flex items-center gap-2 text-white font-bold text-xs">
               <Info size={16} />
@@ -87,12 +94,12 @@ export default function SwipeableHitRow({ hit, hitNumber, onDelete }) {
 
           {/* Delete button background (left swipe) - always mounted, revealed by swipe */}
           <div
-            className="absolute inset-0 bg-red-600 flex items-center justify-end pr-4"
-            style={{ zIndex: swipeX < 0 ? 2 : 1 }}
+            className="absolute inset-0 bg-red-600 flex items-center justify-end pr-4 pointer-events-none"
+            style={{ zIndex: swipeX < 0 ? Z_INDEX.BACKGROUND_ACTIVE : Z_INDEX.BACKGROUND_INACTIVE }}
           >
             <button
               onClick={handleDelete}
-              className="flex items-center gap-2 text-white font-bold"
+              className="flex items-center gap-2 text-white font-bold pointer-events-auto"
             >
               <Trash2 size={16} />
               Löschen
@@ -102,7 +109,7 @@ export default function SwipeableHitRow({ hit, hitNumber, onDelete }) {
           {/* Swipeable content */}
           <div
             className="relative bg-zinc-900 flex items-center transition-transform duration-200"
-            style={{ transform: `translateX(${swipeX}px)`, zIndex: 3 }}
+            style={{ transform: `translateX(${swipeX}px)`, zIndex: Z_INDEX.CONTENT }}
             onTouchStart={handleTouchStart}
             onTouchMove={handleTouchMove}
             onTouchEnd={handleTouchEnd}

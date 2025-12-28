@@ -100,10 +100,9 @@
 #define AP_PASSWORD "" // Kein Passwort für Setup
 const byte DNS_PORT = 53;
 
-// NTP Time Sync (NEU v7.1)
+// NTP Time Sync (NEU v7.1) - Deutsche Zeitzone mit automatischer Sommer/Winterzeit
 const char* ntpServer = "pool.ntp.org";
-const long gmtOffset_sec = 3600;  // GMT+1 für Deutschland
-const int daylightOffset_sec = 3600;  // Sommerzeit
+const char* timezone = "CET-1CEST,M3.5.0,M10.5.0/3";  // Europe/Berlin mit DST
 
 // Display Screens
 #define NUM_SCREENS 3
@@ -179,13 +178,9 @@ void readBatteryVoltage() {
   batteryVoltage = adcVoltage * BATTERY_VOLTAGE_DIVIDER;
 
   // Prozent berechnen (LiPo: 4.2V = 100%, 3.0V = 0%)
-  if (batteryVoltage >= 4.2) {
-    batteryPercent = 100;
-  } else if (batteryVoltage <= 3.0) {
-    batteryPercent = 0;
-  } else {
-    batteryPercent = (int)((batteryVoltage - 3.0) / 1.2 * 100);
-  }
+  // Linear interpolieren und auf 0-100% begrenzen
+  float percent = ((batteryVoltage - 3.0) / 1.2) * 100.0;
+  batteryPercent = (int)constrain(percent, 0, 100);
 
   Serial.print("🔋 Battery: ");
   Serial.print(batteryVoltage, 2);
@@ -421,15 +416,23 @@ void setupWiFi() {
       Serial.print("IP: ");
       Serial.println(localIP);
 
-      // FIX: NTP Time Sync initialisieren
-      Serial.print("Syncing time with NTP...");
-      configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
+      // FIX: NTP Time Sync initialisieren mit deutscher Zeitzone
+      Serial.print("Syncing time with NTP (Europe/Berlin)...");
+      configTzTime(timezone, ntpServer);
+
+      // Warten auf Sync (max 5 Sekunden)
       struct tm timeinfo;
-      if (getLocalTime(&timeinfo)) {
+      int retries = 0;
+      while (!getLocalTime(&timeinfo) && retries < 10) {
+        delay(500);
+        retries++;
+      }
+
+      if (retries < 10) {
         timeSync = true;
         Serial.println(" OK!");
-        Serial.print("Current time: ");
-        Serial.println(&timeinfo, "%A, %B %d %Y %H:%M:%S");
+        Serial.print("Current time (CET/CEST): ");
+        Serial.println(&timeinfo, "%A, %d.%m.%Y %H:%M:%S");
       } else {
         Serial.println(" FAILED!");
         timeSync = false;

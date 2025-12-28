@@ -147,6 +147,82 @@ export default function ChartsView({ historyData, sessionHits, settings }) {
     return { activeDays, totalHits, avgPerDay, totalCost, totalAmount };
   }, [historyData, sessionHits, settings]);
 
+  // Session Duration Analytics
+  const durationStats = useMemo(() => {
+    const hitsWithDuration = sessionHits.filter(h => h.duration && h.duration > 0);
+    if (hitsWithDuration.length === 0) return null;
+
+    const durations = hitsWithDuration.map(h => h.duration / 1000); // in seconds
+    const avgDuration = durations.reduce((a, b) => a + b, 0) / durations.length;
+    const maxDuration = Math.max(...durations);
+    const minDuration = Math.min(...durations);
+
+    return {
+      count: hitsWithDuration.length,
+      avg: avgDuration,
+      max: maxDuration,
+      min: minDuration
+    };
+  }, [sessionHits]);
+
+  // Comparison Stats (Last 7 days vs Previous 7 days)
+  const comparisonStats = useMemo(() => {
+    const today = new Date();
+    const last7Days = [];
+    const prev7Days = [];
+
+    for (let i = 0; i < 7; i++) {
+      const date = new Date(today);
+      date.setDate(today.getDate() - i);
+      const dateStr = date.toISOString().split('T')[0];
+      const dayData = historyData.find(h => h.date === dateStr);
+      last7Days.push(dayData?.count || 0);
+    }
+
+    for (let i = 7; i < 14; i++) {
+      const date = new Date(today);
+      date.setDate(today.getDate() - i);
+      const dateStr = date.toISOString().split('T')[0];
+      const dayData = historyData.find(h => h.date === dateStr);
+      prev7Days.push(dayData?.count || 0);
+    }
+
+    const last7Total = last7Days.reduce((a, b) => a + b, 0);
+    const prev7Total = prev7Days.reduce((a, b) => a + b, 0);
+    const change = prev7Total > 0 ? ((last7Total - prev7Total) / prev7Total) * 100 : 0;
+
+    return {
+      last7: last7Total,
+      prev7: prev7Total,
+      change: change.toFixed(1),
+      trend: change > 5 ? 'up' : change < -5 ? 'down' : 'stable'
+    };
+  }, [historyData]);
+
+  // Peak vs Off-Peak Analysis
+  const peakAnalysis = useMemo(() => {
+    const peakHours = [18, 19, 20, 21, 22]; // 18:00 - 23:00
+    let peakCount = 0;
+    let offPeakCount = 0;
+
+    sessionHits.forEach(hit => {
+      const hour = new Date(hit.timestamp).getHours();
+      if (peakHours.includes(hour)) {
+        peakCount++;
+      } else {
+        offPeakCount++;
+      }
+    });
+
+    const total = peakCount + offPeakCount;
+    return {
+      peak: peakCount,
+      offPeak: offPeakCount,
+      peakPercent: total > 0 ? ((peakCount / total) * 100).toFixed(0) : 0,
+      offPeakPercent: total > 0 ? ((offPeakCount / total) * 100).toFixed(0) : 0
+    };
+  }, [sessionHits]);
+
   return (
     <div className="space-y-6 animate-in slide-in-from-right-4 pb-20">
       <div className="flex items-center justify-between">
@@ -185,7 +261,106 @@ export default function ChartsView({ historyData, sessionHits, settings }) {
           </div>
         </div>
       </div>
-      
+
+      {/* Comparison Stats - This Week vs Last Week */}
+      <div className="bg-gradient-to-br from-blue-900/20 to-zinc-900 border border-blue-500/30 rounded-2xl p-6">
+        <div className="flex items-center gap-2 mb-4">
+          <TrendingUp size={16} className="text-blue-500"/>
+          <h3 className="text-sm font-bold text-blue-400 uppercase">Wöchent Vergleich</h3>
+        </div>
+
+        <div className="grid grid-cols-3 gap-4">
+          <div className="bg-zinc-950 p-4 rounded-xl text-center">
+            <p className="text-xs text-zinc-500 uppercase mb-2">Letzte 7 Tage</p>
+            <p className="text-3xl font-bold text-blue-400">{comparisonStats.last7}</p>
+          </div>
+
+          <div className="bg-zinc-950 p-4 rounded-xl text-center">
+            <p className="text-xs text-zinc-500 uppercase mb-2">Vorherige 7 Tage</p>
+            <p className="text-3xl font-bold text-purple-400">{comparisonStats.prev7}</p>
+          </div>
+
+          <div className="bg-zinc-950 p-4 rounded-xl text-center">
+            <p className="text-xs text-zinc-500 uppercase mb-2">Veränderung</p>
+            <div className="flex items-center justify-center gap-2">
+              <p className={`text-3xl font-bold ${
+                comparisonStats.trend === 'up' ? 'text-rose-400' :
+                comparisonStats.trend === 'down' ? 'text-emerald-400' : 'text-zinc-400'
+              }`}>
+                {comparisonStats.change}%
+              </p>
+              {comparisonStats.trend === 'up' && <TrendingUp size={20} className="text-rose-400" />}
+              {comparisonStats.trend === 'down' && <TrendingDown size={20} className="text-emerald-400" />}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Session Duration Analytics */}
+      {durationStats && (
+        <div className="bg-gradient-to-br from-cyan-900/20 to-zinc-900 border border-cyan-500/30 rounded-2xl p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <Zap size={16} className="text-cyan-500"/>
+            <h3 className="text-sm font-bold text-cyan-400 uppercase">Session-Dauer Analyse</h3>
+            <span className="text-[10px] text-zinc-600 ml-auto">{durationStats.count} Sessions gemessen</span>
+          </div>
+
+          <div className="grid grid-cols-3 gap-4">
+            <div className="bg-zinc-950 p-4 rounded-xl text-center">
+              <p className="text-xs text-zinc-500 uppercase mb-2">Durchschnitt</p>
+              <p className="text-2xl font-bold text-cyan-400">{durationStats.avg.toFixed(1)}s</p>
+            </div>
+
+            <div className="bg-zinc-950 p-4 rounded-xl text-center">
+              <p className="text-xs text-zinc-500 uppercase mb-2">Maximum</p>
+              <p className="text-2xl font-bold text-orange-400">{durationStats.max.toFixed(1)}s</p>
+            </div>
+
+            <div className="bg-zinc-950 p-4 rounded-xl text-center">
+              <p className="text-xs text-zinc-500 uppercase mb-2">Minimum</p>
+              <p className="text-2xl font-bold text-green-400">{durationStats.min.toFixed(1)}s</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Peak vs Off-Peak Analysis */}
+      <div className="bg-gradient-to-br from-indigo-900/20 to-zinc-900 border border-indigo-500/30 rounded-2xl p-6">
+        <div className="flex items-center gap-2 mb-4">
+          <Clock size={16} className="text-indigo-500"/>
+          <h3 className="text-sm font-bold text-indigo-400 uppercase">Peak vs Off-Peak</h3>
+          <span className="text-[10px] text-zinc-600 ml-auto">18:00-23:00 = Peak</span>
+        </div>
+
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-zinc-400">Peak Hours (18:00-23:00)</span>
+              <span className="text-indigo-400 font-bold">{peakAnalysis.peak} Sessions ({peakAnalysis.peakPercent}%)</span>
+            </div>
+            <div className="h-3 bg-zinc-800 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full transition-all"
+                style={{ width: `${peakAnalysis.peakPercent}%` }}
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-zinc-400">Off-Peak Hours</span>
+              <span className="text-cyan-400 font-bold">{peakAnalysis.offPeak} Sessions ({peakAnalysis.offPeakPercent}%)</span>
+            </div>
+            <div className="h-3 bg-zinc-800 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-cyan-500 to-blue-500 rounded-full transition-all"
+                style={{ width: `${peakAnalysis.offPeakPercent}%` }}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
          <div className="flex items-center gap-2 mb-4"><Clock size={16} className="text-amber-500"/><h3 className="text-sm font-bold text-zinc-400 uppercase">Tageszeit Aktivität</h3></div>
          <div className="h-32 flex items-end gap-1">
