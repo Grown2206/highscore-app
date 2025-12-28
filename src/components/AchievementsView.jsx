@@ -204,6 +204,8 @@ function AchievementsView({ sessionHits = [], historyData = [], settings = {} })
 
   // Filter Medaillen nach Kategorie
   const filteredMedals = useMemo(() => {
+    if (!allMedals || !Array.isArray(allMedals)) return [];
+
     if (selectedCategory === 'Alle') {
       // **FIX v8.0**: Zeige ALLE Medaillen, nicht nur die mit Zeitstempel
       // Sortiere: Medaillen MIT Zeitstempel zuerst (neueste), dann ohne
@@ -231,6 +233,7 @@ function AchievementsView({ sessionHits = [], historyData = [], settings = {} })
 
   // Kategorien für Filter
   const categories = useMemo(() => {
+    if (!allMedals || !Array.isArray(allMedals)) return ['Alle'];
     const cats = new Set(allMedals.map(m => m.category));
     return ['Alle', ...Array.from(cats)];
   }, [allMedals]);
@@ -279,7 +282,7 @@ function AchievementsView({ sessionHits = [], historyData = [], settings = {} })
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="bg-zinc-800/50 rounded-xl p-4 text-center">
-            <div className="text-3xl font-bold text-yellow-400">{allMedals.length}</div>
+            <div className="text-3xl font-bold text-yellow-400">{allMedals?.length || 0}</div>
             <div className="text-xs text-zinc-400 mt-1">Medaillen</div>
           </div>
           <div className="bg-zinc-800/50 rounded-xl p-4 text-center">
@@ -315,7 +318,7 @@ function AchievementsView({ sessionHits = [], historyData = [], settings = {} })
               }`}
             >
               {cat}
-              {cat === 'Alle' && ` (${allMedals.length})`}
+              {cat === 'Alle' && allMedals && ` (${allMedals.length})`}
             </button>
           ))}
         </div>
