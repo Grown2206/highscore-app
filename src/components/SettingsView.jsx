@@ -1,7 +1,7 @@
 import React, { useState, useRef, memo } from 'react';
 import { Settings, Shield, Download, Upload, Target, AlertCircle, Database, Trash, Scale, Percent, RefreshCw, Smartphone } from 'lucide-react';
 import { generateTestData, mergeTestData, removeTestData } from '../utils/testDataGenerator';
-import { DEFAULT_SETTINGS, STORAGE_KEYS } from '../utils/constants';
+import { DEFAULT_SETTINGS, STORAGE_KEYS, LEGACY_KEYS } from '../utils/constants';
 
 function SettingsView({ settings, setSettings, historyData, setHistoryData, sessionHits, setSessionHits, goals, setGoals, showRecovery, setShowRecovery, isSimulating, setIsSimulating }) {
   const [exportStatus, setExportStatus] = useState(null);
@@ -132,11 +132,13 @@ function SettingsView({ settings, setSettings, historyData, setHistoryData, sess
       const keysToDelete = [
         STORAGE_KEYS.HISTORY,
         STORAGE_KEYS.SESSION_HITS,
-        STORAGE_KEYS.ACHIEVEMENTS,
         STORAGE_KEYS.GOALS,
         STORAGE_KEYS.LAST_DATE,
         STORAGE_KEYS.OFFSET,
         STORAGE_KEYS.LAST_HIT_TS,
+        STORAGE_KEYS.BADGE_HISTORY,
+        // Legacy cleanup: Remove old achievement key (deprecated in v7.0, removed in v8.0)
+        LEGACY_KEYS.ACHIEVEMENTS_V6,
       ];
       keysToDelete.forEach(key => localStorage.removeItem(key));
 

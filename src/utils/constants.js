@@ -10,21 +10,12 @@ export const DEFAULT_SETTINGS = {
   triggerThreshold: 50,
 };
 
-// localStorage Keys (Version 6)
-// NOTE: v7.0 reuses the v6 storage schema - no breaking changes in data structure
+// localStorage Keys (Active Schema v6-v8)
+// NOTE: Schema v6 is used across versions 6.0-8.0 without breaking changes
 export const STORAGE_KEYS = {
   SETTINGS: 'hs_settings_v6',
   HISTORY: 'hs_history_v6',
   SESSION_HITS: 'hs_session_hits_v6',
-
-  /**
-   * @deprecated since v7.0 - Achievement system replaced by Badge system
-   * This key is kept only for cleanup of legacy data in SettingsView reset function.
-   * Will be removed in v8.0 once migration period is complete.
-   * Do NOT use this key for reading or writing new data.
-   */
-  ACHIEVEMENTS: 'hs_achievements_v6',
-
   GOALS: 'hs_goals_v6',
   LAST_DATE: 'hs_last_date',
   OFFSET: 'hs_offset',
@@ -33,5 +24,11 @@ export const STORAGE_KEYS = {
   BADGE_HISTORY: 'hs_badge_history_v7', // Badge unlock timestamps
 };
 
+// Legacy Keys (Deprecated - for cleanup only)
+// These keys are no longer actively used but may need to be removed during data resets
+export const LEGACY_KEYS = {
+  ACHIEVEMENTS_V6: 'hs_achievements_v6', // Deprecated in v7.0, removed in v8.0
+};
+
 // App Version
-export const APP_VERSION = '7.0.0';
+export const APP_VERSION = '8.0.0';

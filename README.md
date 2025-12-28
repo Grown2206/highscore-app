@@ -4,7 +4,7 @@
 
 Verfolge deinen Konsum, analysiere Muster, erreiche Erfolge und behalte die volle Kontrolle – mit optionaler ESP32-Sensor-Hardware für automatisches Tracking.
 
-[![Version](https://img.shields.io/badge/version-7.1-brightgreen.svg)](https://github.com/Grown2206/highscore-app)
+[![Version](https://img.shields.io/badge/version-8.0-brightgreen.svg)](https://github.com/Grown2206/highscore-app)
 [![React](https://img.shields.io/badge/React-18.2-blue.svg)](https://reactjs.org/)
 [![Capacitor](https://img.shields.io/badge/Capacitor-5.0-purple.svg)](https://capacitorjs.com/)
 [![License](https://img.shields.io/badge/license-MIT-orange.svg)](LICENSE)
@@ -19,18 +19,24 @@ Verfolge deinen Konsum, analysiere Muster, erreiche Erfolge und behalte die voll
 - **Visualisierungen**: Interaktive Charts für Konsum-Muster und Trends
 - **Kalender-Ansicht**: Historischer Überblick mit Farb-Kodierung
 
-### 🏆 **Achievements-System v2.0** (NEU in v7.1)
-- **8 Kategorien** mit 30+ Medaillen und lustigen Namen:
+### 🏆 **Achievements-System v3.0** (MASSIV ERWEITERT in v8.0!)
+- **12 Kategorien** mit **70+ Medaillen** und lustigen Namen:
   - **Sitzungen** (6 Stufen) - Neuling → Meister des Universums
   - **Streaks** (6 Stufen) - Auf Kurs → Zeitlos
-  - **Tagesrekord** (6 Stufen) - Guter Tag → Götterstatus
+  - **Tagesrekord** (11 Stufen!) - Guter Tag → Absolut Legendär
   - **Ausgaben** (5 Stufen) - Sparschwein → Geldbaum
   - **Sorten** (6 Stufen) - Neugierig → Botaniker
-  - **Frühaufsteher** (4 Stufen) - Morgenmuffel → Sonnenanbeter
-  - **Nachteule** (4 Stufen) - Nachtaktiv → Vampir
-  - **Effizienz** (4 Stufen) - Effizient → Perfektion
-- **Lustige Bezeichnungen**: Gewohnheitstier, Stammgast, Party Mode, Hardcore, High Roller, Sommelier, Mitternachtskrieger, etc.
-- **Echtzeit-Fortschritt**: Visualisierte Progress-Bars für jede Kategorie
+  - **Frühaufsteher** (8 Stufen) - Morgenmuffel → Meister der Morgendämmerung
+  - **Nachteule** (8 Stufen) - Nachtaktiv → Herrscher der Dunkelheit
+  - **Effizienz** (5 Stufen) - Effizient → Perfektion Personifiziert
+  - **Weekend Warrior** (6 Stufen) - Weekend Vibes → Ewiges Wochenende 🆕
+  - **Werktags-Profi** (6 Stufen) - Schichtarbeiter → Business Tycoon 🆕
+  - **Speed Runner** (5 Stufen) - Blitzschnell → Überschallgeschwindigkeit 🆕
+  - **Genießer** (5 Stufen) - Chill → Ewigkeit 🆕
+- **Massive Erweiterungen**: Frühaufsteher & Nachteule mit jeweils 8 Stufen, Tagesrekord mit 11 Stufen!
+- **4 neue Kategorien**: Weekend Warrior, Werktags-Profi, Speed Runner, Genießer
+- **Echtzeit-Fortschritt**: Visualisierte Progress-Bars mit Circular Indicators
+- **Explizite Konfiguration**: Validierte Kopplung zwischen Medals & Progress Badges
 - **Dynamische Berechnung**: Keine localStorage-Bugs, komplett robust!
 
 ### 💾 **Auto-Backup-System** (NEU in v7.0)
@@ -42,6 +48,24 @@ Verfolge deinen Konsum, analysiere Muster, erreiche Erfolge und behalte die voll
 - **Automatische Wiederherstellung**: Recovery-Modal mit Backup-Auswahl
 - **Datenschutz**: Alle Daten bleiben lokal auf deinem Gerät
 
+### 📈 **Advanced Analytics mit ML** (MASSIV ERWEITERT in v8.0!)
+- **Predictive Analytics**:
+  - Linear Regression Trendanalyse
+  - 7-Tage und 30-Tage Vorhersagen
+  - R² Konfidenz-Score
+- **Anomalie-Erkennung**:
+  - Spike-Detektion (Z-Score Analyse)
+  - Nachtaktivitäts-Muster
+  - Rapid-Fire Sessions
+  - T-Break Erkennung
+- **Erweiterte Metriken** 🆕:
+  - **Toleranz-Index** (0-100): Multi-Faktor Score aus Frequenz, Volumen & Pausen
+  - **Habit Score** (14-Tage Konsistenz): Emoji-Rating von "Chaotisch" bis "Roboterhaft"
+  - **Wochenvergleich**: Diese Woche vs. letzte Woche mit Trend-Indikator
+  - **Session Duration Analytics**: Durchschnitt, Median, Schnellste/Langsamste
+  - **Peak vs Off-Peak**: Tageszeit-Analyse mit Verteilung
+- **KI-Empfehlungen**: 5 Kategorien (Timing, Strain, Pattern, Cost, Health)
+
 ### 🎯 **Ziele & Motivation**
 - **Personalisierte Ziele**: Setze Tages- oder Wochenziele
 - **Fortschritts-Tracking**: Visualisierung der Zielerreichung
@@ -52,6 +76,8 @@ Verfolge deinen Konsum, analysiere Muster, erreiche Erfolge und behalte die voll
   - Automatische Session-Erkennung via Temperatur
   - OLED-Display mit Live-Statistiken
   - WiFi-Synchronisation in Echtzeit
+  - **Deutsche Zeitzone mit automatischer Sommer/Winterzeit** 🆕
+  - **Batterie-Monitoring** mit präziser LiPo-Kalkulation 🆕
   - Zwei Varianten: Standard (DHT22) & Compact (DS18B20)
 - Siehe [ESP32-Firmware Dokumentation](esp32-firmware/README.md)
 
@@ -141,31 +167,41 @@ npx cap open android
 ```
 highscore-app/
 ├── src/
-│   ├── components/          # React Components
-│   │   ├── App.jsx         # Haupt-App mit Routing
-│   │   ├── Dashboard.jsx   # Hauptübersicht
-│   │   ├── AchievementsView.jsx  # Achievements v2.0 (NEU)
-│   │   ├── DataRecovery.jsx # Backup-Wiederherstellung (NEU)
-│   │   ├── CalendarView.jsx
-│   │   ├── GoalsView.jsx
-│   │   ├── SettingsView.jsx
-│   │   └── ...
+│   ├── components/          # React Components (15 Dateien)
+│   │   ├── App.jsx         # Haupt-App mit Routing & ESP32-Integration
+│   │   ├── DashboardView.jsx   # Hauptübersicht mit Hold Button
+│   │   ├── AchievementsView.jsx  # Achievements v3.0 (12 Kategorien, 70+ Medals)
+│   │   ├── AnalyticsView.jsx # ML-basierte Analytics mit Predictions
+│   │   ├── ChartsView.jsx  # Statistische Visualisierungen
+│   │   ├── BadgesView.jsx  # Badge-System (13 Kategorien, 4 Levels)
+│   │   ├── CalendarView.jsx # Kalender mit Session-Details
+│   │   ├── DataRecovery.jsx # Backup-Wiederherstellung
+│   │   ├── SettingsView.jsx # App-Konfiguration
+│   │   ├── StrainManagementView.jsx # Sorten-CRUD
+│   │   ├── ESP32DebugView.jsx # Hardware-Debugging
+│   │   ├── SwipeableHitRow.jsx # Swipe-to-Delete Row
+│   │   ├── SessionDetailsModal.jsx # Session-Detail-Ansicht
+│   │   ├── StreaksWidget.jsx # Streak-Statistiken
+│   │   ├── HoldButton.jsx  # Hold-Button Component
+│   │   └── UIComponents.jsx # Reusable UI Elements
 │   ├── utils/              # Helper Functions
-│   │   ├── autoBackup.js   # Backup-System (NEU)
-│   │   ├── constants.js    # Shared Constants
-│   │   ├── charts.js       # Chart-Konfigurationen
-│   │   └── testDataGenerator.js
+│   │   ├── achievementsConfig.js # Achievement Medals Config (v3.0)
+│   │   ├── badges.js       # Badge-System Logic
+│   │   ├── autoBackup.js   # Multi-Layer Backup-System
+│   │   ├── constants.js    # Shared Constants & Storage Keys
+│   │   └── testDataGenerator.js # Testdaten-Generator
 │   ├── hooks/              # Custom React Hooks
-│   │   └── useAutoBackup.js # Auto-Backup Hook (NEU)
+│   │   ├── useAutoBackup.js # Auto-Backup Hook
+│   │   └── useLocalStorage.js # Persistent State Hook
 │   ├── main.jsx           # Entry Point
-│   └── index.css          # Global Styles
+│   └── index.css          # Global Styles (Tailwind)
 ├── esp32-firmware/         # Hardware-Firmware
 │   ├── highscore-sensor.ino     # ESP32 Standard (DHT22)
-│   ├── highscore-sensor-c3.ino  # ESP32-C3 Compact (DS18B20)
+│   ├── highscore-sensor-c3.ino  # ESP32-C3 Compact (DS18B20) mit deutscher Zeit
 │   ├── README.md
 │   └── README-ESP32-C3.md
-├── android/               # Android-Spezifische Dateien
-├── public/                # Statische Assets
+├── android/               # Android-Spezifische Dateien (Capacitor)
+├── public/                # Statische Assets (Icons, Manifest)
 ├── package.json
 ├── capacitor.config.json
 ├── tailwind.config.js
@@ -240,32 +276,59 @@ npx cap open ios
 
 ---
 
-## 🏆 Achievements-System v2.0 Details
+## 🏆 Achievements-System v3.0 Details
 
-### Kategorien & Medaillen-Stufen
+### Kategorien & Medaillen-Stufen (MASSIV ERWEITERT!)
+
+#### 📊 Basis-Achievements (6-11 Stufen!)
 
 | Kategorie | Stufe 1 | Stufe 2 | Stufe 3 | Stufe 4 | Stufe 5 | Stufe 6 |
 |-----------|---------|---------|---------|---------|---------|---------|
 | **Sitzungen** | 🌱 Neuling (1) | 🥉 Gewohnheitstier (10) | 🥈 Stammgast (50) | 🥇 Veteran (100) | 💎 Legende (250) | 👑 Meister des Universums (500) |
 | **Streaks** | 📈 Auf Kurs (3) | 🔥 Wochenkönig (7) | ⚡ Unaufhaltsam (14) | 🏃 Marathon-Läufer (30) | 🛡️ Eiserne Disziplin (60) | ♾️ Zeitlos (100) |
-| **Tagesrekord** | 😊 Guter Tag (5) | 🎉 Party Mode (10) | 💪 Hardcore (15) | 🤯 Absolut Wild (20) | 🦸 Übermenschlich (25) | ⚡👑 Götterstatus (30) |
 | **Ausgaben** | 🐷 Sparschwein (50€) | 💼 Investor (200€) | 🎰 High Roller (500€) | 💎 Tycoon (1000€) | 🌳💰 Geldbaum (2000€) | - |
 | **Sorten** | 🔍 Neugierig (3) | 🌿 Entdecker (5) | 🍃 Kenner (10) | 🎩 Sommelier (15) | 🏆 Meister-Sammler (20) | 🔬🌱 Botaniker (30) |
-| **Frühaufsteher** | 🌅 Morgenmuffel (5) | ☕ Frühaufsteher (15) | 🌄 Morgenröte (30) | ☀️ Sonnenanbeter (50) | - | - |
-| **Nachteule** | 🌙 Nachtaktiv (5) | 🦉 Nachteule (15) | 🌃 Mitternachtskrieger (30) | 🧛 Vampir (50) | - | - |
-| **Effizienz** | 📈 Effizient (2 Ø) | ⚡ Produktiv (3 Ø) | 🎯 Optimiert (4 Ø) | 💯 Perfektion (5 Ø) | - | - |
+
+**Tagesrekord (11 Stufen!)**: Guter Tag (5) → Party Mode (10) → Hardcore (15) → Absolut Wild (20) → Übermenschlich (25) → Götterstatus (30) → Dimension X (35) → Zeitreisender (40) → Unsterblich (50) → Transzendent (75) → **Absolut Legendär (100)** 💫👑✨
+
+#### ⏰ Zeit-basierte Achievements (8 Stufen!)
+
+| Kategorie | Stufe 1-4 | Stufe 5-8 |
+|-----------|-----------|-----------|
+| **Frühaufsteher** (5-10 Uhr) | Morgenmuffel (5) → Frühaufsteher (15) → Morgenröte (30) → Sonnenanbeter (50) | Erster Vogel (75) → Sonnenaufgangs-Enthusiast (100) → Morgendämmerung (150) → **Meister der Morgendämmerung (200)** ☀️ |
+| **Nachteule** (22-5 Uhr) | Nachtaktiv (5) → Nachteule (15) → Mitternachtskrieger (30) → Vampir (50) | Mondkind (75) → Nachtschatten (100) → Dunkelheit (150) → **Herrscher der Dunkelheit (200)** 🌙 |
+
+#### 🆕 Neue Lifestyle-Achievements (5-6 Stufen!)
+
+| Kategorie | Beschreibung | Höchste Stufe |
+|-----------|--------------|---------------|
+| **Weekend Warrior** | Wochenend-Sessions (Sa/So) | Ewiges Wochenende (150) ♾️🎉 |
+| **Werktags-Profi** | Werktags-Sessions (Mo-Fr) | Business Tycoon (150) 👔💼 |
+| **Speed Runner** | Sessions < 30 Sekunden | Überschallgeschwindigkeit (100) ⚡ |
+| **Genießer** | Sessions > 60 Sekunden | Ewigkeit (100) ♾️🌌 |
+| **Effizienz** | Ø Hits pro Session | Perfektion Personifiziert (6 Ø) 💯 |
 
 ### Berechnung
 
 Achievements werden dynamisch berechnet aus:
-- `sessionHits` - Array aller Sessions (mit timestamp für Frühaufsteher/Nachteule)
+- `sessionHits` - Array aller Sessions (mit timestamp, duration)
 - `historyData` - Tägliche Zusammenfassungen (für Streaks & Tagesrekord)
 - Keine Settings mehr nötig!
 
-**Vorteile**:
-- ✅ **30+ Medaillen** statt 8 Badges
+**Session-Klassifizierung**:
+- **Frühaufsteher**: 5:00-9:59 Uhr
+- **Nachteule**: 22:00-4:59 Uhr
+- **Weekend**: Samstag & Sonntag
+- **Werktag**: Montag-Freitag
+- **Speed Runner**: Duration < 30 Sekunden
+- **Genießer**: Duration > 60 Sekunden
+
+**Vorteile v3.0**:
+- ✅ **70+ Medaillen** statt 30+ (133% mehr!)
+- ✅ **4 neue Kategorien** (Weekend, Werktag, Speed, Genießer)
+- ✅ **Massive Erweiterungen**: Tagesrekord 11 Stufen, Frühaufsteher/Nachteule je 8 Stufen
+- ✅ **Explizite Konfiguration** mit Validierung
 - ✅ **Lustige Namen** motivieren mehr
-- ✅ **Erweiterte Stats** (Frühaufsteher, Nachteule, Effizienz)
 - ✅ **Keine localStorage-Bugs** - alles dynamisch berechnet
 - ✅ **Komplett robust** gegen Fehler
 
@@ -374,23 +437,38 @@ Setzt Heute-Counter zurück.
 
 ## 🛣️ Roadmap
 
-### v7.1 (Q1 2025)
+### v8.0 (AKTUELL) ✅
+- [x] Achievements-System v3.0 mit 12 Kategorien & 70+ Medaillen
+- [x] Massive Erweiterung: Tagesrekord 11 Stufen, Frühaufsteher/Nachteule je 8 Stufen
+- [x] 4 neue Achievement-Kategorien (Weekend Warrior, Werktags-Profi, Speed Runner, Genießer)
+- [x] Advanced Analytics mit ML (Tolerance Index, Habit Score)
+- [x] Wochenvergleich, Session Duration Analytics, Peak/Off-Peak Analyse
+- [x] Deutsche Zeitzone mit automatischer Sommer/Winterzeit für ESP32
+- [x] Präzise LiPo-Batterie-Kalkulation
+- [x] Strain-Persistierung (bleibt bei App-Neustart erhalten)
+- [x] Explizite Achievement-Konfiguration mit Validierung
+- [x] Zentralisierte Duration-Konstanten
+
+### v8.1 (Q1 2025)
+- [ ] Component-Refactoring (Split große Components)
+- [ ] Extract ESP32 logic zu custom hook
 - [ ] Webinterface für ESP32-Konfiguration
 - [ ] Bluetooth-Support für direkte Verbindung
 - [ ] Export als PDF/CSV
-- [ ] Darkmode-Verbesserungen
+- [ ] Unit Tests für Calculations
 
-### v7.2
+### v8.2 (Q2 2025)
+- [ ] TypeScript Migration (Start mit Utils)
 - [ ] Social Features (optional teilen)
 - [ ] Cloud-Sync (opt-in)
 - [ ] Multi-Device Support
 - [ ] Desktop App (Electron)
 
-### v8.0
-- [ ] Machine Learning für Konsum-Vorhersagen
-- [ ] Erweiterte Analytics
-- [ ] Strain-Empfehlungen
+### v9.0 (Q3 2025)
+- [ ] Strain-Empfehlungen basierend auf Analytics
+- [ ] Erweiterte ML-Vorhersagen
 - [ ] Community-Features
+- [ ] Accessibility Verbesserungen
 
 ---
 
