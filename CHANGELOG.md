@@ -31,7 +31,7 @@ Diese Version bringt die massivste Erweiterung des Achievement-Systems, erweiter
   - **Genießer** (5 Stufen): Sessions > 60 Sekunden
 - **Explizite Konfiguration**: `medalCategory` Feld mit Runtime-Validierung
 - **Zentralisierte Konstanten**: `FAST_SESSION_MS` und `SLOW_SESSION_MS` in achievementsConfig.js
-- **Fail-Fast Validierung**: Descriptive Fehler bei fehlenden Medal-Kategorien
+- **Fail-Fast Validierung**: Deskriptive Fehler bei fehlenden Medal-Kategorien
 
 #### Advanced Analytics (MASSIV ERWEITERT!)
 - **Toleranz-Index** 🆕:
@@ -41,7 +41,7 @@ Diese Version bringt die massivste Erweiterung des Achievement-Systems, erweiter
 - **Habit Score** 🆕:
   - 14-Tage Konsistenz-Analyse
   - Emoji-Rating: Chaotisch 🎲 → Roboterhaft 🤖
-  - Z-Score basierte Bewertung
+  - Z-Score-basierte Bewertung
 - **Wochenvergleich** 🆕:
   - Diese Woche vs. letzte Woche
   - Trend-Indikator (↑ steigend, ↓ fallend, → stabil)
@@ -78,7 +78,7 @@ Diese Version bringt die massivste Erweiterung des Achievement-Systems, erweiter
 - **Roadmap**: v8.0 als "AKTUELL" markiert
 
 ### 🐛 Fixed
-- **Tolerance Index Logic**: Pause Score war invertiert (mehr Pausen sollten Index senken)
+- **Toleranz-Index-Logik**: Pause Score war invertiert (mehr Pausen sollten Index senken)
 - **Tailwind JIT Purge**: Dynamische Classes durch feste Mapping-Objekte ersetzt
 - **Typo**: "Wöchent Vergleich" → "Wochenvergleich"
 - **Import Error**: `CalendarIcon` vs `Calendar` Import-Mismatch behoben
@@ -287,7 +287,7 @@ Diese Version bringt zwei wichtige neue Features und ersetzt das fehleranfällig
 
 ### [8.1.0] - Q1 2025
 - [ ] Component-Refactoring (Split große Components)
-- [ ] Extract ESP32 logic zu custom hook
+- [ ] Extract ESP32 logic into a custom hook
 - [ ] Webinterface für ESP32-Konfiguration
 - [ ] Bluetooth-Support
 - [ ] PDF/CSV Export

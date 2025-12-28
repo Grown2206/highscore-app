@@ -686,9 +686,9 @@ void setupServer() {
 
 // ===== FLAME SENSOR DETECTION =====
 void checkFlameSensor() {
-  // B05 Flame Sensor: LOW = Flamme erkannt, HIGH = keine Flamme
+  // B05 Flame Sensor: HIGH = Flamme erkannt, LOW = keine Flamme
   int sensorValue = digitalRead(FLAME_SENSOR_PIN);
-  isFlameDetected = (sensorValue == LOW);
+  isFlameDetected = (sensorValue == HIGH);
 }
 
 // ===== SESSION DETECTION =====

@@ -20,7 +20,7 @@ Verfolge deinen Konsum, analysiere Muster, erreiche Erfolge und behalte die voll
 - **Kalender-Ansicht**: Historischer Überblick mit Farb-Kodierung
 
 ### 🏆 **Achievements-System v3.0** (MASSIV ERWEITERT in v8.0!)
-- **12 Kategorien** mit über **70+ Medaillen** und lustigen Namen:
+- **12 Kategorien** mit **70+ Medaillen** und lustigen Namen:
   - **Sitzungen** (6 Stufen) - Neuling → Meister des Universums
   - **Streaks** (6 Stufen) - Auf Kurs → Zeitlos
   - **Tagesrekord** (11 Stufen!) - Guter Tag → Absolut Legendär
