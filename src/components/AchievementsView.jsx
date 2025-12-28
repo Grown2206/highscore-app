@@ -202,16 +202,25 @@ function AchievementsView({ sessionHits = [], historyData = [], settings = {} })
   // Filter Medaillen nach Kategorie
   const filteredMedals = useMemo(() => {
     if (selectedCategory === 'Alle') {
-      // Zeige nur die Top 12 neuesten Medaillen (sortiert nach achievedAt)
+      // **FIX v8.0**: Zeige ALLE Medaillen, nicht nur die mit Zeitstempel
+      // Sortiere: Medaillen MIT Zeitstempel zuerst (neueste), dann ohne
       return [...allMedals]
-        .filter(m => m.achievedAt) // Nur welche mit Zeitstempel
         .sort((a, b) => {
-          // Normalize timestamps to handle strings/Date objects/NaN
-          const tA = normalizeAchievementTimestamp(a.achievedAt);
-          const tB = normalizeAchievementTimestamp(b.achievedAt);
-          return tB - tA; // Newest first
+          // Medaillen mit Zeitstempel kommen zuerst
+          if (a.achievedAt && !b.achievedAt) return -1;
+          if (!a.achievedAt && b.achievedAt) return 1;
+
+          // Beide haben Zeitstempel → sortiere nach Datum (newest first)
+          if (a.achievedAt && b.achievedAt) {
+            const tA = normalizeAchievementTimestamp(a.achievedAt);
+            const tB = normalizeAchievementTimestamp(b.achievedAt);
+            return tB - tA;
+          }
+
+          // Beide haben keinen Zeitstempel → sortiere nach Threshold (höher = besser)
+          return (b.threshold || 0) - (a.threshold || 0);
         })
-        .slice(0, 12);
+        .slice(0, 16); // Mehr Medaillen zeigen (16 statt 12)
     }
     // Kategorie-spezifisch: zeige alle dieser Kategorie
     return allMedals.filter(m => m.category === selectedCategory);

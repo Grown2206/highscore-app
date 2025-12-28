@@ -448,7 +448,7 @@ export default function App() {
           }
 
           return {
-            id: realTimestamp, // Nutze echten Timestamp als eindeutige ID
+            id: hit.id || `fallback_${realTimestamp}`, // **NEU v8.0**: Nutze ESP32 Unique ID (oder Fallback)
             timestamp: realTimestamp,
             type: 'Sensor',
             strainName: strain.name,
