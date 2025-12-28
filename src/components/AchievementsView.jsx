@@ -35,13 +35,20 @@ function AchievementsView({ sessionHits = [], historyData = [], settings = {} })
         return sum + (bowlSize * (weedRatio / 100) * price);
       }, 0);
 
-      // PERFORMANCE: Single-pass für earlyBird & nightOwl (statt 2 separate filter-Aufrufe)
+      // PERFORMANCE: Single-pass für ALLE Zeit-basierten Stats
       let earlyBirdSessions = 0;
       let nightOwlSessions = 0;
+      let weekendSessions = 0;
+      let weekdaySessions = 0;
+      let speedSessions = 0;
+      let slowSessions = 0;
 
       safeHits.forEach(h => {
         if (!h?.timestamp) return;
-        const hour = new Date(h.timestamp).getHours();
+        const date = new Date(h.timestamp);
+        const hour = date.getHours();
+        const day = date.getDay(); // 0 = Sonntag, 6 = Samstag
+        const duration = h?.duration || 0;
 
         // Frühaufsteher: 5-10 Uhr
         if (hour >= 5 && hour < 10) {
@@ -50,6 +57,22 @@ function AchievementsView({ sessionHits = [], historyData = [], settings = {} })
         // Nachteule: 22-5 Uhr
         if (hour >= 22 || hour < 5) {
           nightOwlSessions++;
+        }
+
+        // Wochenende vs Werktag
+        if (day === 0 || day === 6) {
+          weekendSessions++;
+        } else {
+          weekdaySessions++;
+        }
+
+        // Speed Runner vs Genießer
+        if (duration > 0) {
+          if (duration < 30000) { // < 30 Sekunden
+            speedSessions++;
+          } else if (duration > 60000) { // > 60 Sekunden
+            slowSessions++;
+          }
         }
       });
 
@@ -67,7 +90,11 @@ function AchievementsView({ sessionHits = [], historyData = [], settings = {} })
         totalSpending: Math.round(totalSpending), // Konsistent: Integer für Euro
         earlyBirdSessions,
         nightOwlSessions,
-        efficiency
+        efficiency,
+        weekendSessions,
+        weekdaySessions,
+        speedSessions,
+        slowSessions
       };
     } catch (error) {
       console.error('AchievementsView: stats calculation failed', error);
@@ -80,7 +107,11 @@ function AchievementsView({ sessionHits = [], historyData = [], settings = {} })
         totalSpending: 0,
         earlyBirdSessions: 0,
         nightOwlSessions: 0,
-        efficiency: 0
+        efficiency: 0,
+        weekendSessions: 0,
+        weekdaySessions: 0,
+        speedSessions: 0,
+        slowSessions: 0
       };
     }
   }, [sessionHits, historyData, settings]); // FIX: settings dependency hinzugefügt
