@@ -315,7 +315,7 @@ function AchievementsView({ sessionHits = [], historyData = [], settings = {} })
               }`}
             >
               {cat}
-              {cat === 'Alle' && ` (${allMedals.filter(m => m.achievedAt).length})`}
+              {cat === 'Alle' && ` (${allMedals.length})`}
             </button>
           ))}
         </div>
