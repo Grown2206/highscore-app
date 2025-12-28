@@ -16,6 +16,11 @@ import {
  * - Cleanes Design ohne Overload
  */
 
+// Calculate total possible medals from config (static, computed once)
+const TOTAL_POSSIBLE_MEDALS = Object.values(MEDAL_DEFINITIONS).reduce((sum, categoryMedals) => {
+  return sum + (Array.isArray(categoryMedals) ? categoryMedals.length : 0);
+}, 0);
+
 function AchievementsView({ sessionHits = [], historyData = [], settings = {} }) {
   const [selectedCategory, setSelectedCategory] = useState('Alle');
 
@@ -160,15 +165,8 @@ function AchievementsView({ sessionHits = [], historyData = [], settings = {} })
 
   // Gesamtfortschritt - basierend auf allen möglichen Medaillen
   const overallProgress = useMemo(() => {
-    // Berechne Gesamtzahl aller möglichen Medaillen aus Config
-    const totalPossibleMedals = Object.values(MEDAL_DEFINITIONS).reduce((sum, categoryMedals) => {
-      return sum + (Array.isArray(categoryMedals) ? categoryMedals.length : 0);
-    }, 0);
-
-    // allMedals enthält nur verdiente Medaillen (von generateMedals)
     const earnedMedals = allMedals.length;
-
-    return totalPossibleMedals > 0 ? Math.round((earnedMedals / totalPossibleMedals) * 100) : 0;
+    return TOTAL_POSSIBLE_MEDALS > 0 ? Math.round((earnedMedals / TOTAL_POSSIBLE_MEDALS) * 100) : 0;
   }, [allMedals]);
 
   // Progress Badges (nächste Ziele)
@@ -319,6 +317,18 @@ function AchievementsView({ sessionHits = [], historyData = [], settings = {} })
   );
 }
 
+// Helper: Normalize date to day-start timestamp (midnight UTC)
+function normalizeToDayStart(date) {
+  const normalized = new Date(date);
+  normalized.setHours(0, 0, 0, 0);
+  return normalized.getTime();
+}
+
+// Helper: Calculate day difference between two timestamps
+function daysDiff(timestamp1, timestamp2) {
+  return Math.floor((timestamp1 - timestamp2) / (1000 * 60 * 60 * 24));
+}
+
 // Helper: Streak berechnen
 function calculateStreak(historyData) {
   if (!Array.isArray(historyData) || historyData.length === 0) return 0;
@@ -326,14 +336,11 @@ function calculateStreak(historyData) {
   const sorted = [...historyData].sort((a, b) => new Date(b.date) - new Date(a.date));
   if (sorted.length === 0) return 0;
 
-  // Check if latest day is today or yesterday
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  // Pre-normalize timestamps to avoid repeated Date object creation
+  const todayStart = normalizeToDayStart(new Date());
+  const latestDateStart = normalizeToDayStart(sorted[0].date);
 
-  const latestDate = new Date(sorted[0].date);
-  latestDate.setHours(0, 0, 0, 0);
-
-  const daysSinceLatest = Math.floor((today - latestDate) / (1000 * 60 * 60 * 24));
+  const daysSinceLatest = daysDiff(todayStart, latestDateStart);
 
   // Streak must start with today or yesterday
   if (daysSinceLatest > 1 || sorted[0].count === 0) {
@@ -342,16 +349,14 @@ function calculateStreak(historyData) {
 
   // Start counting streak
   let streak = 1;
-  let expectedDate = new Date(latestDate);
+  let expectedTimestamp = latestDateStart - (1000 * 60 * 60 * 24); // One day before latest
 
   for (let i = 1; i < sorted.length; i++) {
-    expectedDate.setDate(expectedDate.getDate() - 1);
+    const currentTimestamp = normalizeToDayStart(sorted[i].date);
 
-    const currentDate = new Date(sorted[i].date);
-    currentDate.setHours(0, 0, 0, 0);
-
-    if (currentDate.getTime() === expectedDate.getTime() && sorted[i].count > 0) {
+    if (currentTimestamp === expectedTimestamp && sorted[i].count > 0) {
       streak++;
+      expectedTimestamp -= (1000 * 60 * 60 * 24); // Move expected day back by one
     } else {
       break;
     }
