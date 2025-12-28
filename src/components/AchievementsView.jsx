@@ -3,7 +3,9 @@ import { Trophy, Award, Star, Medal, Crown } from 'lucide-react';
 import {
   PROGRESS_BADGES,
   generateMedals,
-  getNextTarget
+  getNextTarget,
+  FAST_SESSION_MS,
+  SLOW_SESSION_MS
 } from '../utils/achievementsConfig';
 
 /**
@@ -36,6 +38,8 @@ function AchievementsView({ sessionHits = [], historyData = [], settings = {} })
       }, 0);
 
       // PERFORMANCE: Single-pass für ALLE Zeit-basierten Stats
+      // NOTE: Each element in sessionHits represents one session (1 session = 1 hit in this app's terminology)
+      // Therefore, incrementing per element correctly counts sessions, not hits-within-sessions
       let earlyBirdSessions = 0;
       let nightOwlSessions = 0;
       let weekendSessions = 0;
@@ -68,9 +72,9 @@ function AchievementsView({ sessionHits = [], historyData = [], settings = {} })
 
         // Speed Runner vs Genießer
         if (duration > 0) {
-          if (duration < 30000) { // < 30 Sekunden
+          if (duration < FAST_SESSION_MS) {
             speedSessions++;
-          } else if (duration > 60000) { // > 60 Sekunden
+          } else if (duration > SLOW_SESSION_MS) {
             slowSessions++;
           }
         }
