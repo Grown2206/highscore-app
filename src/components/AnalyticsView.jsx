@@ -138,7 +138,140 @@ export default function AnalyticsView({ historyData, sessionHits, settings }) {
     return detectedAnomalies.slice(0, 5); // Top 5 Anomalien
   }, [historyData, sessionHits]);
 
-  // --- 3. EMPFEHLUNGSSYSTEM ---
+  // --- 3. TOLERANZ-INDEX ---
+  const toleranceIndex = useMemo(() => {
+    if (sessionHits.length < 7) return null;
+
+    // Berechne Faktoren für Toleranz-Index
+    const last7Days = historyData.slice(-7);
+    const activeDays = last7Days.filter(d => d.count > 0).length;
+    const avgDaily = last7Days.reduce((sum, d) => sum + d.count, 0) / 7;
+
+    // Berechne Sessions pro Tag
+    const dailySessions = {};
+    sessionHits.forEach(hit => {
+      const dateStr = new Date(hit.timestamp).toISOString().split('T')[0];
+      dailySessions[dateStr] = (dailySessions[dateStr] || 0) + 1;
+    });
+
+    const sessionsPerDay = Object.values(dailySessions);
+    const avgSessionsPerDay = sessionsPerDay.length > 0
+      ? sessionsPerDay.reduce((a, b) => a + b, 0) / sessionsPerDay.length
+      : 0;
+
+    // Index-Berechnung (0-100)
+    // Faktoren: Häufigkeit (40%), Menge pro Tag (40%), Pausen (20%)
+    const frequencyScore = Math.min(100, (activeDays / 7) * 100);
+    const volumeScore = Math.min(100, (avgDaily / 15) * 100); // 15 Hits = 100%
+    const pauseScore = Math.max(0, 100 - frequencyScore); // Mehr Pausen = niedrigerer Index
+
+    const index = Math.round((frequencyScore * 0.4) + (volumeScore * 0.4) + (pauseScore * 0.2));
+
+    let level = 'Niedrig';
+    let color = 'emerald';
+    if (index > 70) {
+      level = 'Hoch';
+      color = 'rose';
+    } else if (index > 40) {
+      level = 'Mittel';
+      color = 'amber';
+    }
+
+    return {
+      index,
+      level,
+      color,
+      activeDays,
+      avgDaily: avgDaily.toFixed(1),
+      avgSessionsPerDay: avgSessionsPerDay.toFixed(1)
+    };
+  }, [historyData, sessionHits]);
+
+  // --- 4. WOCHENENDE VS WERKTAG ANALYSE ---
+  const weekdayAnalysis = useMemo(() => {
+    let weekdayCount = 0;
+    let weekendCount = 0;
+    let weekdayCost = 0;
+    let weekendCost = 0;
+
+    sessionHits.forEach(hit => {
+      const day = new Date(hit.timestamp).getDay();
+      const isWeekend = day === 0 || day === 6;
+
+      const strain = settings?.strains?.find(s => s.name === hit.strainName);
+      const price = strain?.price || hit.strainPrice || 0;
+      const cost = (settings?.bowlSize || 0.3) * ((settings?.weedRatio || 80) / 100) * price;
+
+      if (isWeekend) {
+        weekendCount++;
+        weekendCost += cost;
+      } else {
+        weekdayCount++;
+        weekdayCost += cost;
+      }
+    });
+
+    const total = weekdayCount + weekendCount;
+    return {
+      weekday: weekdayCount,
+      weekend: weekendCount,
+      weekdayPercent: total > 0 ? ((weekdayCount / total) * 100).toFixed(0) : 0,
+      weekendPercent: total > 0 ? ((weekendCount / total) * 100).toFixed(0) : 0,
+      weekdayAvg: weekdayCount > 0 ? (weekdayCost / weekdayCount).toFixed(2) : 0,
+      weekendAvg: weekendCount > 0 ? (weekendCost / weekendCount).toFixed(2) : 0
+    };
+  }, [sessionHits, settings]);
+
+  // --- 5. HABIT SCORE ---
+  const habitScore = useMemo(() => {
+    if (historyData.length < 14) return null;
+
+    const last14Days = historyData.slice(-14);
+    const activeDays = last14Days.filter(d => d.count > 0).length;
+
+    // Berechne Konsistenz (Streak-Länge)
+    let currentStreak = 0;
+    let longestStreak = 0;
+    let tempStreak = 0;
+
+    for (let i = last14Days.length - 1; i >= 0; i--) {
+      if (last14Days[i].count > 0) {
+        tempStreak++;
+        if (i === last14Days.length - 1) currentStreak = tempStreak;
+        if (tempStreak > longestStreak) longestStreak = tempStreak;
+      } else {
+        tempStreak = 0;
+      }
+    }
+
+    // Score-Berechnung (0-100)
+    const consistencyScore = Math.min(100, (longestStreak / 14) * 100);
+    const frequencyScore = (activeDays / 14) * 100;
+    const moderationScore = activeDays < 12 ? 100 : Math.max(0, 100 - ((activeDays - 11) * 20));
+
+    const score = Math.round((consistencyScore * 0.3) + (frequencyScore * 0.3) + (moderationScore * 0.4));
+
+    let rating = 'Ausgewogen';
+    let emoji = '✅';
+    if (score < 40) {
+      rating = 'Sporadisch';
+      emoji = '🔵';
+    } else if (score > 75) {
+      rating = 'Intensiv';
+      emoji = '🔥';
+    }
+
+    return {
+      score,
+      rating,
+      emoji,
+      activeDays,
+      currentStreak,
+      longestStreak
+    };
+  }, [historyData]);
+
+  // --- 6. EMPFEHLUNGSSYSTEM ---
   const recommendations = useMemo(() => {
     const recs = [];
 
@@ -336,6 +469,142 @@ export default function AnalyticsView({ historyData, sessionHits, settings }) {
           </div>
         )}
       </div>
+
+      {/* TOLERANZ-INDEX */}
+      {toleranceIndex && (
+        <div className={`bg-gradient-to-br from-${toleranceIndex.color}-900/20 to-zinc-900 border border-${toleranceIndex.color}-500/30 rounded-2xl p-6 space-y-4`}>
+          <div className="flex items-center gap-2 mb-4">
+            <Activity size={16} className={`text-${toleranceIndex.color}-500`}/>
+            <h3 className="text-sm font-bold text-zinc-400 uppercase">Toleranz-Index</h3>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="col-span-2 bg-zinc-950 p-6 rounded-xl border border-zinc-800 text-center">
+              <div className="flex items-center justify-center gap-4 mb-3">
+                <div className={`text-6xl font-bold text-${toleranceIndex.color}-400`}>
+                  {toleranceIndex.index}
+                </div>
+                <div className="text-left">
+                  <div className={`text-2xl font-bold text-${toleranceIndex.color}-400`}>{toleranceIndex.level}</div>
+                  <div className="text-xs text-zinc-600 uppercase">Toleranz-Level</div>
+                </div>
+              </div>
+
+              <div className="w-full h-3 bg-zinc-800 rounded-full overflow-hidden">
+                <div
+                  className={`h-full bg-gradient-to-r from-${toleranceIndex.color}-500 to-${toleranceIndex.color}-600 transition-all rounded-full`}
+                  style={{ width: `${toleranceIndex.index}%` }}
+                />
+              </div>
+            </div>
+
+            <div className="bg-zinc-950 p-4 rounded-xl border border-zinc-800 text-center">
+              <p className="text-2xl font-bold text-white">{toleranceIndex.activeDays}/7</p>
+              <p className="text-xs text-zinc-600 uppercase mt-1">Aktive Tage</p>
+            </div>
+
+            <div className="bg-zinc-950 p-4 rounded-xl border border-zinc-800 text-center">
+              <p className="text-2xl font-bold text-white">{toleranceIndex.avgDaily}</p>
+              <p className="text-xs text-zinc-600 uppercase mt-1">Ø Hits/Tag</p>
+            </div>
+          </div>
+
+          <div className="bg-zinc-950/50 p-3 rounded-xl">
+            <p className="text-xs text-zinc-500 leading-relaxed">
+              Der Toleranz-Index berechnet sich aus Nutzungshäufigkeit (40%), täglichem Volumen (40%) und Pausen (20%).
+              Niedrige Werte = bessere Wirkung, höhere Werte = möglicherweise erhöhte Toleranz.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* WOCHENENDE VS WERKTAG ANALYSE */}
+      <div className="bg-gradient-to-br from-violet-900/20 to-zinc-900 border border-violet-500/30 rounded-2xl p-6 space-y-4">
+        <div className="flex items-center gap-2 mb-4">
+          <CalendarIcon size={16} className="text-violet-500"/>
+          <h3 className="text-sm font-bold text-violet-400 uppercase">Wochenende vs Werktag</h3>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div className="bg-zinc-950 p-4 rounded-xl border border-zinc-800">
+            <div className="text-center mb-3">
+              <p className="text-3xl font-bold text-blue-400">{weekdayAnalysis.weekday}</p>
+              <p className="text-xs text-zinc-600 uppercase mt-1">Werktag-Sessions</p>
+            </div>
+            <div className="h-2 bg-zinc-800 rounded-full overflow-hidden mb-2">
+              <div
+                className="h-full bg-gradient-to-r from-blue-500 to-cyan-500 rounded-full"
+                style={{ width: `${weekdayAnalysis.weekdayPercent}%` }}
+              />
+            </div>
+            <div className="flex justify-between text-xs">
+              <span className="text-zinc-500">{weekdayAnalysis.weekdayPercent}%</span>
+              <span className="text-cyan-400 font-bold">Ø {weekdayAnalysis.weekdayAvg}€</span>
+            </div>
+          </div>
+
+          <div className="bg-zinc-950 p-4 rounded-xl border border-zinc-800">
+            <div className="text-center mb-3">
+              <p className="text-3xl font-bold text-violet-400">{weekdayAnalysis.weekend}</p>
+              <p className="text-xs text-zinc-600 uppercase mt-1">Wochenend-Sessions</p>
+            </div>
+            <div className="h-2 bg-zinc-800 rounded-full overflow-hidden mb-2">
+              <div
+                className="h-full bg-gradient-to-r from-violet-500 to-purple-500 rounded-full"
+                style={{ width: `${weekdayAnalysis.weekendPercent}%` }}
+              />
+            </div>
+            <div className="flex justify-between text-xs">
+              <span className="text-zinc-500">{weekdayAnalysis.weekendPercent}%</span>
+              <span className="text-violet-400 font-bold">Ø {weekdayAnalysis.weekendAvg}€</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* HABIT SCORE */}
+      {habitScore && (
+        <div className="bg-gradient-to-br from-pink-900/20 to-zinc-900 border border-pink-500/30 rounded-2xl p-6 space-y-4">
+          <div className="flex items-center gap-2 mb-4">
+            <TrendingUp size={16} className="text-pink-500"/>
+            <h3 className="text-sm font-bold text-pink-400 uppercase">Habit Score</h3>
+          </div>
+
+          <div className="bg-zinc-950 p-6 rounded-xl border border-zinc-800">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="text-5xl">{habitScore.emoji}</div>
+                <div>
+                  <p className="text-3xl font-bold text-pink-400">{habitScore.score}</p>
+                  <p className="text-sm text-zinc-500">{habitScore.rating}</p>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="text-xs text-zinc-600 uppercase">Letzte 14 Tage</p>
+                <p className="text-2xl font-bold text-white">{habitScore.activeDays}/14</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="bg-zinc-900 p-3 rounded-lg text-center">
+                <p className="text-lg font-bold text-orange-400">{habitScore.currentStreak}</p>
+                <p className="text-[10px] text-zinc-600 uppercase">Aktueller Streak</p>
+              </div>
+              <div className="bg-zinc-900 p-3 rounded-lg text-center">
+                <p className="text-lg font-bold text-yellow-400">{habitScore.longestStreak}</p>
+                <p className="text-[10px] text-zinc-600 uppercase">Längster Streak</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-zinc-950/50 p-3 rounded-xl">
+            <p className="text-xs text-zinc-500 leading-relaxed">
+              Der Habit Score kombiniert Konsistenz (30%), Häufigkeit (30%) und Moderation (40%).
+              Ausgewogen = gesunde Balance, Sporadisch = geringe Nutzung, Intensiv = hohe Aktivität.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* ANOMALIE-ERKENNUNG */}
       <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 space-y-4">
