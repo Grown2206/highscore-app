@@ -22,7 +22,11 @@ const INVALID_TIMESTAMP_SENTINEL = -Infinity;
 /**
  * Normalize achievement timestamp for consistent sorting
  *
- * @param {number|string|Date|null|undefined} value - Timestamp in any format (number, string, Date, null, undefined)
+ * @param {number|string|Date|null|undefined} value - Timestamp to normalize:
+ *   - `number`: Unix timestamp in milliseconds (finite numbers only; NaN/±Infinity treated as invalid)
+ *   - `string`: ISO date string or any Date-parseable format
+ *   - `Date`: JavaScript Date object
+ *   - `null`/`undefined`: Treated as invalid
  * @returns {number} Normalized timestamp (ms since epoch) or INVALID_TIMESTAMP_SENTINEL
  *
  * NOTE: All invalid inputs collapse to the same sentinel value (INVALID_TIMESTAMP_SENTINEL).
@@ -35,8 +39,8 @@ const INVALID_TIMESTAMP_SENTINEL = -Infinity;
  *   normalizeAchievementTimestamp(1234567890)      → 1234567890 (valid)
  *   normalizeAchievementTimestamp(null)            → INVALID_TIMESTAMP_SENTINEL
  *   normalizeAchievementTimestamp(undefined)       → INVALID_TIMESTAMP_SENTINEL
- *   normalizeAchievementTimestamp(NaN)             → INVALID_TIMESTAMP_SENTINEL
- *   normalizeAchievementTimestamp(Infinity)        → INVALID_TIMESTAMP_SENTINEL
+ *   normalizeAchievementTimestamp(NaN)             → INVALID_TIMESTAMP_SENTINEL (NaN is type 'number')
+ *   normalizeAchievementTimestamp(Infinity)        → INVALID_TIMESTAMP_SENTINEL (±Infinity are type 'number')
  *   normalizeAchievementTimestamp("invalid date")  → INVALID_TIMESTAMP_SENTINEL
  */
 function normalizeAchievementTimestamp(value) {
