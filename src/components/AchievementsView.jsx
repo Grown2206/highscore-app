@@ -16,6 +16,23 @@ import {
  * - Cleanes Design ohne Overload
  */
 
+// Helper: Normalize achievement timestamp (handles numbers, strings, Date objects, null, undefined, NaN)
+function normalizeAchievementTimestamp(value) {
+  // Handle null/undefined explicitly before new Date() call
+  if (value == null) {
+    return -Infinity;
+  }
+
+  // Handle numeric values (including numeric NaN)
+  if (typeof value === 'number') {
+    return Number.isNaN(value) ? -Infinity : value;
+  }
+
+  // Handle strings and Date objects
+  const ts = new Date(value).getTime();
+  return Number.isNaN(ts) ? -Infinity : ts; // Invalid → -Infinity (end of list)
+}
+
 function AchievementsView({ sessionHits = [], historyData = [], settings = {} }) {
   const [selectedCategory, setSelectedCategory] = useState('Alle');
 
@@ -338,17 +355,6 @@ function AchievementsView({ sessionHits = [], historyData = [], settings = {} })
       </div>
     </div>
   );
-}
-
-// Helper: Normalize achievement timestamp (handles numbers, strings, Date objects, NaN)
-function normalizeAchievementTimestamp(value) {
-  // Handle numeric values (including numeric NaN)
-  if (typeof value === 'number') {
-    return Number.isNaN(value) ? -Infinity : value;
-  }
-  // Handle strings and Date objects
-  const ts = new Date(value).getTime();
-  return Number.isNaN(ts) ? -Infinity : ts; // Invalid → -Infinity (end of list)
 }
 
 // Helper: Streak berechnen
