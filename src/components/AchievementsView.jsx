@@ -3,17 +3,15 @@ import { Trophy, Award, Star, Medal, Crown } from 'lucide-react';
 import {
   PROGRESS_BADGES,
   generateMedals,
-  getNextTarget
+  getNextTarget,
+  FAST_SESSION_MS,
+  SLOW_SESSION_MS
 } from '../utils/achievementsConfig';
 
 /**
  * ACHIEVEMENTS-SYSTEM v2.0
  * Nutzt zentrale Config für alle Medaillen & Badges
  */
-
-// Duration thresholds in milliseconds for session classification
-const FAST_SESSION_MS = 30000;  // 30 seconds
-const SLOW_SESSION_MS = 60000;  // 60 seconds
 
 function AchievementsView({ sessionHits = [], historyData = [], settings = {} }) {
   // Sichere & erweiterte Stats-Berechnung

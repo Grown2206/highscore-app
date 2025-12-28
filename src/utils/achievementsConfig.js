@@ -5,6 +5,11 @@ import { Flame, Calendar, Star, Coins, Sparkles, Coffee, Moon, TrendingUp, Zap, 
  * Massiv erweitert mit mehr Levels und neuen Kategorien
  */
 
+// Session duration thresholds in milliseconds
+// These define the boundaries for Speed Runner and Genießer achievements
+export const FAST_SESSION_MS = 30000;  // 30 seconds - threshold for fast sessions
+export const SLOW_SESSION_MS = 60000;  // 60 seconds - threshold for slow/enjoyable sessions
+
 // Medaillen-Definitionen (alle Kategorien & Stufen)
 export const MEDAL_DEFINITIONS = {
   // SITZUNGEN (6 Stufen)
@@ -134,116 +139,138 @@ export const MEDAL_DEFINITIONS = {
 
 // Progress-Badges Configuration - ERWEITERT
 // Targets werden automatisch aus Medal Definitions abgeleitet, um Duplikation zu vermeiden
-export const PROGRESS_BADGES = [
+// Die medalCategory verknüpft explizit jeden Badge mit seiner Medal Definition
+
+// Raw badge definitions with explicit medal category references
+const BADGE_DEFINITIONS = [
   {
     key: 'totalSessions',
+    medalCategory: 'sessions',  // Explicit reference to MEDAL_DEFINITIONS.sessions
     name: 'Sitzungen',
     icon: Flame,
     gradient: 'from-orange-500 to-red-500',
-    targets: MEDAL_DEFINITIONS.sessions.map(m => m.threshold),
     decimals: 0,
     suffix: ''
   },
   {
     key: 'currentStreak',
+    medalCategory: 'streaks',
     name: 'Streak',
     icon: Calendar,
     gradient: 'from-purple-500 to-pink-500',
-    targets: MEDAL_DEFINITIONS.streaks.map(m => m.threshold),
     decimals: 0,
     suffix: ''
   },
   {
     key: 'dailyRecord',
+    medalCategory: 'dailyRecord',
     name: 'Tages-Rekord',
     icon: Star,
     gradient: 'from-yellow-500 to-amber-500',
-    targets: MEDAL_DEFINITIONS.dailyRecord.map(m => m.threshold),
     decimals: 0,
     suffix: ''
   },
   {
     key: 'totalSpending',
+    medalCategory: 'spending',
     name: 'Ausgaben',
     icon: Coins,
     gradient: 'from-green-500 to-emerald-500',
-    targets: MEDAL_DEFINITIONS.spending.map(m => m.threshold),
     decimals: 0,
     suffix: '€'
   },
   {
     key: 'uniqueStrains',
+    medalCategory: 'strains',
     name: 'Sorten',
     icon: Sparkles,
     gradient: 'from-emerald-500 to-teal-500',
-    targets: MEDAL_DEFINITIONS.strains.map(m => m.threshold),
     decimals: 0,
     suffix: ''
   },
   {
     key: 'earlyBirdSessions',
+    medalCategory: 'earlyBird',
     name: 'Frühaufsteher',
     icon: Coffee,
     gradient: 'from-yellow-400 to-orange-500',
-    targets: MEDAL_DEFINITIONS.earlyBird.map(m => m.threshold),
     decimals: 0,
     suffix: ''
   },
   {
     key: 'nightOwlSessions',
+    medalCategory: 'nightOwl',
     name: 'Nachteule',
     icon: Moon,
     gradient: 'from-indigo-500 to-purple-500',
-    targets: MEDAL_DEFINITIONS.nightOwl.map(m => m.threshold),
     decimals: 0,
     suffix: ''
   },
   {
     key: 'efficiency',
+    medalCategory: 'efficiency',
     name: 'Effizienz',
     icon: TrendingUp,
     gradient: 'from-cyan-500 to-blue-500',
-    targets: MEDAL_DEFINITIONS.efficiency.map(m => m.threshold),
     decimals: 1,
     suffix: ' Ø'
   },
   {
     key: 'weekendSessions',
+    medalCategory: 'weekendWarrior',
     name: 'Weekend Warrior',
     icon: PartyPopper,
     gradient: 'from-pink-500 to-purple-600',
-    targets: MEDAL_DEFINITIONS.weekendWarrior.map(m => m.threshold),
     decimals: 0,
     suffix: ''
   },
   {
     key: 'weekdaySessions',
+    medalCategory: 'weekdayPro',
     name: 'Werktags-Profi',
     icon: Briefcase,
     gradient: 'from-blue-500 to-cyan-600',
-    targets: MEDAL_DEFINITIONS.weekdayPro.map(m => m.threshold),
     decimals: 0,
     suffix: ''
   },
   {
     key: 'speedSessions',
+    medalCategory: 'speedRunner',
     name: 'Speed Runner',
     icon: Zap,
     gradient: 'from-yellow-400 to-orange-600',
-    targets: MEDAL_DEFINITIONS.speedRunner.map(m => m.threshold),
     decimals: 0,
     suffix: ''
   },
   {
     key: 'slowSessions',
+    medalCategory: 'enjoyer',
     name: 'Genießer',
     icon: Clock,
     gradient: 'from-green-400 to-purple-500',
-    targets: MEDAL_DEFINITIONS.enjoyer.map(m => m.threshold),
     decimals: 0,
     suffix: ''
   }
 ];
+
+// Process badge definitions to add targets with validation
+// This creates explicit, validated links between badges and medal definitions
+export const PROGRESS_BADGES = BADGE_DEFINITIONS.map(badge => {
+  const medals = MEDAL_DEFINITIONS[badge.medalCategory];
+
+  // Explicit validation - fails fast if medal category is missing or renamed
+  if (!medals || !Array.isArray(medals)) {
+    throw new Error(
+      `Invalid medalCategory "${badge.medalCategory}" for badge "${badge.key}". ` +
+      `Available categories: ${Object.keys(MEDAL_DEFINITIONS).join(', ')}`
+    );
+  }
+
+  return {
+    ...badge,
+    targets: medals.map(m => m.threshold)
+  };
+});
 
 // Helper: Finde nächstes Target
 export function getNextTarget(current, targets) {
