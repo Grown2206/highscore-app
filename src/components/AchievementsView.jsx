@@ -317,7 +317,10 @@ function AchievementsView({ sessionHits = [], historyData = [], settings = {} })
   );
 }
 
-// Helper: Normalize date to day-start timestamp (midnight UTC)
+// Milliseconds in one day (for date calculations)
+const MS_PER_DAY = 1000 * 60 * 60 * 24;
+
+// Helper: Normalize date to day-start timestamp (local midnight)
 function normalizeToDayStart(date) {
   const normalized = new Date(date);
   normalized.setHours(0, 0, 0, 0);
@@ -326,7 +329,7 @@ function normalizeToDayStart(date) {
 
 // Helper: Calculate day difference between two timestamps
 function daysDiff(timestamp1, timestamp2) {
-  return Math.floor((timestamp1 - timestamp2) / (1000 * 60 * 60 * 24));
+  return Math.floor((timestamp1 - timestamp2) / MS_PER_DAY);
 }
 
 // Helper: Streak berechnen
@@ -349,14 +352,17 @@ function calculateStreak(historyData) {
 
   // Start counting streak
   let streak = 1;
-  let expectedTimestamp = latestDateStart - (1000 * 60 * 60 * 24); // One day before latest
+  let expectedDate = new Date(latestDateStart);
 
   for (let i = 1; i < sorted.length; i++) {
+    // Move expected date back by one calendar day (handles DST correctly)
+    expectedDate.setDate(expectedDate.getDate() - 1);
+    const expectedTimestamp = normalizeToDayStart(expectedDate);
+
     const currentTimestamp = normalizeToDayStart(sorted[i].date);
 
     if (currentTimestamp === expectedTimestamp && sorted[i].count > 0) {
       streak++;
-      expectedTimestamp -= (1000 * 60 * 60 * 24); // Move expected day back by one
     } else {
       break;
     }
