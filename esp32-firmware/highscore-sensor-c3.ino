@@ -100,6 +100,12 @@
 // Boot Counter verhindert dabei ID-Duplikate über Reboots hinweg
 #define HITCOUNTER_PERSIST_INTERVAL 10
 
+// WICHTIG: BOOT_COUNTER_MODULO ist gekoppelt mit dem Format-String in generateHitID()
+// Modulo 100 → Format %02lu (2 Stellen: 00-99)
+// Modulo 1000 → Format %03lu (3 Stellen: 000-999)
+// Bei Änderung des Modulo MUSS auch der Format-String angepasst werden!
+#define BOOT_COUNTER_MODULO 100  // Boot Counter Wrap-Around bei 100 (hält Format auf 2 Stellen)
+
 // WiFi Manager
 #define WIFI_TIMEOUT 15000
 #define AP_SSID "HighScore-Setup"
@@ -208,8 +214,9 @@ String generateHitID() {
 
   // Format: MAC_BOOT_COUNTER (z.B. "0A1B2C_05_0001")
   // Boot Counter auf 2 Stellen begrenzt (0-99), dann Wrap-Around
+  // WICHTIG: %02lu muss zu BOOT_COUNTER_MODULO passen (aktuell 100 → 2 Stellen)
   char id[32];
-  snprintf(id, sizeof(id), "%s_%02lu_%04lu", espMacShort.c_str(), bootCounter % 100, hitCounter);
+  snprintf(id, sizeof(id), "%s_%02lu_%04lu", espMacShort.c_str(), bootCounter % BOOT_COUNTER_MODULO, hitCounter);
 
   return String(id);
 }
@@ -295,14 +302,11 @@ void setup() {
   bootCounter++;  // Inkrementiere bei jedem Boot
   prefs.putULong("bootCounter", bootCounter);
 
-  #ifdef DEBUG_SERIAL
-  Serial.print("Boot Counter: ");
-  Serial.println(bootCounter);
-  #endif
-
   hitCounter = prefs.getULong("hitCounter", 0);
 
   #ifdef DEBUG_SERIAL
+  Serial.print("Boot Counter: ");
+  Serial.println(bootCounter);
   Serial.print("Hit Counter: ");
   Serial.println(hitCounter);
   #endif
