@@ -135,6 +135,8 @@ function AchievementsView({ sessionHits = [], historyData = [], settings = {} })
 
     // Sort by pre-normalized timestamp (efficient O(n log n) with simple numeric comparison)
     // Filter out invalid timestamps (Infinity) to keep only valid sessions
+    // NOTE: Sessions without valid timestamps cannot be used for achievement date calculation
+    // They are still counted in stats.totalSessions, just excluded from chronological ordering
     const sortedHits = hitsWithNormalizedTime
       .sort((a, b) => a.normalizedTime - b.normalizedTime)
       .filter(hit => hit.normalizedTime !== Infinity);
@@ -161,8 +163,18 @@ function AchievementsView({ sessionHits = [], historyData = [], settings = {} })
         .filter(m => m.achievedAt) // Nur welche mit Zeitstempel
         .sort((a, b) => {
           // Normalize timestamps to handle strings/Date objects
-          const tA = typeof a.achievedAt === 'number' ? a.achievedAt : new Date(a.achievedAt).getTime() || 0;
-          const tB = typeof b.achievedAt === 'number' ? b.achievedAt : new Date(b.achievedAt).getTime() || 0;
+          const tA = typeof a.achievedAt === 'number'
+            ? a.achievedAt
+            : (() => {
+                const ts = new Date(a.achievedAt).getTime();
+                return isNaN(ts) ? -Infinity : ts; // Invalid → -Infinity (end of list)
+              })();
+          const tB = typeof b.achievedAt === 'number'
+            ? b.achievedAt
+            : (() => {
+                const ts = new Date(b.achievedAt).getTime();
+                return isNaN(ts) ? -Infinity : ts; // Invalid → -Infinity (end of list)
+              })();
           return tB - tA; // Newest first
         })
         .slice(0, 12);
@@ -346,23 +358,45 @@ function calculateStreak(historyData) {
   const validEntries = historyData.filter(d => d && d.date && (d.count || 0) > 0);
   if (validEntries.length === 0) return 0;
 
-  // Normalisiere Datumswerte (ohne Uhrzeit)
-  const normalized = validEntries.map(d => ({
-    ...d,
-    normalizedDate: (() => {
+  // Normalisiere Datumswerte (ohne Uhrzeit) und validiere
+  const normalized = validEntries
+    .map(d => {
       const date = new Date(d.date);
-      date.setHours(0, 0, 0, 0);
-      return date;
-    })()
-  }));
+      const timestamp = date.getTime();
 
-  // Sortiere nach Datum (neueste zuerst)
-  const sorted = [...normalized].sort((a, b) =>
-    b.normalizedDate.getTime() - a.normalizedDate.getTime()
-  );
+      // Skip invalid dates
+      if (isNaN(timestamp)) {
+        return null;
+      }
+
+      date.setHours(0, 0, 0, 0);
+      return {
+        ...d,
+        normalizedDate: date,
+        normalizedTimestamp: date.getTime()
+      };
+    })
+    .filter(d => d !== null);
+
+  if (normalized.length === 0) return 0;
+
+  // Deduplicate by date (keep only one entry per calendar day)
+  // Map: timestamp → entry
+  const uniqueDatesMap = new Map();
+  normalized.forEach(entry => {
+    const ts = entry.normalizedTimestamp;
+    // Keep first entry for each unique date (could also merge counts if needed)
+    if (!uniqueDatesMap.has(ts)) {
+      uniqueDatesMap.set(ts, entry);
+    }
+  });
+
+  // Convert back to array and sort (neueste zuerst)
+  const uniqueDates = Array.from(uniqueDatesMap.values())
+    .sort((a, b) => b.normalizedTimestamp - a.normalizedTimestamp);
 
   // Finde das neueste (gültige) Datum
-  const latestDate = sorted[0].normalizedDate;
+  const latestDate = uniqueDates[0].normalizedDate;
 
   // Heute und Gestern (normalisiert)
   const today = new Date();
@@ -382,10 +416,10 @@ function calculateStreak(historyData) {
   let streak = 1;
   let expectedDate = new Date(latestDate);
 
-  for (let i = 1; i < sorted.length; i++) {
+  for (let i = 1; i < uniqueDates.length; i++) {
     expectedDate.setDate(expectedDate.getDate() - 1);
 
-    if (sorted[i].normalizedDate.getTime() === expectedDate.getTime()) {
+    if (uniqueDates[i].normalizedDate.getTime() === expectedDate.getTime()) {
       streak++;
     } else {
       break; // Lücke gefunden
