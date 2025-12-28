@@ -5,8 +5,7 @@ import {
   generateMedals,
   getNextTarget,
   FAST_SESSION_MS,
-  SLOW_SESSION_MS,
-  MEDAL_DEFINITIONS
+  SLOW_SESSION_MS
 } from '../utils/achievementsConfig';
 
 /**
@@ -15,11 +14,6 @@ import {
  * - Kategorie-Filter für bessere Übersicht
  * - Cleanes Design ohne Overload
  */
-
-// Calculate total possible medals from config (static, computed once)
-const TOTAL_POSSIBLE_MEDALS = Object.values(MEDAL_DEFINITIONS).reduce((sum, categoryMedals) => {
-  return sum + (Array.isArray(categoryMedals) ? categoryMedals.length : 0);
-}, 0);
 
 function AchievementsView({ sessionHits = [], historyData = [], settings = {} }) {
   const [selectedCategory, setSelectedCategory] = useState('Alle');
@@ -122,12 +116,7 @@ function AchievementsView({ sessionHits = [], historyData = [], settings = {} })
     const sortedHits = [...safeHits].sort((a, b) => {
       const aTime = typeof a.timestamp === 'number' ? a.timestamp : new Date(a.timestamp).getTime();
       const bTime = typeof b.timestamp === 'number' ? b.timestamp : new Date(b.timestamp).getTime();
-
-      // Handle invalid timestamps (NaN) by treating them as Infinity (sort to end)
-      const safeATime = Number.isFinite(aTime) ? aTime : Infinity;
-      const safeBTime = Number.isFinite(bTime) ? bTime : Infinity;
-
-      return safeATime - safeBTime;
+      return aTime - bTime;
     });
 
     return baseMedals.map(medal => {
@@ -163,10 +152,11 @@ function AchievementsView({ sessionHits = [], historyData = [], settings = {} })
     return ['Alle', ...Array.from(cats)];
   }, [allMedals]);
 
-  // Gesamtfortschritt - basierend auf allen möglichen Medaillen
+  // Gesamtfortschritt
   const overallProgress = useMemo(() => {
-    const earnedMedals = allMedals.length;
-    return TOTAL_POSSIBLE_MEDALS > 0 ? Math.round((earnedMedals / TOTAL_POSSIBLE_MEDALS) * 100) : 0;
+    const totalPossible = allMedals.length;
+    const earned = allMedals.length; // Alle generierten sind verdient
+    return totalPossible > 0 ? Math.round((earned / totalPossible) * 100) : 0;
   }, [allMedals]);
 
   // Progress Badges (nächste Ziele)
@@ -317,66 +307,24 @@ function AchievementsView({ sessionHits = [], historyData = [], settings = {} })
   );
 }
 
-// Milliseconds in one day (for date calculations)
-const MS_PER_DAY = 1000 * 60 * 60 * 24;
-
-// Helper: Normalize date to day-start timestamp (local midnight)
-// Returns: numeric timestamp (not Date object) for precise comparisons
-function normalizeToDayStart(date) {
-  const normalized = new Date(date);
-  normalized.setHours(0, 0, 0, 0);
-  return normalized.getTime(); // Returns number, not Date
-}
-
-// Helper: Calculate signed day difference between two timestamps (DST-safe)
-// Returns: positive if timestamp1 > timestamp2 (timestamp1 is later), negative otherwise
-// Uses calendar date arithmetic at noon to avoid DST boundary issues
-function daysDiff(timestamp1, timestamp2) {
-  const date1 = new Date(timestamp1);
-  const date2 = new Date(timestamp2);
-
-  // Extract calendar date components
-  const noon1 = new Date(date1.getFullYear(), date1.getMonth(), date1.getDate(), 12, 0, 0, 0);
-  const noon2 = new Date(date2.getFullYear(), date2.getMonth(), date2.getDate(), 12, 0, 0, 0);
-
-  // Calculate signed difference at noon to avoid DST transition issues (which happen at 2-3 AM)
-  const diffMs = noon1 - noon2; // Preserve sign for directionality
-  return Math.round(diffMs / MS_PER_DAY);
-}
-
 // Helper: Streak berechnen
 function calculateStreak(historyData) {
   if (!Array.isArray(historyData) || historyData.length === 0) return 0;
 
   const sorted = [...historyData].sort((a, b) => new Date(b.date) - new Date(a.date));
-  if (sorted.length === 0) return 0;
+  let streak = 0;
+  let currentDate = new Date();
+  currentDate.setHours(0, 0, 0, 0);
 
-  // Pre-normalize timestamps to avoid repeated Date object creation
-  const todayStart = normalizeToDayStart(new Date());
-  const latestDateStart = normalizeToDayStart(sorted[0].date);
+  for (const day of sorted) {
+    const dayDate = new Date(day.date);
+    dayDate.setHours(0, 0, 0, 0);
 
-  const daysSinceLatest = daysDiff(todayStart, latestDateStart);
+    const diffDays = Math.floor((currentDate - dayDate) / (1000 * 60 * 60 * 24));
 
-  // Streak must start with today or yesterday
-  if (daysSinceLatest > 1 || sorted[0].count === 0) {
-    return 0;
-  }
-
-  // Start counting streak
-  let streak = 1;
-  let expectedDate = new Date(latestDateStart);
-
-  for (let i = 1; i < sorted.length; i++) {
-    // Move expected date back by one calendar day (handles DST correctly)
-    expectedDate.setDate(expectedDate.getDate() - 1);
-    const expectedTimestamp = normalizeToDayStart(expectedDate);
-
-    const currentTimestamp = normalizeToDayStart(sorted[i].date);
-
-    // Compare numeric timestamps (both are numbers from .getTime(), not Date objects)
-    if (currentTimestamp === expectedTimestamp && sorted[i].count > 0) {
+    if (diffDays === streak && day.count > 0) {
       streak++;
-    } else {
+    } else if (diffDays > streak) {
       break;
     }
   }
