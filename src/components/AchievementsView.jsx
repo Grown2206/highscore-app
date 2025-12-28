@@ -157,6 +157,7 @@ function AchievementsView({ sessionHits = [], historyData = [], settings = {} })
 
   // Generiere Medaillen (nur verdiente)
   const allMedals = useMemo(() => {
+    if (!stats) return [];
     const baseMedals = generateMedals(stats);
 
     // Nur für Sitzungen-Medaillen können wir akkurate Zeitstempel berechnen
@@ -202,14 +203,15 @@ function AchievementsView({ sessionHits = [], historyData = [], settings = {} })
     });
   }, [stats, sessionHits]);
 
+  // Normalize allMedals to always be an array (single source of truth)
+  const safeAllMedals = Array.isArray(allMedals) ? allMedals : [];
+
   // Filter Medaillen nach Kategorie
   const filteredMedals = useMemo(() => {
-    if (!allMedals || !Array.isArray(allMedals)) return [];
-
     if (selectedCategory === 'Alle') {
       // **FIX v8.0**: Zeige ALLE Medaillen, nicht nur die mit Zeitstempel
       // Sortiere: Medaillen MIT Zeitstempel zuerst (neueste), dann ohne
-      return [...allMedals]
+      return [...safeAllMedals]
         .sort((a, b) => {
           // Medaillen mit Zeitstempel kommen zuerst
           if (a.achievedAt && !b.achievedAt) return -1;
@@ -228,15 +230,14 @@ function AchievementsView({ sessionHits = [], historyData = [], settings = {} })
         .slice(0, MAX_MEDALS);
     }
     // Kategorie-spezifisch: zeige alle dieser Kategorie
-    return allMedals.filter(m => m.category === selectedCategory);
-  }, [allMedals, selectedCategory]);
+    return safeAllMedals.filter(m => m.category === selectedCategory);
+  }, [safeAllMedals, selectedCategory]);
 
   // Kategorien für Filter
   const categories = useMemo(() => {
-    if (!allMedals || !Array.isArray(allMedals)) return ['Alle'];
-    const cats = new Set(allMedals.map(m => m.category));
+    const cats = new Set(safeAllMedals.map(m => m.category));
     return ['Alle', ...Array.from(cats)];
-  }, [allMedals]);
+  }, [safeAllMedals]);
 
   // Gesamtfortschritt - basierend auf allen möglichen Medaillen
   const overallProgress = useMemo(() => {
@@ -245,11 +246,11 @@ function AchievementsView({ sessionHits = [], historyData = [], settings = {} })
       return sum + (Array.isArray(categoryMedals) ? categoryMedals.length : 0);
     }, 0);
 
-    // allMedals enthält nur verdiente Medaillen (von generateMedals)
-    const earnedMedals = allMedals.length;
+    // safeAllMedals enthält nur verdiente Medaillen (von generateMedals)
+    const earnedMedals = safeAllMedals.length;
 
     return totalPossibleMedals > 0 ? Math.round((earnedMedals / totalPossibleMedals) * 100) : 0;
-  }, [allMedals]);
+  }, [safeAllMedals]);
 
   // Progress Badges (nächste Ziele)
   const progressBadges = useMemo(() => {
@@ -282,7 +283,7 @@ function AchievementsView({ sessionHits = [], historyData = [], settings = {} })
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="bg-zinc-800/50 rounded-xl p-4 text-center">
-            <div className="text-3xl font-bold text-yellow-400">{allMedals?.length || 0}</div>
+            <div className="text-3xl font-bold text-yellow-400">{safeAllMedals.length}</div>
             <div className="text-xs text-zinc-400 mt-1">Medaillen</div>
           </div>
           <div className="bg-zinc-800/50 rounded-xl p-4 text-center">
@@ -318,7 +319,7 @@ function AchievementsView({ sessionHits = [], historyData = [], settings = {} })
               }`}
             >
               {cat}
-              {cat === 'Alle' && allMedals && ` (${allMedals.length})`}
+              {cat === 'Alle' && ` (${safeAllMedals.length})`}
             </button>
           ))}
         </div>
