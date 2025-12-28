@@ -201,7 +201,7 @@ function AchievementsView({ sessionHits = [], historyData = [], settings = {} })
         achievedAt
       };
     });
-  }, [stats, sessionHits]);
+  }, [stats, sessionHits]) || [];  // Defensive fallback: ensure always an array
 
   // Filter Medaillen nach Kategorie
   const filteredMedals = useMemo(() => {
