@@ -94,6 +94,12 @@
 // Offline Sync Einstellungen
 #define MAX_PENDING_HITS 50    // Maximale Anzahl gespeicherter unsynced hits
 
+// Hit ID Persistence (NEU v8.0)
+// Counter wird alle N Hits gespeichert um Flash-Wear zu reduzieren
+// Bei ungeplanten Reboots können bis zu N-1 Hits "verloren" gehen (Counter zurückgesetzt)
+// Boot Counter verhindert dabei ID-Duplikate über Reboots hinweg
+#define HITCOUNTER_PERSIST_INTERVAL 10
+
 // WiFi Manager
 #define WIFI_TIMEOUT 15000
 #define AP_SSID "HighScore-Setup"
@@ -156,8 +162,9 @@ struct PendingHit {
 PendingHit pendingHits[MAX_PENDING_HITS];
 int pendingHitsCount = 0;
 
-// **NEU v8.0**: Persistent Hit Counter für Unique IDs
+// **NEU v8.0**: Persistent Hit Counter & Boot Counter für Unique IDs
 unsigned long hitCounter = 0;
+unsigned long bootCounter = 0;  // Inkrement bei jedem Boot (verhindert ID-Duplikate nach Crash)
 String espMacShort = ""; // Kurze MAC (letzten 6 Hex-Zeichen)
 
 IPAddress localIP;
@@ -177,28 +184,31 @@ unsigned long lastBatteryRead = 0;
 // ===== HIT ID GENERATOR (NEU v8.0) =====
 /**
  * Generiert eine eindeutige Hit ID
- * Format: MAC_COUNTER (z.B. "A1B2C3_0001")
+ * Format: MAC_BOOT_COUNTER (z.B. "0A1B2C_05_0001")
  *
  * Diese ID ist eindeutig über:
  * - Verschiedene ESP32 Devices (MAC)
- * - Zeit (Counter wird nie zurückgesetzt)
- * - ESP32 Neustarts (Counter persistent gespeichert)
+ * - ESP32 Neustarts (Boot Counter - inkrementiert bei jedem Boot)
+ * - Zeit (Hit Counter)
+ *
+ * Der Boot Counter verhindert ID-Duplikate nach ungeplanten Reboots,
+ * wenn der Hit Counter auf einen alten Wert zurückfällt.
  */
 String generateHitID() {
   hitCounter++;
 
   // Periodisch persistieren um Flash-Schreibzugriffe zu reduzieren
-  // Nur alle 10 Hits speichern statt bei jedem Hit
-  const uint32_t HITCOUNTER_PERSIST_INTERVAL = 10;
   if ((hitCounter % HITCOUNTER_PERSIST_INTERVAL) == 0) {
     prefs.putULong("hitCounter", hitCounter);
+    #ifdef DEBUG_SERIAL
     Serial.print("Hit Counter persisted: ");
     Serial.println(hitCounter);
+    #endif
   }
 
-  // Format: MAC_COUNTER (z.B. "0A1B2C_0001")
+  // Format: MAC_BOOT_COUNTER (z.B. "0A1B2C_05_0001")
   char id[32];
-  snprintf(id, sizeof(id), "%s_%04lu", espMacShort.c_str(), hitCounter);
+  snprintf(id, sizeof(id), "%s_%02lu_%04lu", espMacShort.c_str(), bootCounter, hitCounter);
 
   return String(id);
 }
@@ -279,7 +289,13 @@ void setup() {
   Serial.print("ESP MAC (short): ");
   Serial.println(espMacShort);
 
-  // **NEU v8.0: Hit Counter laden**
+  // **NEU v8.0: Boot Counter & Hit Counter laden**
+  bootCounter = prefs.getULong("bootCounter", 0);
+  bootCounter++;  // Inkrementiere bei jedem Boot
+  prefs.putULong("bootCounter", bootCounter);
+  Serial.print("Boot Counter: ");
+  Serial.println(bootCounter);
+
   hitCounter = prefs.getULong("hitCounter", 0);
   Serial.print("Hit Counter: ");
   Serial.println(hitCounter);

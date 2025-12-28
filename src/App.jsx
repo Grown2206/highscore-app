@@ -46,6 +46,28 @@ const normalizeIp = (ip) => {
     .replace(/\/$/, '');
 };
 
+/**
+ * Stable, deterministic fingerprint for objects based on their JSON representation.
+ * This avoids order-dependent index-based IDs and is stable across imports
+ * as long as the underlying hit properties remain the same.
+ *
+ * @param {any} value - Value to fingerprint (typically an object with timestamp and hit data)
+ * @returns {string} A short, deterministic hash in base-36 format
+ */
+const createHitFingerprint = (value) => {
+  const json = JSON.stringify(value);
+  let hash = 0;
+
+  for (let i = 0; i < json.length; i++) {
+    const chr = json.charCodeAt(i);
+    hash = ((hash << 5) - hash) + chr; // hash * 31 + chr
+    hash |= 0; // Convert to 32bit integer
+  }
+
+  // Make sure it's positive and reasonably short
+  return Math.abs(hash).toString(36);
+};
+
 // Native HTTP Helper (versucht CapacitorHttp zu nutzen, falls vorhanden)
 const nativeHttp = async (url, method = 'GET') => {
   if (typeof window !== 'undefined' && window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.CapacitorHttp) {
@@ -432,7 +454,7 @@ export default function App() {
         const strain = settings.strains.find(s => s.id == currentStrainId) || settings.strains[0] || { name: '?', price: 0 };
         const now = Date.now();
 
-        const importedHits = pendingHits.map((hit, idx) => {
+        const importedHits = pendingHits.map((hit) => {
           let realTimestamp;
 
           // FIX: Auto-detect timestamp format
@@ -447,8 +469,14 @@ export default function App() {
             realTimestamp = now - hitAgeMs;
           }
 
+          // **NEU v8.0**: Stabiler Hash-basierter Fallback (order-independent, collision-resistant)
+          const fallbackIdSuffix = createHitFingerprint({
+            ts: realTimestamp,
+            payload: hit,
+          });
+
           return {
-            id: hit.id || `fallback_${realTimestamp}_${idx}`, // **NEU v8.0**: Nutze ESP32 Unique ID (mit Index-Fallback gegen Collisions)
+            id: hit.id || `fallback_${fallbackIdSuffix}`, // **NEU v8.0**: Nutze ESP32 Unique ID (mit stabilem Hash-Fallback)
             timestamp: realTimestamp,
             type: 'Sensor',
             strainName: strain.name,
