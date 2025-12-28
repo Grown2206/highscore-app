@@ -287,7 +287,7 @@ void setup() {
 
   // **NEU v8.0: MAC-Adresse für Unique Hit IDs**
   uint8_t baseMac[6];
-  esp_read_mac(baseMac, ESP_MAC_WIFI_STA);
+  WiFi.macAddress(baseMac);  // Arduino Core 3.x kompatibel
 
   // Zero-padded MAC formatting für konsistente IDs (z.B. "0A1B2C" statt "A1B2C")
   char macBuffer[7];
