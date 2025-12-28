@@ -88,7 +88,8 @@ export default function DashboardView({ liveData, lastHitTime, settings, isGuest
           {sessionHits.length === 0 ? <div className="p-4 text-center text-zinc-600 text-xs italic">Warte auf den ersten Zug...</div> :
           <table className="w-full text-left text-xs text-zinc-400">
              <tbody className="divide-y divide-zinc-800">
-               {sessionHits.map((hit, i) => (
+               {/* Zeige nur die letzten 10 Hits in der Timeline */}
+               {sessionHits.slice(0, 10).map((hit, i) => (
                  <SwipeableHitRow
                    key={hit.id}
                    hit={hit}
