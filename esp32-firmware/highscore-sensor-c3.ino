@@ -148,12 +148,18 @@ bool timeSync = false; // FIX: NTP Time Sync Status
 
 // Offline Sync - Pending Hits Speicherung
 struct PendingHit {
+  char id[32];              // **NEU v8.0**: Unique Hit ID (ESP_MAC_COUNTER)
   unsigned long timestamp;  // FIX: Unix Timestamp in Millisekunden (seit 1970)
   unsigned long duration;   // Session-Dauer in ms
 };
 
 PendingHit pendingHits[MAX_PENDING_HITS];
 int pendingHitsCount = 0;
+
+// **NEU v8.0**: Persistent Hit Counter für Unique IDs
+unsigned long hitCounter = 0;
+String espMacShort = ""; // Kurze MAC (letzten 6 Hex-Zeichen)
+
 IPAddress localIP;
 String savedSSID = "";
 String savedPassword = "";
@@ -167,6 +173,27 @@ float batteryVoltage = 0.0;
 int batteryPercent = 0;
 unsigned long lastBatteryRead = 0;
 #define BATTERY_READ_INTERVAL 30000  // Alle 30 Sekunden
+
+// ===== HIT ID GENERATOR (NEU v8.0) =====
+/**
+ * Generiert eine eindeutige Hit ID
+ * Format: MAC_COUNTER (z.B. "A1B2C3_0001")
+ *
+ * Diese ID ist eindeutig über:
+ * - Verschiedene ESP32 Devices (MAC)
+ * - Zeit (Counter wird nie zurückgesetzt)
+ * - ESP32 Neustarts (Counter persistent gespeichert)
+ */
+String generateHitID() {
+  hitCounter++;
+  prefs.putULong("hitCounter", hitCounter);
+
+  // Format: MAC_COUNTER (z.B. "A1B2C3_0001")
+  char id[32];
+  snprintf(id, sizeof(id), "%s_%04lu", espMacShort.c_str(), hitCounter);
+
+  return String(id);
+}
 
 // ===== BATTERY FUNCTIONS =====
 void readBatteryVoltage() {
@@ -232,6 +259,19 @@ void setup() {
   longestStreak = prefs.getInt("longestStreak", 0);
   lastSessionDate = prefs.getString("lastDate", "");
 
+  // **NEU v8.0: MAC-Adresse für Unique Hit IDs**
+  uint8_t baseMac[6];
+  esp_read_mac(baseMac, ESP_MAC_WIFI_STA);
+  espMacShort = String(baseMac[3], HEX) + String(baseMac[4], HEX) + String(baseMac[5], HEX);
+  espMacShort.toUpperCase();
+  Serial.print("ESP MAC (short): ");
+  Serial.println(espMacShort);
+
+  // **NEU v8.0: Hit Counter laden**
+  hitCounter = prefs.getULong("hitCounter", 0);
+  Serial.print("Hit Counter: ");
+  Serial.println(hitCounter);
+
   // **NEU v7.0: Pending Hits aus Preferences laden**
   pendingHitsCount = prefs.getInt("pendingCount", 0);
   Serial.print("Lade ");
@@ -240,6 +280,9 @@ void setup() {
 
   for (int i = 0; i < pendingHitsCount && i < MAX_PENDING_HITS; i++) {
     String key = "pHit_" + String(i);
+    String idStr = prefs.getString((key + "_id").c_str(), "");
+    strncpy(pendingHits[i].id, idStr.c_str(), sizeof(pendingHits[i].id) - 1);
+    pendingHits[i].id[sizeof(pendingHits[i].id) - 1] = '\0'; // Null-terminate
     pendingHits[i].timestamp = prefs.getULong((key + "_ts").c_str(), 0);
     pendingHits[i].duration = prefs.getULong((key + "_dur").c_str(), 0);
   }
@@ -641,6 +684,7 @@ void setupServer() {
 
     for (int i = 0; i < pendingHitsCount; i++) {
       JsonObject hit = hitsArray.add<JsonObject>();
+      hit["id"] = pendingHits[i].id;  // **NEU v8.0**: Unique Hit ID
       hit["timestamp"] = pendingHits[i].timestamp;
       hit["duration"] = pendingHits[i].duration;
     }
@@ -799,6 +843,11 @@ void registerHit(unsigned long duration) {
   unsigned long currentTimestamp = getCurrentTimestamp();
 
   if (pendingHitsCount < MAX_PENDING_HITS) {
+    // **NEU v8.0**: Generiere eindeutige Hit ID
+    String hitID = generateHitID();
+    strncpy(pendingHits[pendingHitsCount].id, hitID.c_str(), sizeof(pendingHits[pendingHitsCount].id) - 1);
+    pendingHits[pendingHitsCount].id[sizeof(pendingHits[pendingHitsCount].id) - 1] = '\0';
+
     pendingHits[pendingHitsCount].timestamp = currentTimestamp;
     pendingHits[pendingHitsCount].duration = duration;
     pendingHitsCount++;
@@ -808,6 +857,7 @@ void registerHit(unsigned long duration) {
 
     // Jeden Hit einzeln speichern (für Persistenz nach Neustart)
     String key = "pHit_" + String(pendingHitsCount - 1);
+    prefs.putString((key + "_id").c_str(), hitID);  // **NEU v8.0**: ID speichern
     prefs.putULong((key + "_ts").c_str(), currentTimestamp);
     prefs.putULong((key + "_dur").c_str(), duration);
 
@@ -820,6 +870,12 @@ void registerHit(unsigned long duration) {
     for (int i = 0; i < MAX_PENDING_HITS - 1; i++) {
       pendingHits[i] = pendingHits[i + 1];
     }
+
+    // **NEU v8.0**: Generiere eindeutige Hit ID für neuen Hit
+    String hitID = generateHitID();
+    strncpy(pendingHits[MAX_PENDING_HITS - 1].id, hitID.c_str(), sizeof(pendingHits[MAX_PENDING_HITS - 1].id) - 1);
+    pendingHits[MAX_PENDING_HITS - 1].id[sizeof(pendingHits[MAX_PENDING_HITS - 1].id) - 1] = '\0';
+
     pendingHits[MAX_PENDING_HITS - 1].timestamp = currentTimestamp;
     pendingHits[MAX_PENDING_HITS - 1].duration = duration;
   }
