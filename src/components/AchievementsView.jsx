@@ -162,19 +162,9 @@ function AchievementsView({ sessionHits = [], historyData = [], settings = {} })
       return [...allMedals]
         .filter(m => m.achievedAt) // Nur welche mit Zeitstempel
         .sort((a, b) => {
-          // Normalize timestamps to handle strings/Date objects
-          const tA = typeof a.achievedAt === 'number'
-            ? a.achievedAt
-            : (() => {
-                const ts = new Date(a.achievedAt).getTime();
-                return isNaN(ts) ? -Infinity : ts; // Invalid → -Infinity (end of list)
-              })();
-          const tB = typeof b.achievedAt === 'number'
-            ? b.achievedAt
-            : (() => {
-                const ts = new Date(b.achievedAt).getTime();
-                return isNaN(ts) ? -Infinity : ts; // Invalid → -Infinity (end of list)
-              })();
+          // Normalize timestamps to handle strings/Date objects/NaN
+          const tA = normalizeAchievementTimestamp(a.achievedAt);
+          const tB = normalizeAchievementTimestamp(b.achievedAt);
           return tB - tA; // Newest first
         })
         .slice(0, 12);
@@ -348,6 +338,17 @@ function AchievementsView({ sessionHits = [], historyData = [], settings = {} })
       </div>
     </div>
   );
+}
+
+// Helper: Normalize achievement timestamp (handles numbers, strings, Date objects, NaN)
+function normalizeAchievementTimestamp(value) {
+  // Handle numeric values (including numeric NaN)
+  if (typeof value === 'number') {
+    return Number.isNaN(value) ? -Infinity : value;
+  }
+  // Handle strings and Date objects
+  const ts = new Date(value).getTime();
+  return Number.isNaN(ts) ? -Infinity : ts; // Invalid → -Infinity (end of list)
 }
 
 // Helper: Streak berechnen
