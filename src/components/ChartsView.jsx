@@ -266,7 +266,7 @@ export default function ChartsView({ historyData, sessionHits, settings }) {
       <div className="bg-gradient-to-br from-blue-900/20 to-zinc-900 border border-blue-500/30 rounded-2xl p-6">
         <div className="flex items-center gap-2 mb-4">
           <TrendingUp size={16} className="text-blue-500"/>
-          <h3 className="text-sm font-bold text-blue-400 uppercase">Wöchent Vergleich</h3>
+          <h3 className="text-sm font-bold text-blue-400 uppercase">Wochenvergleich</h3>
         </div>
 
         <div className="grid grid-cols-3 gap-4">
