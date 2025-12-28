@@ -129,7 +129,11 @@ function AchievementsView({ sessionHits = [], historyData = [], settings = {} })
     // Füge achievedAt Timestamps hinzu (geschätzt aus sessionHits)
     // Für Sessions-basierte Achievements können wir den ungefähren Zeitpunkt berechnen
     const safeHits = Array.isArray(sessionHits) ? sessionHits : [];
-    const sortedHits = [...safeHits].sort((a, b) => a.timestamp - b.timestamp);
+    const sortedHits = [...safeHits].sort((a, b) => {
+      const aTime = typeof a.timestamp === 'number' ? a.timestamp : new Date(a.timestamp).getTime();
+      const bTime = typeof b.timestamp === 'number' ? b.timestamp : new Date(b.timestamp).getTime();
+      return aTime - bTime;
+    });
 
     return baseMedals.map(medal => {
       let achievedAt = null;
@@ -142,7 +146,7 @@ function AchievementsView({ sessionHits = [], historyData = [], settings = {} })
 
       return {
         ...medal,
-        achievedAt: achievedAt || Date.now() // Fallback auf jetzt
+        achievedAt // Null wenn unbekannt - kein irreführender Fallback
       };
     });
   }, [stats, sessionHits]);
