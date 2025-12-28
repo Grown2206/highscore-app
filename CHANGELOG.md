@@ -7,6 +7,109 @@ und dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 
 ---
 
+## [8.0.0] - 2024-12-28
+
+### 🎉 Major Release - Achievements v3.0 & Advanced Analytics
+
+Diese Version bringt die massivste Erweiterung des Achievement-Systems, erweiterte ML-basierte Analytics und zahlreiche ESP32-Verbesserungen.
+
+### ✨ Added
+
+#### Achievements-System v3.0 (MASSIV ERWEITERT!)
+- **12 Kategorien** statt 8 (50% mehr Kategorien!)
+- **70+ Medaillen** statt 30+ (133% mehr Medaillen!)
+- **Tagesrekord auf 11 Stufen erweitert**: Bis zu "Absolut Legendär" (100 Hits) 💫👑✨
+- **Frühaufsteher auf 8 Stufen erweitert** (5-10 Uhr Sessions):
+  - Neue Stufen: Erster Vogel (75), Sonnenaufgangs-Enthusiast (100), Morgendämmerung (150), Meister der Morgendämmerung (200)
+- **Nachteule auf 8 Stufen erweitert** (22-5 Uhr Sessions):
+  - Neue Stufen: Mondkind (75), Nachtschatten (100), Dunkelheit (150), Herrscher der Dunkelheit (200)
+- **Effizienz auf 5 Stufen erweitert**: Bis zu "Perfektion Personifiziert" (6Ø)
+- **4 NEUE Kategorien** 🆕:
+  - **Weekend Warrior** (6 Stufen): Wochenend-Sessions (Samstag/Sonntag)
+  - **Werktags-Profi** (6 Stufen): Werktags-Sessions (Montag-Freitag)
+  - **Speed Runner** (5 Stufen): Sessions < 30 Sekunden
+  - **Genießer** (5 Stufen): Sessions > 60 Sekunden
+- **Explizite Konfiguration**: `medalCategory` Feld mit Runtime-Validierung
+- **Zentralisierte Konstanten**: `FAST_SESSION_MS` und `SLOW_SESSION_MS` in achievementsConfig.js
+- **Fail-Fast Validierung**: Descriptive Fehler bei fehlenden Medal-Kategorien
+
+#### Advanced Analytics (MASSIV ERWEITERT!)
+- **Toleranz-Index** 🆕:
+  - Multi-Faktor Score (0-100) aus Frequenz, Volumen & Pausen
+  - 3 Level: Niedrig/Mittel/Hoch mit Farb-Kodierung
+  - Aktivtage und Durchschnitt pro Woche
+- **Habit Score** 🆕:
+  - 14-Tage Konsistenz-Analyse
+  - Emoji-Rating: Chaotisch 🎲 → Roboterhaft 🤖
+  - Z-Score basierte Bewertung
+- **Wochenvergleich** 🆕:
+  - Diese Woche vs. letzte Woche
+  - Trend-Indikator (↑ steigend, ↓ fallend, → stabil)
+  - Prozentuale Veränderung
+- **Session Duration Analytics** 🆕:
+  - Durchschnitt, Median, Schnellste/Langsamste
+  - Progress-Bar Visualisierung
+- **Peak vs Off-Peak Analyse** 🆕:
+  - Tageszeit-Verteilung (Peak: 18-23 Uhr)
+  - Prozentuale Aufteilung
+  - Aktivste Stunde
+
+#### ESP32 Firmware Verbesserungen
+- **Deutsche Zeitzone mit DST** 🆕:
+  - POSIX String: `"CET-1CEST,M3.5.0,M10.5.0/3"`
+  - Automatische Sommer/Winterzeit-Umstellung
+  - NTP Sync mit `pool.ntp.org`
+- **Präzise Batterie-Kalkulation** 🆕:
+  - LiPo-Chemie: 4.2V (100%) → 3.0V (0%)
+  - Lineare Interpolation mit `constrain()`
+  - Fix für "stuck at 100%" Bug
+- **Strain-Persistierung** 🆕:
+  - Selected Strain bleibt bei App-Neustart erhalten
+  - localStorage mit lazy initialization
+  - Fallback auf erste Sorte
+
+### 🔄 Changed
+- **App Version**: 7.0 → 8.0
+- **Achievement Config**: Refactored mit expliziter Kopplung
+- **Progress Badges**: Targets werden aus MEDAL_DEFINITIONS abgeleitet
+- **Duration Thresholds**: Von AchievementsView.jsx zu achievementsConfig.js verschoben
+- **Session Counting**: Klarstellende Kommentare zu hits vs. sessions
+- **README.md**: Komplett aktualisiert mit allen v8.0 Features
+- **Roadmap**: v8.0 als "AKTUELL" markiert
+
+### 🐛 Fixed
+- **Tolerance Index Logic**: Pause Score war invertiert (mehr Pausen sollten Index senken)
+- **Tailwind JIT Purge**: Dynamische Classes durch feste Mapping-Objekte ersetzt
+- **Typo**: "Wöchent Vergleich" → "Wochenvergleich"
+- **Import Error**: `CalendarIcon` vs `Calendar` Import-Mismatch behoben
+- **Threshold Duplication**: PROGRESS_BADGES.targets jetzt automatisch aus Medals abgeleitet
+- **Battery Calculation**: Stuck-at-100% Bug durch korrekte LiPo-Formel behoben
+
+### 📝 Documentation
+- **README.md**:
+  - Version auf 8.0 aktualisiert
+  - Achievement-Tabellen komplett neu
+  - Neue Analytics-Sektion
+  - ESP32-Features aktualisiert
+  - Projektstruktur detailliert
+- **CHANGELOG.md**: Diese Datei aktualisiert
+- **Code Comments**: Klarstellungen zu Session-Counting und Duration-Units
+
+### 📊 Statistics
+- **Commits**: 5 Commits für v8.0
+- **Files Changed**: 4 Hauptdateien
+- **Lines Added**: ~150+ neue Zeilen für Achievements
+- **New Medals**: 40+ neue Medaillen
+- **New Analytics**: 5 neue Metriken
+
+### 🎯 Technical Improvements
+- **Code Quality**: Explizite Kopplung über implizite
+- **Maintainability**: Zentralisierte Konfiguration
+- **Validation**: Runtime-Checks für Medal-Kategorien
+- **Documentation**: Named Constants für Durations
+
+---
+
 ## [7.0.0] - 2024-12-17
 
 ### 🎉 Major Release - Badge-System & Auto-Backup
@@ -182,26 +285,30 @@ Diese Version bringt zwei wichtige neue Features und ersetzt das fehleranfällig
 
 ## Geplante Releases
 
-### [7.1.0] - Q1 2025
+### [8.1.0] - Q1 2025
+- [ ] Component-Refactoring (Split große Components)
+- [ ] Extract ESP32 logic zu custom hook
 - [ ] Webinterface für ESP32-Konfiguration
 - [ ] Bluetooth-Support
 - [ ] PDF/CSV Export
-- [ ] Darkmode-Verbesserungen
+- [ ] Unit Tests für Calculations
 
-### [7.2.0] - Q2 2025
+### [8.2.0] - Q2 2025
+- [ ] TypeScript Migration (Start mit Utils)
 - [ ] Social Features (optional)
 - [ ] Cloud-Sync (opt-in)
 - [ ] Multi-Device Support
 - [ ] Desktop App (Electron)
 
-### [8.0.0] - Q3 2025
-- [ ] Machine Learning Integration
-- [ ] Erweiterte Analytics
-- [ ] Strain-Empfehlungen
+### [9.0.0] - Q3 2025
+- [ ] Strain-Empfehlungen basierend auf Analytics
+- [ ] Erweiterte ML-Vorhersagen
 - [ ] Community-Features
+- [ ] Accessibility Verbesserungen
 
 ---
 
+[8.0.0]: https://github.com/Grown2206/highscore-app/compare/v7.0.0...v8.0.0
 [7.0.0]: https://github.com/Grown2206/highscore-app/compare/v6.1.0...v7.0.0
 [6.1.0]: https://github.com/Grown2206/highscore-app/compare/v6.0.0...v6.1.0
 [6.0.0]: https://github.com/Grown2206/highscore-app/compare/v5.0.0...v6.0.0

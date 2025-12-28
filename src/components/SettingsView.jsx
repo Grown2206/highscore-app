@@ -132,11 +132,13 @@ function SettingsView({ settings, setSettings, historyData, setHistoryData, sess
       const keysToDelete = [
         STORAGE_KEYS.HISTORY,
         STORAGE_KEYS.SESSION_HITS,
-        STORAGE_KEYS.ACHIEVEMENTS,
         STORAGE_KEYS.GOALS,
         STORAGE_KEYS.LAST_DATE,
         STORAGE_KEYS.OFFSET,
         STORAGE_KEYS.LAST_HIT_TS,
+        STORAGE_KEYS.BADGE_HISTORY,
+        // Legacy cleanup (v8.0): Remove old achievement key without importing deprecated constant
+        'hs_achievements_v6',
       ];
       keysToDelete.forEach(key => localStorage.removeItem(key));
 
