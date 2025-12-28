@@ -328,7 +328,8 @@ function normalizeToDayStart(date) {
   return normalized.getTime(); // Returns number, not Date
 }
 
-// Helper: Calculate day difference between two timestamps (DST-safe)
+// Helper: Calculate signed day difference between two timestamps (DST-safe)
+// Returns: positive if timestamp1 > timestamp2 (timestamp1 is later), negative otherwise
 // Uses calendar date arithmetic at noon to avoid DST boundary issues
 function daysDiff(timestamp1, timestamp2) {
   const date1 = new Date(timestamp1);
@@ -338,8 +339,8 @@ function daysDiff(timestamp1, timestamp2) {
   const noon1 = new Date(date1.getFullYear(), date1.getMonth(), date1.getDate(), 12, 0, 0, 0);
   const noon2 = new Date(date2.getFullYear(), date2.getMonth(), date2.getDate(), 12, 0, 0, 0);
 
-  // Calculate difference at noon to avoid DST transition issues (which happen at 2-3 AM)
-  const diffMs = Math.abs(noon1 - noon2);
+  // Calculate signed difference at noon to avoid DST transition issues (which happen at 2-3 AM)
+  const diffMs = noon1 - noon2; // Preserve sign for directionality
   return Math.round(diffMs / MS_PER_DAY);
 }
 
