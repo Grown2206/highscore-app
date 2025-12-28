@@ -207,8 +207,9 @@ String generateHitID() {
   }
 
   // Format: MAC_BOOT_COUNTER (z.B. "0A1B2C_05_0001")
+  // Boot Counter auf 2 Stellen begrenzt (0-99), dann Wrap-Around
   char id[32];
-  snprintf(id, sizeof(id), "%s_%02lu_%04lu", espMacShort.c_str(), bootCounter, hitCounter);
+  snprintf(id, sizeof(id), "%s_%02lu_%04lu", espMacShort.c_str(), bootCounter % 100, hitCounter);
 
   return String(id);
 }
@@ -293,12 +294,18 @@ void setup() {
   bootCounter = prefs.getULong("bootCounter", 0);
   bootCounter++;  // Inkrementiere bei jedem Boot
   prefs.putULong("bootCounter", bootCounter);
+
+  #ifdef DEBUG_SERIAL
   Serial.print("Boot Counter: ");
   Serial.println(bootCounter);
+  #endif
 
   hitCounter = prefs.getULong("hitCounter", 0);
+
+  #ifdef DEBUG_SERIAL
   Serial.print("Hit Counter: ");
   Serial.println(hitCounter);
+  #endif
 
   // **NEU v7.0: Pending Hits aus Preferences laden**
   pendingHitsCount = prefs.getInt("pendingCount", 0);
