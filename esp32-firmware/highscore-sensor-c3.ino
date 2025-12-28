@@ -230,9 +230,9 @@ void readBatteryVoltage() {
   // Mit Spannungsteiler zurückrechnen
   batteryVoltage = adcVoltage * BATTERY_VOLTAGE_DIVIDER;
 
-  // Prozent berechnen (LiPo: 4.2V = 100%, 3.0V = 0%)
+  // Prozent berechnen (LiPo: 4.7V = 100%, 3.0V = 0%)
   // Linear interpolieren und auf 0-100% begrenzen
-  float percent = ((batteryVoltage - 3.0) / 1.2) * 100.0;
+  float percent = ((batteryVoltage - 3.0) / 1.7) * 100.0;
   batteryPercent = (int)constrain(percent, 0, 100);
 
   Serial.print("🔋 Battery: ");

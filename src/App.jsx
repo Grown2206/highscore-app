@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, createContext, useContext, useMemo } from 'react';
 import {
-  Leaf, LayoutDashboard, Calendar as CalendarIcon, BarChart3, Trophy, Settings, Smartphone,
+  Leaf, LayoutDashboard, Calendar as CalendarIcon, BarChart3, Settings, Smartphone,
   Wifi, Zap, Wind, Flame, Star, Clock, Activity, Moon, CalendarDays, Shield, Tag, Gem, TrendingUp, Lock,
   Coins, List, Thermometer, Check, Plus, X, Edit2, Trash2, User, Users, Radio, Scale, WifiOff, RefreshCw,
   Save, AlertTriangle, Brain, Bell
@@ -727,6 +727,15 @@ export default function App() {
 function AppLayout({ ctx }) {
   const [activeTab, setActiveTab] = useState('dashboard');
 
+  // Fallback: Prevent 'badges' tab (removed) from being set
+  const safeSetActiveTab = (tab) => {
+    if (tab === 'badges') {
+      setActiveTab('dashboard');
+    } else {
+      setActiveTab(tab);
+    }
+  };
+
   return (
     <div className="flex flex-col md:flex-row h-screen bg-zinc-950 text-zinc-100 font-sans overflow-hidden select-none">
 
@@ -760,13 +769,13 @@ function AppLayout({ ctx }) {
       <aside className="hidden md:flex w-64 bg-zinc-900 border-r border-zinc-800 flex-col shrink-0 z-20 pt-[env(safe-area-inset-top)]">
         <div className="p-6 border-b border-zinc-800 flex items-center gap-3"><div className="bg-emerald-500/10 p-2 rounded-xl border border-emerald-500/20"><Leaf className="w-6 h-6 text-emerald-400" /></div><div><h1 className="font-bold text-lg text-white">High Score</h1><p className="text-xs text-zinc-500">Pro v6.1</p></div></div>
         <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
-          <NavBtn id="dashboard" icon={<LayoutDashboard/>} label="Dashboard" active={activeTab} set={setActiveTab}/>
-          <NavBtn id="calendar" icon={<CalendarIcon/>} label="Tagebuch" active={activeTab} set={setActiveTab}/>
-          <NavBtn id="strains" icon={<Tag/>} label="Sorten" active={activeTab} set={setActiveTab}/>
-          <NavBtn id="charts" icon={<BarChart3/>} label="Statistik" active={activeTab} set={setActiveTab}/>
-          <NavBtn id="analytics" icon={<Brain/>} label="Analytics" active={activeTab} set={setActiveTab}/>
-          <NavBtn id="esp32" icon={<Radio/>} label="ESP32 Debug" active={activeTab} set={setActiveTab}/>
-          <NavBtn id="settings" icon={<Settings/>} label="Einstellungen" active={activeTab} set={setActiveTab}/>
+          <NavBtn id="dashboard" icon={<LayoutDashboard/>} label="Dashboard" active={activeTab} set={safeSetActiveTab}/>
+          <NavBtn id="calendar" icon={<CalendarIcon/>} label="Tagebuch" active={activeTab} set={safeSetActiveTab}/>
+          <NavBtn id="strains" icon={<Tag/>} label="Sorten" active={activeTab} set={safeSetActiveTab}/>
+          <NavBtn id="charts" icon={<BarChart3/>} label="Statistik" active={activeTab} set={safeSetActiveTab}/>
+          <NavBtn id="analytics" icon={<Brain/>} label="Analytics" active={activeTab} set={safeSetActiveTab}/>
+          <NavBtn id="esp32" icon={<Radio/>} label="ESP32 Debug" active={activeTab} set={safeSetActiveTab}/>
+          <NavBtn id="settings" icon={<Settings/>} label="Einstellungen" active={activeTab} set={safeSetActiveTab}/>
         </nav>
         <div className="p-4 border-t border-zinc-800">
            <div className="flex items-center justify-between gap-2 text-xs">
@@ -864,13 +873,13 @@ function AppLayout({ ctx }) {
         </div>
       </main>
       <div className="md:hidden fixed bottom-0 left-0 right-0 bg-zinc-900/90 backdrop-blur-md border-t border-zinc-800 flex justify-around p-2 pb-[env(safe-area-inset-bottom)] z-50 overflow-x-auto">
-        <MobNavBtn id="dashboard" icon={<LayoutDashboard/>} active={activeTab} set={setActiveTab}/>
-        <MobNavBtn id="calendar" icon={<CalendarIcon/>} active={activeTab} set={setActiveTab}/>
-        <MobNavBtn id="strains" icon={<Tag/>} active={activeTab} set={setActiveTab}/>
-        <MobNavBtn id="charts" icon={<BarChart3/>} active={activeTab} set={setActiveTab}/>
-        <MobNavBtn id="analytics" icon={<Brain/>} active={activeTab} set={setActiveTab}/>
-        <MobNavBtn id="esp32" icon={<Radio/>} active={activeTab} set={setActiveTab}/>
-        <MobNavBtn id="settings" icon={<Settings/>} active={activeTab} set={setActiveTab}/>
+        <MobNavBtn id="dashboard" icon={<LayoutDashboard/>} active={activeTab} set={safeSetActiveTab}/>
+        <MobNavBtn id="calendar" icon={<CalendarIcon/>} active={activeTab} set={safeSetActiveTab}/>
+        <MobNavBtn id="strains" icon={<Tag/>} active={activeTab} set={safeSetActiveTab}/>
+        <MobNavBtn id="charts" icon={<BarChart3/>} active={activeTab} set={safeSetActiveTab}/>
+        <MobNavBtn id="analytics" icon={<Brain/>} active={activeTab} set={safeSetActiveTab}/>
+        <MobNavBtn id="esp32" icon={<Radio/>} active={activeTab} set={safeSetActiveTab}/>
+        <MobNavBtn id="settings" icon={<Settings/>} active={activeTab} set={safeSetActiveTab}/>
       </div>
     </div>
   );
