@@ -321,15 +321,27 @@ function AchievementsView({ sessionHits = [], historyData = [], settings = {} })
 const MS_PER_DAY = 1000 * 60 * 60 * 24;
 
 // Helper: Normalize date to day-start timestamp (local midnight)
+// Returns: numeric timestamp (not Date object) for precise comparisons
 function normalizeToDayStart(date) {
   const normalized = new Date(date);
   normalized.setHours(0, 0, 0, 0);
-  return normalized.getTime();
+  return normalized.getTime(); // Returns number, not Date
 }
 
-// Helper: Calculate day difference between two timestamps
+// Helper: Calculate signed day difference between two timestamps (DST-safe)
+// Returns: positive if timestamp1 > timestamp2 (timestamp1 is later), negative otherwise
+// Uses calendar date arithmetic at noon to avoid DST boundary issues
 function daysDiff(timestamp1, timestamp2) {
-  return Math.floor((timestamp1 - timestamp2) / MS_PER_DAY);
+  const date1 = new Date(timestamp1);
+  const date2 = new Date(timestamp2);
+
+  // Extract calendar date components
+  const noon1 = new Date(date1.getFullYear(), date1.getMonth(), date1.getDate(), 12, 0, 0, 0);
+  const noon2 = new Date(date2.getFullYear(), date2.getMonth(), date2.getDate(), 12, 0, 0, 0);
+
+  // Calculate signed difference at noon to avoid DST transition issues (which happen at 2-3 AM)
+  const diffMs = noon1 - noon2; // Preserve sign for directionality
+  return Math.round(diffMs / MS_PER_DAY);
 }
 
 // Helper: Streak berechnen
@@ -361,6 +373,7 @@ function calculateStreak(historyData) {
 
     const currentTimestamp = normalizeToDayStart(sorted[i].date);
 
+    // Compare numeric timestamps (both are numbers from .getTime(), not Date objects)
     if (currentTimestamp === expectedTimestamp && sorted[i].count > 0) {
       streak++;
     } else {
