@@ -133,13 +133,14 @@ export const MEDAL_DEFINITIONS = {
 };
 
 // Progress-Badges Configuration - ERWEITERT
+// Targets werden automatisch aus Medal Definitions abgeleitet, um Duplikation zu vermeiden
 export const PROGRESS_BADGES = [
   {
     key: 'totalSessions',
     name: 'Sitzungen',
     icon: Flame,
     gradient: 'from-orange-500 to-red-500',
-    targets: [1, 10, 50, 100, 250, 500, 1000],
+    targets: MEDAL_DEFINITIONS.sessions.map(m => m.threshold),
     decimals: 0,
     suffix: ''
   },
@@ -148,7 +149,7 @@ export const PROGRESS_BADGES = [
     name: 'Streak',
     icon: Calendar,
     gradient: 'from-purple-500 to-pink-500',
-    targets: [3, 7, 14, 30, 60, 100],
+    targets: MEDAL_DEFINITIONS.streaks.map(m => m.threshold),
     decimals: 0,
     suffix: ''
   },
@@ -157,7 +158,7 @@ export const PROGRESS_BADGES = [
     name: 'Tages-Rekord',
     icon: Star,
     gradient: 'from-yellow-500 to-amber-500',
-    targets: [5, 10, 15, 20, 25, 30, 35, 40, 50, 75, 100],
+    targets: MEDAL_DEFINITIONS.dailyRecord.map(m => m.threshold),
     decimals: 0,
     suffix: ''
   },
@@ -166,7 +167,7 @@ export const PROGRESS_BADGES = [
     name: 'Ausgaben',
     icon: Coins,
     gradient: 'from-green-500 to-emerald-500',
-    targets: [50, 200, 500, 1000, 2000],
+    targets: MEDAL_DEFINITIONS.spending.map(m => m.threshold),
     decimals: 0,
     suffix: '€'
   },
@@ -175,7 +176,7 @@ export const PROGRESS_BADGES = [
     name: 'Sorten',
     icon: Sparkles,
     gradient: 'from-emerald-500 to-teal-500',
-    targets: [3, 5, 10, 15, 20, 30],
+    targets: MEDAL_DEFINITIONS.strains.map(m => m.threshold),
     decimals: 0,
     suffix: ''
   },
@@ -184,7 +185,7 @@ export const PROGRESS_BADGES = [
     name: 'Frühaufsteher',
     icon: Coffee,
     gradient: 'from-yellow-400 to-orange-500',
-    targets: [5, 15, 30, 50, 75, 100, 150, 200],
+    targets: MEDAL_DEFINITIONS.earlyBird.map(m => m.threshold),
     decimals: 0,
     suffix: ''
   },
@@ -193,7 +194,7 @@ export const PROGRESS_BADGES = [
     name: 'Nachteule',
     icon: Moon,
     gradient: 'from-indigo-500 to-purple-500',
-    targets: [5, 15, 30, 50, 75, 100, 150, 200],
+    targets: MEDAL_DEFINITIONS.nightOwl.map(m => m.threshold),
     decimals: 0,
     suffix: ''
   },
@@ -202,7 +203,7 @@ export const PROGRESS_BADGES = [
     name: 'Effizienz',
     icon: TrendingUp,
     gradient: 'from-cyan-500 to-blue-500',
-    targets: [2, 3, 4, 5],
+    targets: MEDAL_DEFINITIONS.efficiency.map(m => m.threshold),
     decimals: 1,
     suffix: ' Ø'
   },
@@ -211,7 +212,7 @@ export const PROGRESS_BADGES = [
     name: 'Weekend Warrior',
     icon: PartyPopper,
     gradient: 'from-pink-500 to-purple-600',
-    targets: [10, 25, 50, 75, 100, 150],
+    targets: MEDAL_DEFINITIONS.weekendWarrior.map(m => m.threshold),
     decimals: 0,
     suffix: ''
   },
@@ -220,7 +221,7 @@ export const PROGRESS_BADGES = [
     name: 'Werktags-Profi',
     icon: Briefcase,
     gradient: 'from-blue-500 to-cyan-600',
-    targets: [10, 25, 50, 75, 100, 150],
+    targets: MEDAL_DEFINITIONS.weekdayPro.map(m => m.threshold),
     decimals: 0,
     suffix: ''
   },
@@ -229,7 +230,7 @@ export const PROGRESS_BADGES = [
     name: 'Speed Runner',
     icon: Zap,
     gradient: 'from-yellow-400 to-orange-600',
-    targets: [10, 25, 50, 75, 100],
+    targets: MEDAL_DEFINITIONS.speedRunner.map(m => m.threshold),
     decimals: 0,
     suffix: ''
   },
@@ -238,7 +239,7 @@ export const PROGRESS_BADGES = [
     name: 'Genießer',
     icon: Clock,
     gradient: 'from-green-400 to-purple-500',
-    targets: [10, 25, 50, 75, 100],
+    targets: MEDAL_DEFINITIONS.enjoyer.map(m => m.threshold),
     decimals: 0,
     suffix: ''
   }
