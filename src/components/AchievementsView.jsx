@@ -19,6 +19,9 @@ import {
 // Sentinel value for invalid timestamps (used for sorting invalid values to end of list)
 const INVALID_TIMESTAMP_SENTINEL = -Infinity;
 
+// Maximum number of medals to display in "Alle" category
+const MAX_MEDALS = 16;
+
 /**
  * Normalize achievement timestamp for consistent sorting
  *
@@ -220,7 +223,7 @@ function AchievementsView({ sessionHits = [], historyData = [], settings = {} })
           // Beide haben keinen Zeitstempel → sortiere nach Threshold (höher = besser)
           return (b.threshold || 0) - (a.threshold || 0);
         })
-        .slice(0, 16); // Mehr Medaillen zeigen (16 statt 12)
+        .slice(0, MAX_MEDALS);
     }
     // Kategorie-spezifisch: zeige alle dieser Kategorie
     return allMedals.filter(m => m.category === selectedCategory);

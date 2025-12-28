@@ -186,9 +186,17 @@ unsigned long lastBatteryRead = 0;
  */
 String generateHitID() {
   hitCounter++;
-  prefs.putULong("hitCounter", hitCounter);
 
-  // Format: MAC_COUNTER (z.B. "A1B2C3_0001")
+  // Periodisch persistieren um Flash-Schreibzugriffe zu reduzieren
+  // Nur alle 10 Hits speichern statt bei jedem Hit
+  const uint32_t HITCOUNTER_PERSIST_INTERVAL = 10;
+  if ((hitCounter % HITCOUNTER_PERSIST_INTERVAL) == 0) {
+    prefs.putULong("hitCounter", hitCounter);
+    Serial.print("Hit Counter persisted: ");
+    Serial.println(hitCounter);
+  }
+
+  // Format: MAC_COUNTER (z.B. "0A1B2C_0001")
   char id[32];
   snprintf(id, sizeof(id), "%s_%04lu", espMacShort.c_str(), hitCounter);
 
@@ -262,8 +270,12 @@ void setup() {
   // **NEU v8.0: MAC-Adresse für Unique Hit IDs**
   uint8_t baseMac[6];
   esp_read_mac(baseMac, ESP_MAC_WIFI_STA);
-  espMacShort = String(baseMac[3], HEX) + String(baseMac[4], HEX) + String(baseMac[5], HEX);
-  espMacShort.toUpperCase();
+
+  // Zero-padded MAC formatting für konsistente IDs (z.B. "0A1B2C" statt "A1B2C")
+  char macBuffer[7];
+  snprintf(macBuffer, sizeof(macBuffer), "%02X%02X%02X", baseMac[3], baseMac[4], baseMac[5]);
+  espMacShort = String(macBuffer);
+
   Serial.print("ESP MAC (short): ");
   Serial.println(espMacShort);
 

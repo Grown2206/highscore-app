@@ -432,7 +432,7 @@ export default function App() {
         const strain = settings.strains.find(s => s.id == currentStrainId) || settings.strains[0] || { name: '?', price: 0 };
         const now = Date.now();
 
-        const importedHits = pendingHits.map(hit => {
+        const importedHits = pendingHits.map((hit, idx) => {
           let realTimestamp;
 
           // FIX: Auto-detect timestamp format
@@ -448,7 +448,7 @@ export default function App() {
           }
 
           return {
-            id: hit.id || `fallback_${realTimestamp}`, // **NEU v8.0**: Nutze ESP32 Unique ID (oder Fallback)
+            id: hit.id || `fallback_${realTimestamp}_${idx}`, // **NEU v8.0**: Nutze ESP32 Unique ID (mit Index-Fallback gegen Collisions)
             timestamp: realTimestamp,
             type: 'Sensor',
             strainName: strain.name,
