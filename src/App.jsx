@@ -13,7 +13,6 @@ import CalendarView from './components/CalendarView';
 import ChartsView from './components/ChartsView';
 import SettingsView from './components/SettingsView';
 import DashboardView from './components/DashboardView';
-import AchievementsView from './components/AchievementsView';
 import ESP32DebugView from './components/ESP32DebugView';
 import DataRecovery from './components/DataRecovery';
 import { generateTestData } from './utils/testDataGenerator';
@@ -766,7 +765,6 @@ function AppLayout({ ctx }) {
           <NavBtn id="strains" icon={<Tag/>} label="Sorten" active={activeTab} set={setActiveTab}/>
           <NavBtn id="charts" icon={<BarChart3/>} label="Statistik" active={activeTab} set={setActiveTab}/>
           <NavBtn id="analytics" icon={<Brain/>} label="Analytics" active={activeTab} set={setActiveTab}/>
-          <NavBtn id="badges" icon={<Trophy/>} label="Badges" active={activeTab} set={setActiveTab}/>
           <NavBtn id="esp32" icon={<Radio/>} label="ESP32 Debug" active={activeTab} set={setActiveTab}/>
           <NavBtn id="settings" icon={<Settings/>} label="Einstellungen" active={activeTab} set={setActiveTab}/>
         </nav>
@@ -831,13 +829,6 @@ function AppLayout({ ctx }) {
               settings={ctx.settings}
             />
           )}
-          {activeTab === 'badges' && (
-            <AchievementsView
-              sessionHits={ctx.sessionHits}
-              historyData={ctx.historyData}
-              settings={ctx.settings}
-            />
-          )}
           {activeTab === 'esp32' && (
             <ESP32DebugView
               ip={ctx.ip}
@@ -878,7 +869,6 @@ function AppLayout({ ctx }) {
         <MobNavBtn id="strains" icon={<Tag/>} active={activeTab} set={setActiveTab}/>
         <MobNavBtn id="charts" icon={<BarChart3/>} active={activeTab} set={setActiveTab}/>
         <MobNavBtn id="analytics" icon={<Brain/>} active={activeTab} set={setActiveTab}/>
-        <MobNavBtn id="badges" icon={<Trophy/>} active={activeTab} set={setActiveTab}/>
         <MobNavBtn id="esp32" icon={<Radio/>} active={activeTab} set={setActiveTab}/>
         <MobNavBtn id="settings" icon={<Settings/>} active={activeTab} set={setActiveTab}/>
       </div>
