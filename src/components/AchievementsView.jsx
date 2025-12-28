@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Trophy, Award, Star, Medal, Crown, Filter } from 'lucide-react';
 import {
   PROGRESS_BADGES,
+  MEDAL_DEFINITIONS,
   generateMedals,
   getNextTarget,
   FAST_SESSION_MS,
@@ -113,11 +114,30 @@ function AchievementsView({ sessionHits = [], historyData = [], settings = {} })
 
     // Nur für Sitzungen-Medaillen können wir akkurate Zeitstempel berechnen
     const safeHits = Array.isArray(sessionHits) ? sessionHits : [];
-    const sortedHits = [...safeHits].sort((a, b) => {
-      const aTime = typeof a.timestamp === 'number' ? a.timestamp : new Date(a.timestamp).getTime();
-      const bTime = typeof b.timestamp === 'number' ? b.timestamp : new Date(b.timestamp).getTime();
-      return aTime - bTime;
+
+    // Pre-normalize timestamps (O(n)) to avoid NaN in comparator
+    const hitsWithNormalizedTime = safeHits.map(hit => {
+      let normalizedTime;
+
+      if (typeof hit.timestamp === 'number') {
+        normalizedTime = hit.timestamp;
+      } else if (hit.timestamp) {
+        const parsed = new Date(hit.timestamp).getTime();
+        // Invalid timestamps (NaN) are pushed to end for stable sorting
+        normalizedTime = isNaN(parsed) ? Infinity : parsed;
+      } else {
+        // Missing timestamps go to end
+        normalizedTime = Infinity;
+      }
+
+      return { ...hit, normalizedTime };
     });
+
+    // Sort by pre-normalized timestamp (efficient O(n log n) with simple numeric comparison)
+    // Filter out invalid timestamps (Infinity) to keep only valid sessions
+    const sortedHits = hitsWithNormalizedTime
+      .sort((a, b) => a.normalizedTime - b.normalizedTime)
+      .filter(hit => hit.normalizedTime !== Infinity);
 
     return baseMedals.map(medal => {
       // Nur für Sitzungen-Kategorie Zeitstempel berechnen
@@ -139,7 +159,12 @@ function AchievementsView({ sessionHits = [], historyData = [], settings = {} })
       // Zeige nur die Top 12 neuesten Medaillen (sortiert nach achievedAt)
       return [...allMedals]
         .filter(m => m.achievedAt) // Nur welche mit Zeitstempel
-        .sort((a, b) => b.achievedAt - a.achievedAt)
+        .sort((a, b) => {
+          // Normalize timestamps to handle strings/Date objects
+          const tA = typeof a.achievedAt === 'number' ? a.achievedAt : new Date(a.achievedAt).getTime() || 0;
+          const tB = typeof b.achievedAt === 'number' ? b.achievedAt : new Date(b.achievedAt).getTime() || 0;
+          return tB - tA; // Newest first
+        })
         .slice(0, 12);
     }
     // Kategorie-spezifisch: zeige alle dieser Kategorie
@@ -152,11 +177,17 @@ function AchievementsView({ sessionHits = [], historyData = [], settings = {} })
     return ['Alle', ...Array.from(cats)];
   }, [allMedals]);
 
-  // Gesamtfortschritt
+  // Gesamtfortschritt - basierend auf allen möglichen Medaillen
   const overallProgress = useMemo(() => {
-    const totalPossible = allMedals.length;
-    const earned = allMedals.length; // Alle generierten sind verdient
-    return totalPossible > 0 ? Math.round((earned / totalPossible) * 100) : 0;
+    // Berechne Gesamtzahl aller möglichen Medaillen aus Config
+    const totalPossibleMedals = Object.values(MEDAL_DEFINITIONS).reduce((sum, categoryMedals) => {
+      return sum + (Array.isArray(categoryMedals) ? categoryMedals.length : 0);
+    }, 0);
+
+    // allMedals enthält nur verdiente Medaillen (von generateMedals)
+    const earnedMedals = allMedals.length;
+
+    return totalPossibleMedals > 0 ? Math.round((earnedMedals / totalPossibleMedals) * 100) : 0;
   }, [allMedals]);
 
   // Progress Badges (nächste Ziele)
@@ -249,7 +280,7 @@ function AchievementsView({ sessionHits = [], historyData = [], settings = {} })
               >
                 <div className="text-4xl mb-2">{medal.icon}</div>
                 <div className="text-sm font-bold text-white">{medal.name}</div>
-                <div className="text-xs text-white/60 mt-1">{medal.description}</div>
+                <div className="text-xs text-white/60 mt-1">{medal.desc}</div>
 
                 {/* Zeitstempel nur wenn vorhanden */}
                 {medal.achievedAt && (
@@ -311,21 +342,53 @@ function AchievementsView({ sessionHits = [], historyData = [], settings = {} })
 function calculateStreak(historyData) {
   if (!Array.isArray(historyData) || historyData.length === 0) return 0;
 
-  const sorted = [...historyData].sort((a, b) => new Date(b.date) - new Date(a.date));
-  let streak = 0;
-  let currentDate = new Date();
-  currentDate.setHours(0, 0, 0, 0);
+  // Finde nur Einträge mit count > 0
+  const validEntries = historyData.filter(d => d && d.date && (d.count || 0) > 0);
+  if (validEntries.length === 0) return 0;
 
-  for (const day of sorted) {
-    const dayDate = new Date(day.date);
-    dayDate.setHours(0, 0, 0, 0);
+  // Normalisiere Datumswerte (ohne Uhrzeit)
+  const normalized = validEntries.map(d => ({
+    ...d,
+    normalizedDate: (() => {
+      const date = new Date(d.date);
+      date.setHours(0, 0, 0, 0);
+      return date;
+    })()
+  }));
 
-    const diffDays = Math.floor((currentDate - dayDate) / (1000 * 60 * 60 * 24));
+  // Sortiere nach Datum (neueste zuerst)
+  const sorted = [...normalized].sort((a, b) =>
+    b.normalizedDate.getTime() - a.normalizedDate.getTime()
+  );
 
-    if (diffDays === streak && day.count > 0) {
+  // Finde das neueste (gültige) Datum
+  const latestDate = sorted[0].normalizedDate;
+
+  // Heute und Gestern (normalisiert)
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+
+  // Streak ist nur gültig wenn letzter Eintrag heute oder gestern war
+  const isToday = latestDate.getTime() === today.getTime();
+  const isYesterday = latestDate.getTime() === yesterday.getTime();
+
+  if (!isToday && !isYesterday) {
+    return 0; // Streak gebrochen (letzter Eintrag zu alt)
+  }
+
+  // Zähle aufeinanderfolgende Tage (rückwärts vom neuesten)
+  let streak = 1;
+  let expectedDate = new Date(latestDate);
+
+  for (let i = 1; i < sorted.length; i++) {
+    expectedDate.setDate(expectedDate.getDate() - 1);
+
+    if (sorted[i].normalizedDate.getTime() === expectedDate.getTime()) {
       streak++;
-    } else if (diffDays > streak) {
-      break;
+    } else {
+      break; // Lücke gefunden
     }
   }
 
