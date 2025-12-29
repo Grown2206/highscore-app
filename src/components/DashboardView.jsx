@@ -4,7 +4,8 @@ import HoldButton from './HoldButton';
 import { MetricCard, AdminMetric } from './UIComponents';
 import SwipeableHitRow from './SwipeableHitRow';
 
-export default function DashboardView({ liveData, lastHitTime, settings, isGuestMode, setIsGuestMode, guestHits, resetGuestHits, sessionHits, deleteHit, onManualTrigger, onHoldStart, onHoldEnd, currentStrainId, setCurrentStrainId, isSensorInhaling }) {
+// **FIX v8.8**: Entferne sessionHits - Timeline nicht mehr verfügbar
+export default function DashboardView({ liveData, lastHitTime, settings, isGuestMode, setIsGuestMode, guestHits, resetGuestHits, deleteHit, onManualTrigger, onHoldStart, onHoldEnd, currentStrainId, setCurrentStrainId, isSensorInhaling }) {
   const [timeSince, setTimeSince] = useState("00:00:00");
   
   useEffect(() => {
@@ -82,23 +83,13 @@ export default function DashboardView({ liveData, lastHitTime, settings, isGuest
         <div className="bg-zinc-950 px-4 py-3 border-b border-zinc-800 flex items-center gap-2">
           <Clock size={14} className="text-zinc-500"/>
           <span className="text-xs font-bold uppercase text-zinc-500">Timeline</span>
-          <span className="text-[10px] text-zinc-600 ml-auto">← Wische zum Löschen</span>
         </div>
-        <div className="max-h-48 overflow-y-auto">
-          {sessionHits.length === 0 ? <div className="p-4 text-center text-zinc-600 text-xs italic">Warte auf den ersten Zug...</div> :
-          <table className="w-full text-left text-xs text-zinc-400">
-             <tbody className="divide-y divide-zinc-800">
-               {/* Zeige nur die letzten 10 Hits in der Timeline */}
-               {sessionHits.slice(0, 10).map((hit, i) => (
-                 <SwipeableHitRow
-                   key={hit.id}
-                   hit={hit}
-                   hitNumber={sessionHits.length - i}
-                   onDelete={deleteHit}
-                 />
-               ))}
-             </tbody>
-          </table>}
+        <div className="p-8 text-center">
+          <div className="text-zinc-600 text-sm mb-2">⚠️ Timeline nicht mehr verfügbar</div>
+          <div className="text-zinc-700 text-xs">
+            Die Hit-Timeline wurde entfernt.<br/>
+            Nutze den Kalender-Tab für Tagesübersichten.
+          </div>
         </div>
       </div>
 

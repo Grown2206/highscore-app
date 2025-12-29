@@ -10,7 +10,8 @@ const formatLocalDate = (date) => {
     return `${year}-${month}-${day}`;
 };
 
-function CalendarView({ historyData, setHistoryData, sessionHits, settings, deleteHit }) {
+// **FIX v8.8**: Entferne sessionHits - verwende nur historyData
+function CalendarView({ historyData, setHistoryData, settings, deleteHit }) {
     const [sel, setSel] = useState(formatLocalDate(new Date())); // FIX: Lokales Datum
     const [note, setNote] = useState("");
     const [viewDate, setViewDate] = useState(new Date()); // NEU: Aktuell angezeigte Monat
@@ -71,75 +72,34 @@ function CalendarView({ historyData, setHistoryData, sessionHits, settings, dele
         return result;
     }, [viewDate]);
 
-    // Tages-Statistiken berechnen
+    // **FIX v8.8**: Tages-Statistiken nur aus historyData (keine Details mehr)
     const dayStats = useMemo(() => {
-        const daySessions = sessionHits.filter(h => {
-            const hitDate = formatLocalDate(new Date(h.timestamp)); // FIX: Lokales Datum
-            return hitDate === sel;
-        });
-
-        const totalHits = daySessions.length;
+        const dayData = historyData.find(d => d.date === sel);
+        const totalHits = dayData ? dayData.count : 0;
         const totalAmount = totalHits * (settings.bowlSize * (settings.weedRatio / 100));
 
-        let totalCost = 0;
-        const strainUsage = {};
-
-        daySessions.forEach(hit => {
-            const strain = settings.strains.find(s => s.name === hit.strainName);
-            const price = strain?.price || hit.strainPrice || 0;
-            const hitCost = settings.bowlSize * (settings.weedRatio / 100) * price;
-            totalCost += hitCost;
-
-            if (!strainUsage[hit.strainName]) {
-                strainUsage[hit.strainName] = { count: 0, strain };
-            }
-            strainUsage[hit.strainName].count++;
-        });
-
-        const avgDuration = daySessions.length > 0
-            ? daySessions.reduce((sum, h) => sum + (h.duration || 0), 0) / daySessions.length / 1000
-            : 0;
-
-        // Zeitspanne berechnen
-        let timespan = null;
-        if (daySessions.length > 0) {
-            const times = daySessions.map(h => new Date(h.timestamp).getTime());
-            const first = new Date(Math.min(...times));
-            const last = new Date(Math.max(...times));
-            timespan = { first, last, duration: (last - first) / 1000 / 60 / 60 }; // Stunden
-        }
-
         return {
-            sessions: daySessions.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp)),
+            sessions: [],
             totalHits,
             totalAmount,
-            totalCost,
-            avgDuration,
-            strainUsage: Object.entries(strainUsage).sort((a, b) => b[1].count - a[1].count),
-            timespan
+            totalCost: 0,
+            avgDuration: 0,
+            strainUsage: [],
+            timespan: null
         };
-    }, [sel, sessionHits, settings]);
+    }, [sel, historyData, settings]);
 
     // Durchschnittswerte berechnen
+    // **FIX v8.8**: Stats nur mit historyData (keine Kosten mehr)
     const avgStats = useMemo(() => {
         if (historyData.length === 0) return null;
 
         const totalDays = historyData.filter(h => h.count > 0).length;
-        // **FIX v8.8**: Verwende historyData als einzige Quelle der Wahrheit für Counts
         const totalHits = historyData.reduce((sum, day) => sum + day.count, 0);
         const avgHitsPerDay = totalDays > 0 ? totalHits / totalDays : 0;
 
-        // Durchschnittliche Kosten pro Tag
-        let totalCost = 0;
-        sessionHits.forEach(hit => {
-            const strain = settings.strains.find(s => s.name === hit.strainName);
-            const price = strain?.price || hit.strainPrice || 0;
-            totalCost += settings.bowlSize * (settings.weedRatio / 100) * price;
-        });
-        const avgCostPerDay = totalDays > 0 ? totalCost / totalDays : 0;
-
-        return { avgHitsPerDay, avgCostPerDay };
-    }, [historyData, sessionHits, settings]);
+        return { avgHitsPerDay };
+    }, [historyData, settings]);
 
     const getTrendIcon = (value, avg) => {
         if (value > avg * 1.2) return <TrendingUp className="text-rose-500" size={14} />;
@@ -257,27 +217,7 @@ function CalendarView({ historyData, setHistoryData, sessionHits, settings, dele
                            <p className="text-2xl font-bold text-lime-400">{dayStats.totalAmount.toFixed(2)}g</p>
                        </div>
 
-                       <div className="bg-zinc-950 rounded-xl p-3">
-                           <div className="flex items-center gap-2 text-zinc-600 text-[10px] font-bold uppercase mb-1">
-                               <Coins size={12} />
-                               Kosten
-                               {avgStats && getTrendIcon(dayStats.totalCost, avgStats.avgCostPerDay)}
-                           </div>
-                           <p className="text-2xl font-bold text-amber-400">{dayStats.totalCost.toFixed(2)}€</p>
-                           {avgStats && (
-                               <p className="text-[10px] text-zinc-600 mt-1">
-                                   Ø {avgStats.avgCostPerDay.toFixed(2)}€
-                               </p>
-                           )}
-                       </div>
-
-                       <div className="bg-zinc-950 rounded-xl p-3">
-                           <div className="flex items-center gap-2 text-zinc-600 text-[10px] font-bold uppercase mb-1">
-                               <Clock size={12} />
-                               Ø Dauer
-                           </div>
-                           <p className="text-2xl font-bold text-purple-400">{dayStats.avgDuration.toFixed(1)}s</p>
-                       </div>
+                       {/* **FIX v8.8**: Kosten & Duration Displays entfernt (benötigen sessionHits) */}
                    </div>
                )}
 
