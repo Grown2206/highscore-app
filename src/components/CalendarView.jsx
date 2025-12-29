@@ -2,8 +2,16 @@ import React, { useState, useEffect, useMemo, memo } from 'react';
 import { Save, Wind, Scale, Coins, Clock, Tag, TrendingUp, TrendingDown, Minus, Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
 import SwipeableHitRow from './SwipeableHitRow';
 
+// FIX: Lokales Datum ohne UTC-Verschiebung
+const formatLocalDate = (date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
+
 function CalendarView({ historyData, setHistoryData, sessionHits, settings, deleteHit }) {
-    const [sel, setSel] = useState(new Date().toISOString().split('T')[0]);
+    const [sel, setSel] = useState(formatLocalDate(new Date())); // FIX: Lokales Datum
     const [note, setNote] = useState("");
     const [viewDate, setViewDate] = useState(new Date()); // NEU: Aktuell angezeigte Monat
 
@@ -33,7 +41,7 @@ function CalendarView({ historyData, setHistoryData, sessionHits, settings, dele
     const goToToday = () => {
         const today = new Date();
         setViewDate(today);
-        setSel(today.toISOString().split('T')[0]);
+        setSel(formatLocalDate(today)); // FIX: Lokales Datum
     };
 
     // FIX: Korrektes Kalender-Grid (Montag-Start, keine Verschiebung)
@@ -54,7 +62,7 @@ function CalendarView({ historyData, setHistoryData, sessionHits, settings, dele
             const d = new Date(startDate);
             d.setDate(startDate.getDate() + i);
             result.push({
-                iso: d.toISOString().split('T')[0],
+                iso: formatLocalDate(d), // FIX: Lokales Datum ohne UTC-Shift
                 day: d.getDate(),
                 curr: d.getMonth() === viewDate.getMonth()
             });
@@ -66,7 +74,7 @@ function CalendarView({ historyData, setHistoryData, sessionHits, settings, dele
     // Tages-Statistiken berechnen
     const dayStats = useMemo(() => {
         const daySessions = sessionHits.filter(h => {
-            const hitDate = new Date(h.timestamp).toISOString().split('T')[0];
+            const hitDate = formatLocalDate(new Date(h.timestamp)); // FIX: Lokales Datum
             return hitDate === sel;
         });
 
