@@ -22,6 +22,22 @@ function ESP32DebugView({ ip, setIp, connected, isSimulating, setIsSimulating, l
       return;
     }
 
+    // **FIX v8.2**: Validierung vor dem Speichern
+    if (minDuration >= maxDuration) {
+      alert('Fehler: Min. Dauer muss kleiner als Max. Dauer sein!');
+      return;
+    }
+
+    if (minDuration < 100 || minDuration > 10000) {
+      alert('Fehler: Min. Dauer muss zwischen 100ms und 10000ms liegen!');
+      return;
+    }
+
+    if (maxDuration < 100 || maxDuration > 10000) {
+      alert('Fehler: Max. Dauer muss zwischen 100ms und 10000ms liegen!');
+      return;
+    }
+
     setSaving(true);
     try {
       const response = await fetch(`http://${ip}/api/settings`, {
@@ -40,11 +56,12 @@ function ESP32DebugView({ ip, setIp, connected, isSimulating, setIsSimulating, l
         setEditingTrigger(false);
         alert('Einstellungen erfolgreich gespeichert!');
       } else {
-        throw new Error('Speichern fehlgeschlagen');
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        throw new Error(errorData.error || 'Speichern fehlgeschlagen');
       }
     } catch (error) {
       console.error('Error saving settings:', error);
-      alert('Fehler beim Speichern der Einstellungen');
+      alert(`Fehler beim Speichern: ${error.message}`);
     } finally {
       setSaving(false);
     }
@@ -425,8 +442,8 @@ function ESP32DebugView({ ip, setIp, connected, isSimulating, setIsSimulating, l
                 </button>
                 <button
                   onClick={saveTriggerSettings}
-                  disabled={saving}
-                  className="flex items-center gap-1 px-2 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 disabled:bg-zinc-700 text-white text-xs transition-colors"
+                  disabled={saving || minDuration >= maxDuration || minDuration < 100 || maxDuration > 10000}
+                  className="flex items-center gap-1 px-2 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 disabled:bg-zinc-700 disabled:text-zinc-500 text-white text-xs transition-colors"
                 >
                   <Save size={12} />
                   {saving ? 'Speichern...' : 'Speichern'}
