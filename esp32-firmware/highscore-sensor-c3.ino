@@ -805,6 +805,18 @@ void setupServer() {
       server.send(code, contentType, body);
     };
 
+    // **FIX v8.5**: Helper für Range-Error-Messages (verhindert String-Duplikation + Heap-Fragmentierung)
+    auto buildRangeError = [MIN_SESSION_DURATION_MS, MAX_SESSION_DURATION_MS](const char* fieldName, char* buffer, size_t bufferSize) {
+      snprintf(
+        buffer,
+        bufferSize,
+        "{\"error\":\"%s muss zwischen %ld-%ldms liegen\"}",
+        fieldName,
+        (long)MIN_SESSION_DURATION_MS,
+        (long)MAX_SESSION_DURATION_MS
+      );
+    };
+
     if (server.hasArg("plain")) {
       JsonDocument doc;
       DeserializationError error = deserializeJson(doc, server.arg("plain"));
@@ -816,23 +828,18 @@ void setupServer() {
 
         // **FIX v8.2**: Validierung der Eingabewerte
         // **FIX v8.4**: Error Messages nutzen Konstanten statt hardcoded values
+        // **FIX v8.5**: snprintf statt String-Concatenation (verhindert Heap-Fragmentierung)
         // 1. Range Check: MIN_SESSION_DURATION_MS bis MAX_SESSION_DURATION_MS
         if (newMin < MIN_SESSION_DURATION_MS || newMin > MAX_SESSION_DURATION_MS) {
-          String errorJson = String("{\"error\":\"minSessionDuration muss zwischen ")
-                            + String(MIN_SESSION_DURATION_MS)
-                            + "-"
-                            + String(MAX_SESSION_DURATION_MS)
-                            + "ms liegen\"}";
-          sendCorsResponse(400, "application/json", errorJson.c_str());
+          char errorJson[128];
+          buildRangeError("minSessionDuration", errorJson, sizeof(errorJson));
+          sendCorsResponse(400, "application/json", errorJson);
           return;
         }
         if (newMax < MIN_SESSION_DURATION_MS || newMax > MAX_SESSION_DURATION_MS) {
-          String errorJson = String("{\"error\":\"maxSessionDuration muss zwischen ")
-                            + String(MIN_SESSION_DURATION_MS)
-                            + "-"
-                            + String(MAX_SESSION_DURATION_MS)
-                            + "ms liegen\"}";
-          sendCorsResponse(400, "application/json", errorJson.c_str());
+          char errorJson[128];
+          buildRangeError("maxSessionDuration", errorJson, sizeof(errorJson));
+          sendCorsResponse(400, "application/json", errorJson);
           return;
         }
 
