@@ -1,7 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import { Clock, CalendarDays, DollarSign, TrendingUp, BarChart3, Tag, Zap, TrendingDown, Calendar as CalendarIcon } from 'lucide-react';
 
-export default function ChartsView({ historyData, sessionHits, settings }) {
+// **FIX v8.8**: Entferne sessionHits - verwende nur historyData
+export default function ChartsView({ historyData, settings }) {
   const [timeRange, setTimeRange] = useState('30'); // 7, 30, 90 Tage
   const weekStats = useMemo(() => {
      const days = ['So','Mo','Di','Mi','Do','Fr','Sa'];
@@ -129,42 +130,18 @@ export default function ChartsView({ historyData, sessionHits, settings }) {
   const maxMonthlyCount = Math.max(...monthlyTrend.map(m => m.count), 1);
   const maxMonthlyCost = Math.max(...monthlyTrend.map(m => m.cost), 1);
 
-  // Gesamt-Statistiken
+  // **FIX v8.8**: Gesamt-Statistiken nur mit historyData (keine Kosten mehr)
   const totalStats = useMemo(() => {
     const activeDays = historyData.filter(h => h.count > 0).length;
-    // **FIX v8.8**: Verwende historyData als einzige Quelle der Wahrheit für Counts
     const totalHits = historyData.reduce((sum, day) => sum + day.count, 0);
     const avgPerDay = activeDays > 0 ? totalHits / activeDays : 0;
-
-    let totalCost = 0;
-    sessionHits.forEach(hit => {
-      const strain = settings?.strains?.find(s => s.name === hit.strainName);
-      const price = strain?.price || hit.strainPrice || 0;
-      totalCost += (settings?.bowlSize || 0.3) * ((settings?.weedRatio || 80) / 100) * price;
-    });
-
     const totalAmount = totalHits * (settings?.bowlSize || 0.3) * ((settings?.weedRatio || 80) / 100);
 
-    return { activeDays, totalHits, avgPerDay, totalCost, totalAmount };
-  }, [historyData, sessionHits, settings]);
+    return { activeDays, totalHits, avgPerDay, totalAmount };
+  }, [historyData, settings]);
 
-  // Session Duration Analytics
-  const durationStats = useMemo(() => {
-    const hitsWithDuration = sessionHits.filter(h => h.duration && h.duration > 0);
-    if (hitsWithDuration.length === 0) return null;
-
-    const durations = hitsWithDuration.map(h => h.duration / 1000); // in seconds
-    const avgDuration = durations.reduce((a, b) => a + b, 0) / durations.length;
-    const maxDuration = Math.max(...durations);
-    const minDuration = Math.min(...durations);
-
-    return {
-      count: hitsWithDuration.length,
-      avg: avgDuration,
-      max: maxDuration,
-      min: minDuration
-    };
-  }, [sessionHits]);
+  // **FIX v8.8**: Session Duration - Entfernt (benötigt sessionHits mit duration)
+  const durationStats = null;
 
   // Comparison Stats (Last 7 days vs Previous 7 days)
   const comparisonStats = useMemo(() => {
@@ -251,10 +228,6 @@ export default function ChartsView({ historyData, sessionHits, settings }) {
           <div className="text-center">
             <p className="text-4xl font-bold text-lime-400">{totalStats.totalAmount.toFixed(1)}g</p>
             <p className="text-xs text-zinc-600 uppercase mt-2">Gesamt Menge</p>
-          </div>
-          <div className="text-center">
-            <p className="text-4xl font-bold text-amber-400">{totalStats.totalCost.toFixed(2)}€</p>
-            <p className="text-xs text-zinc-600 uppercase mt-2">Gesamt Kosten</p>
           </div>
           <div className="text-center">
             <p className="text-4xl font-bold text-cyan-400">{totalStats.avgPerDay.toFixed(1)}</p>
