@@ -295,16 +295,18 @@ export function detectUnlockedBadges(oldBadges, newBadges) {
 }
 
 /**
- * Berechne Benutzer-Stats aus sessionHits und historyData
+ * **FIX v8.8**: Berechne Benutzer-Stats NUR aus historyData (einzige Quelle der Wahrheit)
+ * Entfernt: sessionHits komplett - verwende nur noch historyData
+ * Entfernt: timestamp-basierte Features (early_bird, night_owl, marathon, explorer)
+ * Entfernt: cost-basierte Features (spending, efficiency)
+ * Entfernt: strain-basierte Features (strains)
  */
-export function calculateUserStats(sessionHits, historyData, settings) {
+export function calculateUserStats(historyData, settings) {
   // Guards gegen undefined/null
-  const safeSessionHits = Array.isArray(sessionHits) ? sessionHits : [];
   const safeHistoryData = Array.isArray(historyData) ? historyData : [];
-  const safeSettings = settings || {};
 
-  // Sessions
-  const sessions = safeSessionHits.length;
+  // **FIX v8.8**: Sessions = Summe aller Hits aus historyData
+  const sessions = safeHistoryData.reduce((sum, day) => sum + day.count, 0);
 
   // Streaks (längster Streak)
   let currentStreak = 0;
@@ -335,57 +337,41 @@ export function calculateUserStats(sessionHits, historyData, settings) {
     ? Math.max(...safeHistoryData.map(d => d.count), 0)
     : 0;
 
-  // Spending
-  const spending = safeSessionHits.reduce((sum, h) => {
-    const strain = safeSettings?.strains?.find(s => s.name === h.strainName);
-    const price = strain?.price || h.strainPrice || 0;
-    return sum + (safeSettings?.bowlSize || 0.3) * ((safeSettings?.weedRatio || 80) / 100) * price;
-  }, 0);
+  // **FIX v8.8**: Spending - Entfernt (benötigt sessionHits)
+  const spending = 0;
 
-  // Strains
-  const strains = new Set(safeSessionHits.map(h => h.strainName)).size;
+  // **FIX v8.8**: Strains - Entfernt (benötigt sessionHits)
+  const strains = 0;
 
-  // Early Bird (vor 8 Uhr)
-  const early_bird = safeSessionHits.filter(h => new Date(h.timestamp).getHours() < 8).length;
+  // **FIX v8.8**: Early Bird - Entfernt (benötigt Timestamps)
+  const early_bird = 0;
 
-  // Night Owl (nach 22 Uhr)
-  const night_owl = safeSessionHits.filter(h => new Date(h.timestamp).getHours() >= 22).length;
+  // **FIX v8.8**: Night Owl - Entfernt (benötigt Timestamps)
+  const night_owl = 0;
 
-  // Efficiency (durchschnittliche Kosten pro Session)
-  const efficiency = sessions > 0 ? spending / sessions : 999; // Invertiert: niedriger = besser
+  // **FIX v8.8**: Efficiency - Entfernt (benötigt Kosten)
+  const efficiency = 999;
 
-  // Weekend Warrior (Sessions am Wochenende: Sa=6, So=0)
-  const weekend_warrior = safeSessionHits.filter(h => {
-    const day = new Date(h.timestamp).getDay();
+  // **FIX v8.8**: Weekend Warrior - Aus historyData berechnen
+  const weekend_warrior = safeHistoryData.filter(d => {
+    const day = new Date(d.date).getDay();
     return day === 0 || day === 6;
-  }).length;
+  }).reduce((sum, d) => sum + d.count, 0);
 
-  // Marathon (Sessions über 5 Sekunden)
-  const marathon = safeSessionHits.filter(h => (h.duration || 0) > 5000).length;
+  // **FIX v8.8**: Marathon - Entfernt (benötigt duration)
+  const marathon = 0;
 
-  // Consistency (Anzahl der Tage mit mindestens 1 Hit)
-  const daysWithHits = new Set(
-    safeSessionHits.map(h => new Date(h.timestamp).toISOString().split('T')[0])
-  ).size;
-  const consistency = daysWithHits;
+  // **FIX v8.8**: Consistency - Tage mit mindestens 1 Hit
+  const consistency = safeHistoryData.filter(d => d.count > 0).length;
 
-  // Explorer (Verschiedene Tageszeiten: Nacht, Morgen, Mittag, Abend, Spätnacht)
-  const timePeriods = new Set();
-  safeSessionHits.forEach(h => {
-    const hour = new Date(h.timestamp).getHours();
-    if (hour >= 0 && hour < 6) timePeriods.add('night'); // 0-6: Nacht
-    else if (hour >= 6 && hour < 12) timePeriods.add('morning'); // 6-12: Morgen
-    else if (hour >= 12 && hour < 17) timePeriods.add('afternoon'); // 12-17: Mittag
-    else if (hour >= 17 && hour < 22) timePeriods.add('evening'); // 17-22: Abend
-    else timePeriods.add('latenight'); // 22-24: Spätnacht
-  });
-  const explorer = timePeriods.size;
+  // **FIX v8.8**: Explorer - Entfernt (benötigt Timestamps)
+  const explorer = 0;
 
-  // Dedicated (Sessions an Werktagen: Mo-Fr = 1-5)
-  const dedicated = safeSessionHits.filter(h => {
-    const day = new Date(h.timestamp).getDay();
-    return day >= 1 && day <= 5;
-  }).length;
+  // **FIX v8.8**: Dedicated - Aus historyData berechnen
+  const dedicated = safeHistoryData.filter(d => {
+    const day = new Date(d.date).getDay();
+    return day >= 1 && day <= 5; // Mo-Fr
+  }).reduce((sum, d) => sum + d.count, 0);
 
   return {
     sessions,

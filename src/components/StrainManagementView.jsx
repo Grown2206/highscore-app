@@ -1,32 +1,24 @@
 import React, { useState, useMemo, memo } from 'react';
 import { Plus, Edit2, Trash2, Tag, DollarSign, Leaf, TrendingUp, Star, Save, X, Search, ChevronDown, ChevronUp } from 'lucide-react';
 
-function StrainManagementView({ settings, setSettings, sessionHits }) {
+// **FIX v8.8**: Entferne sessionHits - Stats entfernt, nur noch CRUD
+function StrainManagementView({ settings, setSettings }) {
   const [form, setForm] = useState({ name: '', price: '10', thc: '15', type: 'hybrid', notes: '' });
   const [editId, setEditId] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('all');
   const [formExpanded, setFormExpanded] = useState(false);
 
-  // Statistiken pro Sorte berechnen
+  // **FIX v8.8**: Keine Statistiken mehr, nur Basisdaten
   const strainStats = useMemo(() => {
-    return settings.strains.map(strain => {
-      const strainSessions = sessionHits.filter(h => h.strainName === strain.name);
-      const totalHits = strainSessions.length;
-      const totalCost = totalHits * (settings.bowlSize * (settings.weedRatio / 100) * strain.price);
-      const lastUsed = strainSessions.length > 0
-        ? new Date(Math.max(...strainSessions.map(s => new Date(s.timestamp))))
-        : null;
-
-      return {
-        ...strain,
-        totalHits,
-        totalCost,
-        lastUsed,
-        isFavorite: totalHits > 0
-      };
-    });
-  }, [settings.strains, sessionHits, settings.bowlSize, settings.weedRatio]);
+    return settings.strains.map(strain => ({
+      ...strain,
+      totalHits: 0,
+      totalCost: 0,
+      lastUsed: null,
+      isFavorite: false
+    }));
+  }, [settings.strains]);
 
   // Gefilterte und sortierte Sorten
   const filteredStrains = useMemo(() => {
@@ -45,8 +37,8 @@ function StrainManagementView({ settings, setSettings, sessionHits }) {
       );
     }
 
-    // Nach Beliebtheit sortieren (meistgenutzte zuerst)
-    return filtered.sort((a, b) => b.totalHits - a.totalHits);
+    // **FIX v8.8**: Nach Namen sortieren statt nach Beliebtheit
+    return filtered.sort((a, b) => a.name.localeCompare(b.name));
   }, [strainStats, filterType, searchTerm]);
 
   const save = () => {
@@ -338,11 +330,6 @@ function StrainManagementView({ settings, setSettings, sessionHits }) {
                         <span className={`text-xs px-2 py-0.5 rounded-full border font-bold ${getTypeColor(strain.type)}`}>
                           {strain.type}
                         </span>
-                        {strain.totalHits > 0 && (
-                          <span className="text-xs px-2 py-0.5 rounded-full border border-emerald-500/20 bg-emerald-500/10 text-emerald-400 font-bold">
-                            ⭐ Beliebt
-                          </span>
-                        )}
                       </div>
                     </div>
 
@@ -363,8 +350,8 @@ function StrainManagementView({ settings, setSettings, sessionHits }) {
                     </div>
                   </div>
 
-                  {/* Statistiken */}
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
+                  {/* **FIX v8.8**: Nur noch Basisinfo, keine Sessions/Costs mehr */}
+                  <div className="grid grid-cols-2 gap-2 mb-3">
                     <div className="bg-zinc-950 rounded-lg p-2">
                       <p className="text-[10px] text-zinc-600 uppercase mb-0.5">Preis</p>
                       <p className="text-sm font-bold text-amber-400">{strain.price.toFixed(2)}€/g</p>
@@ -373,27 +360,12 @@ function StrainManagementView({ settings, setSettings, sessionHits }) {
                       <p className="text-[10px] text-zinc-600 uppercase mb-0.5">THC</p>
                       <p className="text-sm font-bold text-purple-400">{strain.thc}%</p>
                     </div>
-                    <div className="bg-zinc-950 rounded-lg p-2">
-                      <p className="text-[10px] text-zinc-600 uppercase mb-0.5">Sessions</p>
-                      <p className="text-sm font-bold text-emerald-400">{strain.totalHits}</p>
-                    </div>
-                    <div className="bg-zinc-950 rounded-lg p-2">
-                      <p className="text-[10px] text-zinc-600 uppercase mb-0.5">Gesamt</p>
-                      <p className="text-sm font-bold text-yellow-400">{strain.totalCost.toFixed(2)}€</p>
-                    </div>
                   </div>
 
-                  {/* Notizen & Letzte Nutzung */}
-                  {(strain.notes || strain.lastUsed) && (
+                  {/* Notizen */}
+                  {strain.notes && (
                     <div className="space-y-1">
-                      {strain.notes && (
-                        <p className="text-xs text-zinc-500 italic">{strain.notes}</p>
-                      )}
-                      {strain.lastUsed && (
-                        <p className="text-[10px] text-zinc-600">
-                          Zuletzt: {strain.lastUsed.toLocaleDateString()} um {strain.lastUsed.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </p>
-                      )}
+                      <p className="text-xs text-zinc-500 italic">{strain.notes}</p>
                     </div>
                   )}
                 </div>
@@ -403,35 +375,23 @@ function StrainManagementView({ settings, setSettings, sessionHits }) {
         )}
       </div>
 
-      {/* Gesamtstatistiken */}
+      {/* **FIX v8.8**: Vereinfachte Gesamt-Übersicht ohne sessionHits-Stats */}
       {settings.strains.length > 0 && (
         <div className="bg-gradient-to-br from-zinc-900 to-zinc-950 border border-zinc-800 rounded-2xl p-6">
           <h3 className="text-sm font-bold text-zinc-400 uppercase mb-4 flex items-center gap-2">
             <TrendingUp size={16} />
             Gesamt-Übersicht
           </h3>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 gap-3">
             <div className="text-center">
               <p className="text-3xl font-bold text-emerald-400">{settings.strains.length}</p>
               <p className="text-xs text-zinc-600 uppercase mt-1">Sorten</p>
-            </div>
-            <div className="text-center">
-              <p className="text-3xl font-bold text-purple-400">
-                {strainStats.filter(s => s.totalHits > 0).length}
-              </p>
-              <p className="text-xs text-zinc-600 uppercase mt-1">Genutzt</p>
             </div>
             <div className="text-center">
               <p className="text-3xl font-bold text-amber-400">
                 {(strainStats.reduce((sum, s) => sum + s.price, 0) / settings.strains.length).toFixed(2)}€
               </p>
               <p className="text-xs text-zinc-600 uppercase mt-1">Ø Preis</p>
-            </div>
-            <div className="text-center">
-              <p className="text-3xl font-bold text-yellow-400">
-                {strainStats.reduce((sum, s) => sum + s.totalCost, 0).toFixed(2)}€
-              </p>
-              <p className="text-xs text-zinc-600 uppercase mt-1">Gesamt</p>
             </div>
           </div>
         </div>

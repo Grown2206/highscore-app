@@ -2,20 +2,20 @@ import React, { useMemo, memo } from 'react';
 import { Trophy, Award, Star, Lock, Clock, AlertTriangle } from 'lucide-react';
 import { calculateBadges, calculateUserStats } from '../utils/badges';
 
-function BadgesView({ sessionHits, historyData, settings, badgeHistory = [] }) {
+// **FIX v8.8**: Entferne sessionHits - verwende nur historyData
+function BadgesView({ historyData, settings, badgeHistory = [] }) {
   // Berechne User-Stats und Badges mit Error-Handling
   const stats = useMemo(() => {
     try {
-      return calculateUserStats(sessionHits, historyData, settings);
+      return calculateUserStats(historyData, settings);
     } catch (error) {
       console.error('BadgesView: calculateUserStats failed', error, {
-        sessionHitsCount: sessionHits?.length,
         historyDataCount: historyData?.length,
         hasSettings: !!settings
       });
       return null;
     }
-  }, [sessionHits, historyData, settings]);
+  }, [historyData, settings]);
 
   const badges = useMemo(() => {
     try {

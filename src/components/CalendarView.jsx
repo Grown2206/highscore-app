@@ -125,8 +125,8 @@ function CalendarView({ historyData, setHistoryData, sessionHits, settings, dele
         if (historyData.length === 0) return null;
 
         const totalDays = historyData.filter(h => h.count > 0).length;
-        // FIX: Verwende sessionHits.length als Quelle der Wahrheit (nicht historyData aggregieren)
-        const totalHits = Array.isArray(sessionHits) ? sessionHits.length : 0;
+        // **FIX v8.8**: Verwende historyData als einzige Quelle der Wahrheit für Counts
+        const totalHits = historyData.reduce((sum, day) => sum + day.count, 0);
         const avgHitsPerDay = totalDays > 0 ? totalHits / totalDays : 0;
 
         // Durchschnittliche Kosten pro Tag

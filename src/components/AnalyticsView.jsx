@@ -1,7 +1,8 @@
 import React, { useMemo } from 'react';
 import { Brain, TrendingUp, AlertTriangle, Lightbulb, Activity, Clock, Tag, Calendar, ArrowUp, ArrowDown, Minus } from 'lucide-react';
 
-export default function AnalyticsView({ historyData, sessionHits, settings }) {
+// **FIX v8.8**: Entferne sessionHits - verwende nur historyData als einzige Quelle der Wahrheit
+export default function AnalyticsView({ historyData, settings }) {
 
   // --- 1. ML-BASIERTE PROGNOSEN ---
   const predictions = useMemo(() => {
@@ -56,9 +57,9 @@ export default function AnalyticsView({ historyData, sessionHits, settings }) {
     };
   }, [historyData]);
 
-  // --- 2. ANOMALIE-ERKENNUNG ---
+  // **FIX v8.8**: ANOMALIE-ERKENNUNG - Nur noch mit historyData (keine Timestamps mehr)
   const anomalies = useMemo(() => {
-    if (sessionHits.length < 10) {
+    if (historyData.length < 10) {
       return [];
     }
 
@@ -84,80 +85,36 @@ export default function AnalyticsView({ historyData, sessionHits, settings }) {
       }
     });
 
-    // 2. Nachtaktivität (2:00-6:00 Uhr)
-    const nightHits = sessionHits.filter(hit => {
-      const hour = new Date(hit.timestamp).getHours();
-      return hour >= 2 && hour < 6;
-    });
-
-    if (nightHits.length > 3) {
-      detectedAnomalies.push({
-        type: 'night_activity',
-        severity: 'medium',
-        value: nightHits.length,
-        message: `${nightHits.length} Sessions zwischen 2:00-6:00 Uhr erkannt`
-      });
-    }
-
-    // 3. Rapid Fire Pattern (mehrere Hits in kurzer Zeit)
-    let rapidFireCount = 0;
-    for (let i = 1; i < sessionHits.length; i++) {
-      const timeDiff = sessionHits[i - 1].timestamp - sessionHits[i].timestamp;
-      if (timeDiff < 5 * 60 * 1000) { // < 5 Minuten
-        rapidFireCount++;
-      }
-    }
-
-    if (rapidFireCount > 10) {
-      detectedAnomalies.push({
-        type: 'rapid_fire',
-        severity: 'low',
-        value: rapidFireCount,
-        message: `${rapidFireCount} Rapid-Fire Sessions erkannt (< 5 Min Abstand)`
-      });
-    }
-
-    // 4. Lange Pausen (T-Breaks)
-    const sortedHits = [...sessionHits].sort((a, b) => a.timestamp - b.timestamp);
+    // **FIX v8.8**: Lange Pausen (T-Breaks) - aus historyData berechnen
+    const sortedDays = [...historyData].filter(d => d.count > 0).sort((a, b) => new Date(a.date) - new Date(b.date));
     let maxBreak = 0;
-    for (let i = 1; i < sortedHits.length; i++) {
-      const breakTime = sortedHits[i].timestamp - sortedHits[i - 1].timestamp;
-      if (breakTime > maxBreak) maxBreak = breakTime;
+    for (let i = 1; i < sortedDays.length; i++) {
+      const prevDate = new Date(sortedDays[i - 1].date);
+      const currDate = new Date(sortedDays[i].date);
+      const breakDays = Math.floor((currDate - prevDate) / (1000 * 60 * 60 * 24)) - 1;
+      if (breakDays > maxBreak) maxBreak = breakDays;
     }
 
-    if (maxBreak > 24 * 60 * 60 * 1000) { // > 24 Stunden
-      const breakDays = Math.floor(maxBreak / (24 * 60 * 60 * 1000));
+    if (maxBreak > 2) { // > 2 Tage Pause
       detectedAnomalies.push({
         type: 't_break',
         severity: 'low',
-        value: breakDays,
-        message: `Längste Pause: ${breakDays} Tage - Gut für Toleranz-Reset!`
+        value: maxBreak,
+        message: `Längste Pause: ${maxBreak} Tage - Gut für Toleranz-Reset!`
       });
     }
 
     return detectedAnomalies.slice(0, 5); // Top 5 Anomalien
-  }, [historyData, sessionHits]);
+  }, [historyData]);
 
-  // --- 3. TOLERANZ-INDEX ---
+  // **FIX v8.8**: TOLERANZ-INDEX - Nur noch mit historyData
   const toleranceIndex = useMemo(() => {
-    if (sessionHits.length < 7) return null;
+    if (historyData.length < 7) return null;
 
     // Berechne Faktoren für Toleranz-Index
     const last7Days = historyData.slice(-7);
     const activeDays = last7Days.filter(d => d.count > 0).length;
     const avgDaily = last7Days.reduce((sum, d) => sum + d.count, 0) / 7;
-
-    // Berechne Sessions pro Tag
-    const dailySessions = {};
-    sessionHits.forEach(hit => {
-      const dateStr = new Date(hit.timestamp).toISOString().split('T')[0];
-      dailySessions[dateStr] = (dailySessions[dateStr] || 0) + 1;
-    });
-
-    const sessionsPerDay = Object.values(dailySessions);
-    const avgSessionsPerDay = sessionsPerDay.length > 0
-      ? sessionsPerDay.reduce((a, b) => a + b, 0) / sessionsPerDay.length
-      : 0;
 
     // Index-Berechnung (0-100)
     // Faktoren: Häufigkeit (40%), Menge pro Tag (40%), Pausen (20%)
@@ -182,45 +139,35 @@ export default function AnalyticsView({ historyData, sessionHits, settings }) {
       level,
       colorKey,
       activeDays,
-      avgDaily: avgDaily.toFixed(1),
-      avgSessionsPerDay: avgSessionsPerDay.toFixed(1)
+      avgDaily: avgDaily.toFixed(1)
     };
-  }, [historyData, sessionHits]);
+  }, [historyData]);
 
-  // --- 4. WOCHENENDE VS WERKTAG ANALYSE ---
+  // **FIX v8.8**: WOCHENENDE VS WERKTAG ANALYSE - Nur noch mit historyData (keine Kosten mehr)
   const weekdayAnalysis = useMemo(() => {
-    let weekdayCount = 0;
-    let weekendCount = 0;
-    let weekdayCost = 0;
-    let weekendCost = 0;
+    let weekdayHits = 0;
+    let weekendHits = 0;
 
-    sessionHits.forEach(hit => {
-      const day = new Date(hit.timestamp).getDay();
-      const isWeekend = day === 0 || day === 6;
-
-      const strain = settings?.strains?.find(s => s.name === hit.strainName);
-      const price = strain?.price || hit.strainPrice || 0;
-      const cost = (settings?.bowlSize || 0.3) * ((settings?.weedRatio || 80) / 100) * price;
+    historyData.forEach(day => {
+      const date = new Date(day.date);
+      const dayOfWeek = date.getDay();
+      const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
 
       if (isWeekend) {
-        weekendCount++;
-        weekendCost += cost;
+        weekendHits += day.count;
       } else {
-        weekdayCount++;
-        weekdayCost += cost;
+        weekdayHits += day.count;
       }
     });
 
-    const total = weekdayCount + weekendCount;
+    const total = weekdayHits + weekendHits;
     return {
-      weekday: weekdayCount,
-      weekend: weekendCount,
-      weekdayPercent: total > 0 ? ((weekdayCount / total) * 100).toFixed(0) : 0,
-      weekendPercent: total > 0 ? ((weekendCount / total) * 100).toFixed(0) : 0,
-      weekdayAvg: weekdayCount > 0 ? (weekdayCost / weekdayCount).toFixed(2) : 0,
-      weekendAvg: weekendCount > 0 ? (weekendCost / weekendCount).toFixed(2) : 0
+      weekday: weekdayHits,
+      weekend: weekendHits,
+      weekdayPercent: total > 0 ? ((weekdayHits / total) * 100).toFixed(0) : 0,
+      weekendPercent: total > 0 ? ((weekendHits / total) * 100).toFixed(0) : 0
     };
-  }, [sessionHits, settings]);
+  }, [historyData]);
 
   // --- 5. HABIT SCORE ---
   const habitScore = useMemo(() => {
@@ -271,51 +218,9 @@ export default function AnalyticsView({ historyData, sessionHits, settings }) {
     };
   }, [historyData]);
 
-  // --- 6. EMPFEHLUNGSSYSTEM ---
+  // **FIX v8.8**: EMPFEHLUNGSSYSTEM - Nur noch mit historyData (ohne Timestamps/Strains/Kosten)
   const recommendations = useMemo(() => {
     const recs = [];
-
-    // Analyse: Beste Tageszeit
-    const hourlyStats = Array(24).fill(0).map(() => ({ count: 0, totalDuration: 0 }));
-    sessionHits.forEach(hit => {
-      const hour = new Date(hit.timestamp).getHours();
-      hourlyStats[hour].count++;
-      hourlyStats[hour].totalDuration += hit.duration || 0;
-    });
-
-    const peakHour = hourlyStats.reduce((max, stat, hour) =>
-      stat.count > hourlyStats[max].count ? hour : max, 0
-    );
-
-    if (hourlyStats[peakHour].count > 0) {
-      recs.push({
-        category: 'timing',
-        icon: Clock,
-        title: 'Optimale Zeit',
-        description: `Deine produktivste Zeit ist um ${peakHour}:00 Uhr (${hourlyStats[peakHour].count} Sessions)`,
-        confidence: 85
-      });
-    }
-
-    // Sorten-Empfehlung basierend auf Nutzung
-    const strainUsage = {};
-    sessionHits.forEach(hit => {
-      const name = hit.strainName || 'Unbekannt';
-      if (!strainUsage[name]) strainUsage[name] = { count: 0, totalDuration: 0 };
-      strainUsage[name].count++;
-      strainUsage[name].totalDuration += hit.duration || 0;
-    });
-
-    const topStrain = Object.entries(strainUsage).sort((a, b) => b[1].count - a[1].count)[0];
-    if (topStrain) {
-      recs.push({
-        category: 'strain',
-        icon: Tag,
-        title: 'Lieblingssorte',
-        description: `${topStrain[0]} ist dein Favorit (${topStrain[1].count} Sessions)`,
-        confidence: 90
-      });
-    }
 
     // Empfehlung basierend auf Konsistenzmuster
     const last7Days = historyData.slice(-7);
@@ -339,26 +244,6 @@ export default function AnalyticsView({ historyData, sessionHits, settings }) {
       });
     }
 
-    // Kosten-Optimierung
-    const totalCost = sessionHits.reduce((sum, hit) => {
-      const strain = settings.strains.find(s => s.name === hit.strainName);
-      const price = strain?.price || hit.strainPrice || 0;
-      return sum + (settings.bowlSize * (settings.weedRatio / 100) * price);
-    }, 0);
-
-    const avgCostPerSession = sessionHits.length > 0 ? totalCost / sessionHits.length : 0;
-    const cheaperStrains = settings.strains.filter(s => s.price < avgCostPerSession);
-
-    if (cheaperStrains.length > 0 && avgCostPerSession > 2) {
-      recs.push({
-        category: 'cost',
-        icon: TrendingUp,
-        title: 'Kosten-Tipp',
-        description: `Durchschnitt ${avgCostPerSession.toFixed(2)}€/Session. ${cheaperStrains[0].name} spart ${((avgCostPerSession - cheaperStrains[0].price * settings.bowlSize).toFixed(2))}€`,
-        confidence: 70
-      });
-    }
-
     // Gesundheits-Empfehlung basierend auf Nutzungsfrequenz
     const recentDays = historyData.slice(-7);
     const avgDailyHits = recentDays.reduce((sum, d) => sum + d.count, 0) / 7;
@@ -373,8 +258,27 @@ export default function AnalyticsView({ historyData, sessionHits, settings }) {
       });
     }
 
+    // Wochenend-Empfehlung
+    const weekendDays = historyData.filter(d => {
+      const day = new Date(d.date).getDay();
+      return day === 0 || day === 6;
+    });
+    const weekendAvg = weekendDays.length > 0
+      ? weekendDays.reduce((sum, d) => sum + d.count, 0) / weekendDays.length
+      : 0;
+
+    if (weekendAvg > avgDailyHits * 1.5) {
+      recs.push({
+        category: 'pattern',
+        icon: Calendar,
+        title: 'Wochenend-Muster',
+        description: `Am Wochenende konsumierst du deutlich mehr. Achte auf deine Toleranz!`,
+        confidence: 75
+      });
+    }
+
     return recs;
-  }, [historyData, sessionHits, settings]);
+  }, [historyData]);
 
   // Render Helpers
   const TrendIcon = ({ trend }) => {
@@ -650,7 +554,7 @@ export default function AnalyticsView({ historyData, sessionHits, settings }) {
         );
       })()}
 
-      {/* WOCHENENDE VS WERKTAG ANALYSE */}
+      {/* **FIX v8.8**: WOCHENENDE VS WERKTAG ANALYSE - Ohne Kosten */}
       <div className="bg-gradient-to-br from-violet-900/20 to-zinc-900 border border-violet-500/30 rounded-2xl p-6 space-y-4">
         <div className="flex items-center gap-2 mb-4">
           <Calendar size={16} className="text-violet-500"/>
@@ -661,7 +565,7 @@ export default function AnalyticsView({ historyData, sessionHits, settings }) {
           <div className="bg-zinc-950 p-4 rounded-xl border border-zinc-800">
             <div className="text-center mb-3">
               <p className="text-3xl font-bold text-blue-400">{weekdayAnalysis.weekday}</p>
-              <p className="text-xs text-zinc-600 uppercase mt-1">Werktag-Sessions</p>
+              <p className="text-xs text-zinc-600 uppercase mt-1">Werktag-Hits</p>
             </div>
             <div className="h-2 bg-zinc-800 rounded-full overflow-hidden mb-2">
               <div
@@ -669,16 +573,15 @@ export default function AnalyticsView({ historyData, sessionHits, settings }) {
                 style={{ width: `${weekdayAnalysis.weekdayPercent}%` }}
               />
             </div>
-            <div className="flex justify-between text-xs">
-              <span className="text-zinc-500">{weekdayAnalysis.weekdayPercent}%</span>
-              <span className="text-cyan-400 font-bold">Ø {weekdayAnalysis.weekdayAvg}€</span>
+            <div className="text-center text-xs">
+              <span className="text-cyan-400 font-bold">{weekdayAnalysis.weekdayPercent}%</span>
             </div>
           </div>
 
           <div className="bg-zinc-950 p-4 rounded-xl border border-zinc-800">
             <div className="text-center mb-3">
               <p className="text-3xl font-bold text-violet-400">{weekdayAnalysis.weekend}</p>
-              <p className="text-xs text-zinc-600 uppercase mt-1">Wochenend-Sessions</p>
+              <p className="text-xs text-zinc-600 uppercase mt-1">Wochenend-Hits</p>
             </div>
             <div className="h-2 bg-zinc-800 rounded-full overflow-hidden mb-2">
               <div
@@ -686,9 +589,8 @@ export default function AnalyticsView({ historyData, sessionHits, settings }) {
                 style={{ width: `${weekdayAnalysis.weekendPercent}%` }}
               />
             </div>
-            <div className="flex justify-between text-xs">
-              <span className="text-zinc-500">{weekdayAnalysis.weekendPercent}%</span>
-              <span className="text-violet-400 font-bold">Ø {weekdayAnalysis.weekendAvg}€</span>
+            <div className="text-center text-xs">
+              <span className="text-violet-400 font-bold">{weekdayAnalysis.weekendPercent}%</span>
             </div>
           </div>
         </div>
