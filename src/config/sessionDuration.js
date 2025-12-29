@@ -23,23 +23,39 @@ export const DEFAULT_MAX_SESSION_DURATION_MS = 4500;
 export const MIN_DURATION_SLIDER_MAX = 2000;  // Obere Grenze für Min-Dauer Slider
 export const MAX_DURATION_SLIDER_MIN = 1000;  // Untere Grenze für Max-Dauer Slider
 
+// **FIX v8.6**: Validation helpers to reduce repetition
+/**
+ * Asserts that a value is within a given range [min, max]
+ * @param {string} name - Name of the constant being validated
+ * @param {number} value - Value to check
+ * @param {number} min - Minimum allowed value
+ * @param {number} max - Maximum allowed value
+ * @throws {Error} If value is outside the range
+ */
+function assertInRange(name, value, min, max) {
+  if (value < min || value > max) {
+    throw new Error(`${name} (${value}) must be between ${min} and ${max}`);
+  }
+}
+
+/**
+ * Asserts that firstValue < secondValue
+ * @param {string} firstName - Name of first constant
+ * @param {number} firstValue - First value
+ * @param {string} secondName - Name of second constant
+ * @param {number} secondValue - Second value
+ * @throws {Error} If firstValue >= secondValue
+ */
+function assertLessThan(firstName, firstValue, secondName, secondValue) {
+  if (firstValue >= secondValue) {
+    throw new Error(`${firstName} (${firstValue}) must be less than ${secondName} (${secondValue})`);
+  }
+}
+
 // **FIX v8.5**: Validierung der Slider-Ranges zur Laufzeit
-if (MIN_DURATION_SLIDER_MAX < MIN_SESSION_DURATION_MS || MIN_DURATION_SLIDER_MAX > MAX_SESSION_DURATION_MS) {
-  throw new Error(`MIN_DURATION_SLIDER_MAX (${MIN_DURATION_SLIDER_MAX}) must be between MIN_SESSION_DURATION_MS (${MIN_SESSION_DURATION_MS}) and MAX_SESSION_DURATION_MS (${MAX_SESSION_DURATION_MS})`);
-}
+assertInRange('MIN_DURATION_SLIDER_MAX', MIN_DURATION_SLIDER_MAX, MIN_SESSION_DURATION_MS, MAX_SESSION_DURATION_MS);
+assertInRange('MAX_DURATION_SLIDER_MIN', MAX_DURATION_SLIDER_MIN, MIN_SESSION_DURATION_MS, MAX_SESSION_DURATION_MS);
+assertInRange('DEFAULT_MIN_SESSION_DURATION_MS', DEFAULT_MIN_SESSION_DURATION_MS, MIN_SESSION_DURATION_MS, MAX_SESSION_DURATION_MS);
+assertInRange('DEFAULT_MAX_SESSION_DURATION_MS', DEFAULT_MAX_SESSION_DURATION_MS, MIN_SESSION_DURATION_MS, MAX_SESSION_DURATION_MS);
+assertLessThan('DEFAULT_MIN_SESSION_DURATION_MS', DEFAULT_MIN_SESSION_DURATION_MS, 'DEFAULT_MAX_SESSION_DURATION_MS', DEFAULT_MAX_SESSION_DURATION_MS);
 
-if (MAX_DURATION_SLIDER_MIN < MIN_SESSION_DURATION_MS || MAX_DURATION_SLIDER_MIN > MAX_SESSION_DURATION_MS) {
-  throw new Error(`MAX_DURATION_SLIDER_MIN (${MAX_DURATION_SLIDER_MIN}) must be between MIN_SESSION_DURATION_MS (${MIN_SESSION_DURATION_MS}) and MAX_SESSION_DURATION_MS (${MAX_SESSION_DURATION_MS})`);
-}
-
-if (DEFAULT_MIN_SESSION_DURATION_MS < MIN_SESSION_DURATION_MS || DEFAULT_MIN_SESSION_DURATION_MS > MAX_SESSION_DURATION_MS) {
-  throw new Error(`DEFAULT_MIN_SESSION_DURATION_MS (${DEFAULT_MIN_SESSION_DURATION_MS}) must be between MIN_SESSION_DURATION_MS (${MIN_SESSION_DURATION_MS}) and MAX_SESSION_DURATION_MS (${MAX_SESSION_DURATION_MS})`);
-}
-
-if (DEFAULT_MAX_SESSION_DURATION_MS < MIN_SESSION_DURATION_MS || DEFAULT_MAX_SESSION_DURATION_MS > MAX_SESSION_DURATION_MS) {
-  throw new Error(`DEFAULT_MAX_SESSION_DURATION_MS (${DEFAULT_MAX_SESSION_DURATION_MS}) must be between MIN_SESSION_DURATION_MS (${MIN_SESSION_DURATION_MS}) and MAX_SESSION_DURATION_MS (${MAX_SESSION_DURATION_MS})`);
-}
-
-if (DEFAULT_MIN_SESSION_DURATION_MS >= DEFAULT_MAX_SESSION_DURATION_MS) {
-  throw new Error(`DEFAULT_MIN_SESSION_DURATION_MS (${DEFAULT_MIN_SESSION_DURATION_MS}) must be less than DEFAULT_MAX_SESSION_DURATION_MS (${DEFAULT_MAX_SESSION_DURATION_MS})`);
-}

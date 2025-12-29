@@ -246,6 +246,28 @@ void readBatteryVoltage() {
   Serial.println("%)");
 }
 
+// ===== API HELPER FUNCTIONS =====
+/**
+ * **FIX v8.6**: Helper für Range-Error-Messages (reusable + testable)
+ * Baut eine JSON-Error-Message für ungültige Session-Dauer-Ranges
+ *
+ * @param fieldName Name des Feldes (z.B. "minSessionDuration")
+ * @param buffer Output-Buffer für JSON
+ * @param bufferSize Größe des Buffers
+ * @param minValue Minimaler erlaubter Wert
+ * @param maxValue Maximaler erlaubter Wert
+ */
+void buildRangeError(const char* fieldName, char* buffer, size_t bufferSize, long minValue, long maxValue) {
+  snprintf(
+    buffer,
+    bufferSize,
+    "{\"error\":\"%s muss zwischen %ld-%ldms liegen\"}",
+    fieldName,
+    minValue,
+    maxValue
+  );
+}
+
 // ===== SETUP =====
 void setup() {
   Serial.begin(115200);
@@ -805,18 +827,6 @@ void setupServer() {
       server.send(code, contentType, body);
     };
 
-    // **FIX v8.5**: Helper für Range-Error-Messages (verhindert String-Duplikation + Heap-Fragmentierung)
-    auto buildRangeError = [MIN_SESSION_DURATION_MS, MAX_SESSION_DURATION_MS](const char* fieldName, char* buffer, size_t bufferSize) {
-      snprintf(
-        buffer,
-        bufferSize,
-        "{\"error\":\"%s muss zwischen %ld-%ldms liegen\"}",
-        fieldName,
-        (long)MIN_SESSION_DURATION_MS,
-        (long)MAX_SESSION_DURATION_MS
-      );
-    };
-
     if (server.hasArg("plain")) {
       JsonDocument doc;
       DeserializationError error = deserializeJson(doc, server.arg("plain"));
@@ -829,16 +839,17 @@ void setupServer() {
         // **FIX v8.2**: Validierung der Eingabewerte
         // **FIX v8.4**: Error Messages nutzen Konstanten statt hardcoded values
         // **FIX v8.5**: snprintf statt String-Concatenation (verhindert Heap-Fragmentierung)
+        // **FIX v8.6**: buildRangeError() als globale Funktion (reusable + testable)
         // 1. Range Check: MIN_SESSION_DURATION_MS bis MAX_SESSION_DURATION_MS
         if (newMin < MIN_SESSION_DURATION_MS || newMin > MAX_SESSION_DURATION_MS) {
           char errorJson[128];
-          buildRangeError("minSessionDuration", errorJson, sizeof(errorJson));
+          buildRangeError("minSessionDuration", errorJson, sizeof(errorJson), MIN_SESSION_DURATION_MS, MAX_SESSION_DURATION_MS);
           sendCorsResponse(400, "application/json", errorJson);
           return;
         }
         if (newMax < MIN_SESSION_DURATION_MS || newMax > MAX_SESSION_DURATION_MS) {
           char errorJson[128];
-          buildRangeError("maxSessionDuration", errorJson, sizeof(errorJson));
+          buildRangeError("maxSessionDuration", errorJson, sizeof(errorJson), MIN_SESSION_DURATION_MS, MAX_SESSION_DURATION_MS);
           sendCorsResponse(400, "application/json", errorJson);
           return;
         }
