@@ -248,23 +248,24 @@ void readBatteryVoltage() {
 
 // ===== API HELPER FUNCTIONS =====
 /**
- * **FIX v8.6**: Helper für Range-Error-Messages (reusable + testable)
+ * **FIX v8.6 + v8.7**: Helper für Range-Error-Messages (reusable + testable)
  * Baut eine JSON-Error-Message für ungültige Session-Dauer-Ranges
  *
  * @param fieldName Name des Feldes (z.B. "minSessionDuration")
  * @param buffer Output-Buffer für JSON
  * @param bufferSize Größe des Buffers
- * @param minValue Minimaler erlaubter Wert
- * @param maxValue Maximaler erlaubter Wert
+ * @param minValue Minimaler erlaubter Wert (explizit als long gecastet für Klarheit)
+ * @param maxValue Maximaler erlaubter Wert (explizit als long gecastet für Klarheit)
  */
 void buildRangeError(const char* fieldName, char* buffer, size_t bufferSize, long minValue, long maxValue) {
+  // **FIX v8.7**: Explizite Casts für Klarheit (verhindert implicit conversion Überraschungen)
   snprintf(
     buffer,
     bufferSize,
     "{\"error\":\"%s muss zwischen %ld-%ldms liegen\"}",
     fieldName,
-    minValue,
-    maxValue
+    (long)minValue,  // Explicit cast
+    (long)maxValue   // Explicit cast
   );
 }
 

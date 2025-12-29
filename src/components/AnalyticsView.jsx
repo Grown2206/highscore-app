@@ -396,6 +396,31 @@ export default function AnalyticsView({ historyData, sessionHits, settings }) {
     );
   };
 
+  // --- 7-TAGE CHART DATA ---
+  const last7DaysData = useMemo(() => {
+    const today = new Date();
+    const last7Days = [];
+
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date(today);
+      date.setDate(date.getDate() - i);
+      const dateStr = date.toISOString().split('T')[0];
+
+      const dayData = historyData.find(d => d.date === dateStr);
+      const dayName = date.toLocaleDateString('de-DE', { weekday: 'short' });
+
+      last7Days.push({
+        date: dateStr,
+        day: dayName,
+        count: dayData ? dayData.count : 0
+      });
+    }
+
+    return last7Days;
+  }, [historyData]);
+
+  const maxHits = Math.max(...last7DaysData.map(d => d.count), 1);
+
   return (
     <div className="space-y-6 animate-in slide-in-from-right-4 pb-20">
       <div className="flex items-center gap-3">
@@ -405,6 +430,85 @@ export default function AnalyticsView({ historyData, sessionHits, settings }) {
         <div>
           <h2 className="text-2xl font-bold text-white">Advanced Analytics</h2>
           <p className="text-xs text-zinc-500">KI-gestützte Analyse & Empfehlungen</p>
+        </div>
+      </div>
+
+      {/* 7-TAGE HITS LINIENDIAGRAMM */}
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 space-y-4">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <Activity size={16} className="text-emerald-500"/>
+            <h3 className="text-sm font-bold text-zinc-400 uppercase">Hits der letzten 7 Tage</h3>
+          </div>
+          <span className="text-xs text-zinc-500">
+            Gesamt: {last7DaysData.reduce((sum, d) => sum + d.count, 0)} Hits
+          </span>
+        </div>
+
+        {/* Line Chart */}
+        <div className="relative h-48 bg-zinc-950 rounded-xl p-4 border border-zinc-800">
+          {/* Y-Axis Labels */}
+          <div className="absolute left-0 top-0 bottom-0 flex flex-col justify-between text-xs text-zinc-600 pr-2">
+            <span>{maxHits}</span>
+            <span>{Math.round(maxHits / 2)}</span>
+            <span>0</span>
+          </div>
+
+          {/* Chart Area */}
+          <div className="ml-8 h-full flex items-end justify-between gap-2">
+            {last7DaysData.map((day, idx) => {
+              const height = maxHits > 0 ? (day.count / maxHits) * 100 : 0;
+              const isToday = idx === 6;
+
+              return (
+                <div key={day.date} className="flex-1 flex flex-col items-center gap-2">
+                  {/* Bar */}
+                  <div className="w-full flex flex-col items-center justify-end" style={{ height: '140px' }}>
+                    <div
+                      className={`w-full rounded-t-lg transition-all ${
+                        isToday ? 'bg-gradient-to-t from-emerald-600 to-emerald-400' :
+                        day.count > 0 ? 'bg-gradient-to-t from-blue-600 to-blue-400' :
+                        'bg-zinc-800'
+                      }`}
+                      style={{ height: `${height}%` }}
+                      title={`${day.day}: ${day.count} Hits`}
+                    />
+                  </div>
+                  {/* Value */}
+                  <span className={`text-xs font-bold ${
+                    isToday ? 'text-emerald-400' :
+                    day.count > 0 ? 'text-blue-400' : 'text-zinc-600'
+                  }`}>
+                    {day.count}
+                  </span>
+                  {/* Day Label */}
+                  <span className={`text-[10px] ${
+                    isToday ? 'text-emerald-500 font-bold' : 'text-zinc-500'
+                  }`}>
+                    {day.day}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Stats */}
+        <div className="grid grid-cols-3 gap-3 pt-2">
+          <div className="bg-zinc-950 p-3 rounded-lg border border-zinc-800">
+            <span className="text-[10px] text-zinc-600 uppercase block">Ø pro Tag</span>
+            <span className="text-lg font-bold text-white">
+              {(last7DaysData.reduce((sum, d) => sum + d.count, 0) / 7).toFixed(1)}
+            </span>
+          </div>
+          <div className="bg-zinc-950 p-3 rounded-lg border border-zinc-800">
+            <span className="text-[10px] text-zinc-600 uppercase block">Höchster Tag</span>
+            <span className="text-lg font-bold text-blue-400">{maxHits}</span>
+          </div>
+          <div className="bg-zinc-950 p-3 rounded-lg border border-zinc-800">
+            <span className="text-[10px] text-zinc-600 uppercase block">Heute</span>
+            <span className="text-lg font-bold text-emerald-400">{last7DaysData[6]?.count || 0}</span>
+          </div>
         </div>
       </div>
 
