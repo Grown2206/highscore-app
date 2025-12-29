@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useMemo, memo } from 'react';
-import { Save, Wind, Scale, Coins, Clock, Tag, TrendingUp, TrendingDown, Minus, Calendar } from 'lucide-react';
+import { Save, Wind, Scale, Coins, Clock, Tag, TrendingUp, TrendingDown, Minus, Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
 import SwipeableHitRow from './SwipeableHitRow';
 
 function CalendarView({ historyData, setHistoryData, sessionHits, settings, deleteHit }) {
     const [sel, setSel] = useState(new Date().toISOString().split('T')[0]);
     const [note, setNote] = useState("");
+    const [viewDate, setViewDate] = useState(new Date()); // NEU: Aktuell angezeigte Monat
 
     useEffect(() => {
         const d = historyData.find(h=>h.date===sel);
@@ -20,12 +21,47 @@ function CalendarView({ historyData, setHistoryData, sessionHits, settings, dele
         });
     };
 
-    const today = new Date();
-    const days = Array.from({length:35},(_,i)=>{
-        const d=new Date(today.getFullYear(), today.getMonth(), 1);
-        d.setDate(d.getDate()-d.getDay()+1+i);
-        return { iso: d.toISOString().split('T')[0], day: d.getDate(), curr: d.getMonth()===today.getMonth() };
-    });
+    // NEU: Navigation für Monate
+    const prevMonth = () => {
+        setViewDate(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
+    };
+
+    const nextMonth = () => {
+        setViewDate(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
+    };
+
+    const goToToday = () => {
+        const today = new Date();
+        setViewDate(today);
+        setSel(today.toISOString().split('T')[0]);
+    };
+
+    // FIX: Korrektes Kalender-Grid (Montag-Start, keine Verschiebung)
+    const days = useMemo(() => {
+        const firstDay = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1);
+        const lastDay = new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 0);
+
+        // Montag der ersten Woche (0=Sonntag, 1=Montag)
+        const startDay = firstDay.getDay();
+        const offset = startDay === 0 ? -6 : 1 - startDay; // FIX: Sonntag → -6 Tage, sonst 1-startDay
+
+        const result = [];
+        const startDate = new Date(firstDay);
+        startDate.setDate(startDate.getDate() + offset);
+
+        // 6 Wochen = 42 Tage (um sicher alle Tage des Monats zu zeigen)
+        for (let i = 0; i < 42; i++) {
+            const d = new Date(startDate);
+            d.setDate(startDate.getDate() + i);
+            result.push({
+                iso: d.toISOString().split('T')[0],
+                day: d.getDate(),
+                curr: d.getMonth() === viewDate.getMonth()
+            });
+        }
+
+        return result;
+    }, [viewDate]);
 
     // Tages-Statistiken berechnen
     const dayStats = useMemo(() => {
@@ -112,6 +148,32 @@ function CalendarView({ historyData, setHistoryData, sessionHits, settings, dele
 
            {/* Kalender */}
            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+              {/* Monats-Navigation */}
+              <div className="flex items-center justify-between mb-4">
+                  <button
+                      onClick={prevMonth}
+                      className="p-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-white transition-colors"
+                  >
+                      <ChevronLeft size={18} />
+                  </button>
+                  <div className="text-center">
+                      <h3 className="text-lg font-bold text-white">
+                          {viewDate.toLocaleDateString('de-DE', { month: 'long', year: 'numeric' })}
+                      </h3>
+                      <button
+                          onClick={goToToday}
+                          className="text-xs text-emerald-500 hover:text-emerald-400 mt-1"
+                      >
+                          Heute
+                      </button>
+                  </div>
+                  <button
+                      onClick={nextMonth}
+                      className="p-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-white transition-colors"
+                  >
+                      <ChevronRight size={18} />
+                  </button>
+              </div>
               <div className="grid grid-cols-7 gap-1 mb-2 text-center text-[10px] text-zinc-600 font-bold uppercase">
                   {['Mo','Di','Mi','Do','Fr','Sa','So'].map(d=><div key={d}>{d}</div>)}
               </div>
