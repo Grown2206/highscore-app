@@ -1,11 +1,12 @@
 import React, { useState, memo, useEffect } from 'react';
 import { Wifi, WifiOff, Smartphone, RefreshCw, AlertCircle, CheckCircle, Radio, Activity, Clock, Flame, TrendingUp, Zap, Settings as SettingsIcon, Edit3, Save, X } from 'lucide-react';
+import { MIN_SESSION_DURATION_MS, MAX_SESSION_DURATION_MS, DEFAULT_MIN_SESSION_DURATION_MS, DEFAULT_MAX_SESSION_DURATION_MS } from '../config/sessionDuration';
 
 function ESP32DebugView({ ip, setIp, connected, isSimulating, setIsSimulating, lastError, connectionLog, flameHistory, liveData, errorCount, settings, setSettings }) {
   const [testing, setTesting] = useState(false);
   const [editingTrigger, setEditingTrigger] = useState(false);
-  const [minDuration, setMinDuration] = useState(800);
-  const [maxDuration, setMaxDuration] = useState(4500);
+  const [minDuration, setMinDuration] = useState(DEFAULT_MIN_SESSION_DURATION_MS);
+  const [maxDuration, setMaxDuration] = useState(DEFAULT_MAX_SESSION_DURATION_MS);
   const [saving, setSaving] = useState(false);
 
   const testConnection = async () => {
@@ -28,13 +29,13 @@ function ESP32DebugView({ ip, setIp, connected, isSimulating, setIsSimulating, l
       return;
     }
 
-    if (minDuration < 100 || minDuration > 10000) {
-      alert('Fehler: Min. Dauer muss zwischen 100ms und 10000ms liegen!');
+    if (minDuration < MIN_SESSION_DURATION_MS || minDuration > MAX_SESSION_DURATION_MS) {
+      alert(`Fehler: Min. Dauer muss zwischen ${MIN_SESSION_DURATION_MS}ms und ${MAX_SESSION_DURATION_MS}ms liegen!`);
       return;
     }
 
-    if (maxDuration < 100 || maxDuration > 10000) {
-      alert('Fehler: Max. Dauer muss zwischen 100ms und 10000ms liegen!');
+    if (maxDuration < MIN_SESSION_DURATION_MS || maxDuration > MAX_SESSION_DURATION_MS) {
+      alert(`Fehler: Max. Dauer muss zwischen ${MIN_SESSION_DURATION_MS}ms und ${MAX_SESSION_DURATION_MS}ms liegen!`);
       return;
     }
 
@@ -432,8 +433,8 @@ function ESP32DebugView({ ip, setIp, connected, isSimulating, setIsSimulating, l
                 <button
                   onClick={() => {
                     setEditingTrigger(false);
-                    setMinDuration(liveData.minSessionDuration || 800);
-                    setMaxDuration(liveData.maxSessionDuration || 4500);
+                    setMinDuration(liveData.minSessionDuration || DEFAULT_MIN_SESSION_DURATION_MS);
+                    setMaxDuration(liveData.maxSessionDuration || DEFAULT_MAX_SESSION_DURATION_MS);
                   }}
                   className="flex items-center gap-1 px-2 py-1 rounded-lg bg-zinc-700 hover:bg-zinc-600 text-white text-xs transition-colors"
                 >
@@ -442,7 +443,12 @@ function ESP32DebugView({ ip, setIp, connected, isSimulating, setIsSimulating, l
                 </button>
                 <button
                   onClick={saveTriggerSettings}
-                  disabled={saving || minDuration >= maxDuration || minDuration < 100 || maxDuration > 10000}
+                  disabled={
+                    saving ||
+                    minDuration >= maxDuration ||
+                    minDuration < MIN_SESSION_DURATION_MS || minDuration > MAX_SESSION_DURATION_MS ||
+                    maxDuration < MIN_SESSION_DURATION_MS || maxDuration > MAX_SESSION_DURATION_MS
+                  }
                   className="flex items-center gap-1 px-2 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 disabled:bg-zinc-700 disabled:text-zinc-500 text-white text-xs transition-colors"
                 >
                   <Save size={12} />
@@ -476,7 +482,7 @@ function ESP32DebugView({ ip, setIp, connected, isSimulating, setIsSimulating, l
                 </div>
                 <input
                   type="range"
-                  min="100"
+                  min={MIN_SESSION_DURATION_MS}
                   max="2000"
                   step="50"
                   value={minDuration}
@@ -495,7 +501,7 @@ function ESP32DebugView({ ip, setIp, connected, isSimulating, setIsSimulating, l
                 <input
                   type="range"
                   min="1000"
-                  max="10000"
+                  max={MAX_SESSION_DURATION_MS}
                   step="100"
                   value={maxDuration}
                   onChange={(e) => setMaxDuration(parseInt(e.target.value))}

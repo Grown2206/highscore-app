@@ -779,21 +779,29 @@ void setupServer() {
     Serial.println("Sync erfolgreich abgeschlossen!");
   });
 
-  // **NEU v8.1**: CORS Preflight für /api/settings
-  server.on("/api/settings", HTTP_OPTIONS, []() {
+  // **FIX v8.3**: Zentralisierte CORS Headers Helper
+  auto setCorsHeaders = []() {
     server.sendHeader("Access-Control-Allow-Origin", "*");
     server.sendHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
     server.sendHeader("Access-Control-Allow-Headers", "Content-Type");
+  };
+
+  // **NEU v8.1**: CORS Preflight für /api/settings
+  server.on("/api/settings", HTTP_OPTIONS, [setCorsHeaders]() {
+    setCorsHeaders();
     server.send(204);
   });
 
   // **NEU v8.1**: False Trigger Settings aktualisieren
-  server.on("/api/settings", HTTP_POST, []() {
-    // Helper: CORS Headers
-    auto sendCorsResponse = [](int code, const char* contentType, const char* body) {
-      server.sendHeader("Access-Control-Allow-Origin", "*");
-      server.sendHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-      server.sendHeader("Access-Control-Allow-Headers", "Content-Type");
+  server.on("/api/settings", HTTP_POST, [setCorsHeaders]() {
+    // **FIX v8.3**: Session-Dauer-Grenzen als Konstanten
+    // WICHTIG: Muss mit src/config/sessionDuration.js synchron bleiben!
+    const int MIN_SESSION_DURATION_MS = 100;
+    const int MAX_SESSION_DURATION_MS = 10000;
+
+    // Helper: CORS Response senden
+    auto sendCorsResponse = [setCorsHeaders](int code, const char* contentType, const char* body) {
+      setCorsHeaders();
       server.send(code, contentType, body);
     };
 
@@ -807,12 +815,12 @@ void setupServer() {
         int newMax = doc.containsKey("maxSessionDuration") ? doc["maxSessionDuration"] : maxSessionDuration;
 
         // **FIX v8.2**: Validierung der Eingabewerte
-        // 1. Range Check: 100ms bis 10000ms
-        if (newMin < 100 || newMin > 10000) {
+        // 1. Range Check: MIN_SESSION_DURATION_MS bis MAX_SESSION_DURATION_MS
+        if (newMin < MIN_SESSION_DURATION_MS || newMin > MAX_SESSION_DURATION_MS) {
           sendCorsResponse(400, "application/json", "{\"error\":\"minSessionDuration must be 100-10000ms\"}");
           return;
         }
-        if (newMax < 100 || newMax > 10000) {
+        if (newMax < MIN_SESSION_DURATION_MS || newMax > MAX_SESSION_DURATION_MS) {
           sendCorsResponse(400, "application/json", "{\"error\":\"maxSessionDuration must be 100-10000ms\"}");
           return;
         }
