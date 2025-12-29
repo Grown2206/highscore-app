@@ -199,28 +199,26 @@ function HoldButton({ onTrigger, lastHit, active, flame }) {
 // --- 5. MAIN LOGIC & LAYOUT ---
 
 export default function App() {
-  // State mit zentralen STORAGE_KEYS Konstanten
+  // **FIX v8.8**: State ohne sessionHits - nur noch historyData als Quelle der Wahrheit
   const [settings, setSettings] = useLocalStorage(STORAGE_KEYS.SETTINGS, {
     ...DEFAULT_SETTINGS,
     adminMode: false,
     strains: [{ id: 1, name: "Lemon Haze", price: 10, thc: 22 }]
   });
   const [historyData, setHistoryData] = useLocalStorage(STORAGE_KEYS.HISTORY, []);
-  const [sessionHits, setSessionHits] = useLocalStorage(STORAGE_KEYS.SESSION_HITS, []);
   const [goals, setGoals] = useLocalStorage(STORAGE_KEYS.GOALS, { dailyLimit: 0, tBreakDays: 0 });
   const [lastActiveDate, setLastActiveDate] = useLocalStorage(STORAGE_KEYS.LAST_DATE, '');
   const [manualOffset, setManualOffset] = useLocalStorage(STORAGE_KEYS.OFFSET, 0);
   const [lastHitTime, setLastHitTime] = useLocalStorage(STORAGE_KEYS.LAST_HIT_TS, null);
   const [ip, setIp] = useLocalStorage(STORAGE_KEYS.DEVICE_IP, '192.168.178.XXX');
 
-  // Automatisch Testdaten hinzufügen wenn keine Daten vorhanden
+  // **FIX v8.8**: Automatisch Testdaten - nur noch historyData
   useEffect(() => {
-    if (sessionHits.length === 0 && historyData.length === 0) {
+    if (historyData.length === 0) {
       console.log('🧪 Keine Daten vorhanden - Generiere 30 Tage Testdaten...');
       try {
         const testData = generateTestData(30, settings);
-        console.log('✅ Testdaten generiert:', testData.sessionHits.length, 'Sessions');
-        setSessionHits(testData.sessionHits);
+        console.log('✅ Testdaten generiert:', testData.historyData.length, 'Tage');
         setHistoryData(testData.historyData);
       } catch (error) {
         console.error('❌ Fehler beim Generieren der Testdaten:', error);
@@ -375,41 +373,13 @@ export default function App() {
   };
 
   // DELETE HIT: Einzelnen Hit löschen
+  // **FIX v8.8**: DELETE HIT - Entfernt (keine einzelnen Hits mehr, nur noch Tageszähler)
+  // Funktion bleibt als Platzhalter für Kompatibilität
   const deleteHit = (hitId) => {
-    if (navigator.vibrate) navigator.vibrate(30);
-
-    // Find hit to delete
-    const hitToDelete = sessionHits.find(h => h.id === hitId);
-    if (!hitToDelete) {
-      console.warn('⚠️ Hit nicht gefunden:', hitId);
-      return;
-    }
-
-    // Remove from sessionHits
-    setSessionHits(prev => prev.filter(h => h.id !== hitId));
-
-    // Update historyData (decrement count for that day)
-    const hitDate = new Date(hitToDelete.timestamp).toISOString().split('T')[0];
-    setHistoryData(prev => {
-      const updated = [...prev];
-      const idx = updated.findIndex(d => d.date === hitDate);
-      if (idx >= 0) {
-        const newCount = Math.max(0, updated[idx].count - 1);
-        if (newCount === 0) {
-          // Remove day if count reaches 0
-          updated.splice(idx, 1);
-        } else {
-          updated[idx] = { ...updated[idx], count: newCount };
-        }
-      }
-      return updated;
-    });
-
-    console.log('🗑️ Hit gelöscht:', hitId);
-
+    console.warn('⚠️ deleteHit: Feature entfernt - keine einzelnen Hits mehr');
     setNotification({
-      type: 'success',
-      message: '✅ Hit gelöscht',
+      type: 'error',
+      message: '⚠️ Einzelne Hits können nicht gelöscht werden',
       icon: Trash2
     });
     setTimeout(() => setNotification(null), 2000);
@@ -700,8 +670,9 @@ export default function App() {
     };
   }, [isSimulating, ip, manualOffset, isManuallyHolding, settings.triggerThreshold, errorCount, connected, syncPendingHits]);
 
+  // **FIX v8.8**: Context ohne sessionHits/setSessionHits
   const ctx = useMemo(() => ({
-    settings, setSettings, historyData, setHistoryData, sessionHits, setSessionHits,
+    settings, setSettings, historyData, setHistoryData,
     goals, setGoals, lastHitTime,
     liveData, currentStrainId, setCurrentStrainId, isGuestMode, setIsGuestMode, guestHits, resetGuestHits, deleteHit,
     connected, setConnected, isSimulating, setIsSimulating, isSensorInhaling,
@@ -712,7 +683,7 @@ export default function App() {
     onHoldStart: () => setIsManuallyHolding(true),
     onHoldEnd: () => setIsManuallyHolding(false)
   }), [
-    settings, setSettings, historyData, setHistoryData, sessionHits, setSessionHits,
+    settings, setSettings, historyData, setHistoryData,
     goals, setGoals, lastHitTime,
     liveData, currentStrainId, setCurrentStrainId, isGuestMode, setIsGuestMode, guestHits, resetGuestHits, deleteHit,
     connected, setConnected, isSimulating, setIsSimulating, isSensorInhaling,
@@ -798,7 +769,6 @@ function AppLayout({ ctx }) {
               setIsGuestMode={ctx.setIsGuestMode}
               guestHits={ctx.guestHits}
               resetGuestHits={ctx.resetGuestHits}
-              sessionHits={ctx.sessionHits}
               deleteHit={ctx.deleteHit}
               onManualTrigger={ctx.onManualTrigger}
               onHoldStart={ctx.onHoldStart}
@@ -812,7 +782,6 @@ function AppLayout({ ctx }) {
             <CalendarView
               historyData={ctx.historyData}
               setHistoryData={ctx.setHistoryData}
-              sessionHits={ctx.sessionHits}
               settings={ctx.settings}
               deleteHit={ctx.deleteHit}
             />
@@ -821,20 +790,17 @@ function AppLayout({ ctx }) {
             <StrainManagementView
               settings={ctx.settings}
               setSettings={ctx.setSettings}
-              sessionHits={ctx.sessionHits}
             />
           )}
           {activeTab === 'charts' && (
             <ChartsView
               historyData={ctx.historyData}
-              sessionHits={ctx.sessionHits}
               settings={ctx.settings}
             />
           )}
           {activeTab === 'analytics' && (
             <AnalyticsView
               historyData={ctx.historyData}
-              sessionHits={ctx.sessionHits}
               settings={ctx.settings}
             />
           )}
@@ -860,8 +826,6 @@ function AppLayout({ ctx }) {
               setSettings={ctx.setSettings}
               historyData={ctx.historyData}
               setHistoryData={ctx.setHistoryData}
-              sessionHits={ctx.sessionHits}
-              setSessionHits={ctx.setSessionHits}
               goals={ctx.goals}
               setGoals={ctx.setGoals}
               showRecovery={ctx.showRecovery}

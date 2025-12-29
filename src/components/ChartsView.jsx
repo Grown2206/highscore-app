@@ -132,8 +132,8 @@ export default function ChartsView({ historyData, sessionHits, settings }) {
   // Gesamt-Statistiken
   const totalStats = useMemo(() => {
     const activeDays = historyData.filter(h => h.count > 0).length;
-    // FIX: Verwende sessionHits.length als Quelle der Wahrheit (nicht historyData aggregieren)
-    const totalHits = Array.isArray(sessionHits) ? sessionHits.length : 0;
+    // **FIX v8.8**: Verwende historyData als einzige Quelle der Wahrheit für Counts
+    const totalHits = historyData.reduce((sum, day) => sum + day.count, 0);
     const avgPerDay = activeDays > 0 ? totalHits / activeDays : 0;
 
     let totalCost = 0;
@@ -458,7 +458,9 @@ export default function ChartsView({ historyData, sessionHits, settings }) {
 
           <div className="space-y-3">
             {strainStats.slice(0, 10).map((strain, i) => {
-              const percentage = (strain.count / sessionHits.length) * 100;
+              // **FIX v8.8**: Verwende historyData total für Prozentberechnung
+              const totalHitsForPercentage = historyData.reduce((sum, day) => sum + day.count, 0);
+              const percentage = totalHitsForPercentage > 0 ? (strain.count / totalHitsForPercentage) * 100 : 0;
               return (
                 <div key={i} className="space-y-1">
                   <div className="flex items-center justify-between text-sm">

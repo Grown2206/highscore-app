@@ -1,7 +1,8 @@
 import React, { useMemo } from 'react';
 import { Flame, Shield, TrendingUp, Calendar } from 'lucide-react';
 
-export default function StreaksWidget({ historyData, sessionHits }) {
+// **FIX v8.8**: Entferne sessionHits - verwende nur historyData als einzige Quelle der Wahrheit
+export default function StreaksWidget({ historyData }) {
   const streaks = useMemo(() => {
     if (historyData.length === 0) {
       return { activeStreak: 0, longestStreak: 0, currentBreak: 0, longestBreak: 0 };
@@ -55,20 +56,26 @@ export default function StreaksWidget({ historyData, sessionHits }) {
       }
     }
 
-    // Berechne Current Break (Tage ohne Session)
+    // **FIX v8.8**: Berechne Current Break aus historyData (einzige Quelle der Wahrheit)
     let currentBreak = 0;
-    if (sessionHits.length > 0) {
-      const lastHit = Math.max(...sessionHits.map(h => h.timestamp));
-      const daysSinceLastHit = Math.floor((Date.now() - lastHit) / (1000 * 60 * 60 * 24));
-      currentBreak = daysSinceLastHit;
+    if (sortedData.length > 0) {
+      // Finde den letzten Tag mit Aktivität
+      const lastActiveDay = sortedData.find(d => d.count > 0);
+      if (lastActiveDay) {
+        const lastDate = new Date(lastActiveDay.date);
+        const today = new Date();
+        currentBreak = Math.floor((today - lastDate) / (1000 * 60 * 60 * 24));
+      }
     }
 
-    // Berechne Longest Break
+    // **FIX v8.8**: Berechne Longest Break aus historyData
     let longestBreak = 0;
-    if (sessionHits.length > 1) {
-      const sortedHits = [...sessionHits].sort((a, b) => a.timestamp - b.timestamp);
-      for (let i = 1; i < sortedHits.length; i++) {
-        const breakDays = Math.floor((sortedHits[i].timestamp - sortedHits[i - 1].timestamp) / (1000 * 60 * 60 * 24));
+    if (sortedData.length > 1) {
+      const activeDays = sortedData.filter(d => d.count > 0).sort((a, b) => new Date(a.date) - new Date(b.date));
+      for (let i = 1; i < activeDays.length; i++) {
+        const prevDate = new Date(activeDays[i - 1].date);
+        const currDate = new Date(activeDays[i].date);
+        const breakDays = Math.floor((currDate - prevDate) / (1000 * 60 * 60 * 24)) - 1;
         longestBreak = Math.max(longestBreak, breakDays);
       }
     }
@@ -79,7 +86,7 @@ export default function StreaksWidget({ historyData, sessionHits }) {
       currentBreak,
       longestBreak: Math.max(longestBreak, currentBreak)
     };
-  }, [historyData, sessionHits]);
+  }, [historyData]); // **FIX v8.8**: Entferne sessionHits aus Dependencies
 
   return (
     <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
