@@ -1,6 +1,6 @@
 import React, { useState, memo, useEffect } from 'react';
 import { Wifi, WifiOff, Smartphone, RefreshCw, AlertCircle, CheckCircle, Radio, Activity, Clock, Flame, TrendingUp, Zap, Settings as SettingsIcon, Edit3, Save, X } from 'lucide-react';
-import { MIN_SESSION_DURATION_MS, MAX_SESSION_DURATION_MS, DEFAULT_MIN_SESSION_DURATION_MS, DEFAULT_MAX_SESSION_DURATION_MS } from '../config/sessionDuration';
+import { MIN_SESSION_DURATION_MS, MAX_SESSION_DURATION_MS, DEFAULT_MIN_SESSION_DURATION_MS, DEFAULT_MAX_SESSION_DURATION_MS, MIN_DURATION_SLIDER_MAX, MAX_DURATION_SLIDER_MIN } from '../config/sessionDuration';
 
 function ESP32DebugView({ ip, setIp, connected, isSimulating, setIsSimulating, lastError, connectionLog, flameHistory, liveData, errorCount, settings, setSettings }) {
   const [testing, setTesting] = useState(false);
@@ -483,7 +483,7 @@ function ESP32DebugView({ ip, setIp, connected, isSimulating, setIsSimulating, l
                 <input
                   type="range"
                   min={MIN_SESSION_DURATION_MS}
-                  max="2000"
+                  max={MIN_DURATION_SLIDER_MAX}
                   step="50"
                   value={minDuration}
                   onChange={(e) => setMinDuration(parseInt(e.target.value))}
@@ -500,7 +500,7 @@ function ESP32DebugView({ ip, setIp, connected, isSimulating, setIsSimulating, l
                 </div>
                 <input
                   type="range"
-                  min="1000"
+                  min={MAX_DURATION_SLIDER_MIN}
                   max={MAX_SESSION_DURATION_MS}
                   step="100"
                   value={maxDuration}

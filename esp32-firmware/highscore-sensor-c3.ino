@@ -815,13 +815,24 @@ void setupServer() {
         int newMax = doc.containsKey("maxSessionDuration") ? doc["maxSessionDuration"] : maxSessionDuration;
 
         // **FIX v8.2**: Validierung der Eingabewerte
+        // **FIX v8.4**: Error Messages nutzen Konstanten statt hardcoded values
         // 1. Range Check: MIN_SESSION_DURATION_MS bis MAX_SESSION_DURATION_MS
         if (newMin < MIN_SESSION_DURATION_MS || newMin > MAX_SESSION_DURATION_MS) {
-          sendCorsResponse(400, "application/json", "{\"error\":\"minSessionDuration must be 100-10000ms\"}");
+          String errorJson = String("{\"error\":\"minSessionDuration muss zwischen ")
+                            + String(MIN_SESSION_DURATION_MS)
+                            + "-"
+                            + String(MAX_SESSION_DURATION_MS)
+                            + "ms liegen\"}";
+          sendCorsResponse(400, "application/json", errorJson.c_str());
           return;
         }
         if (newMax < MIN_SESSION_DURATION_MS || newMax > MAX_SESSION_DURATION_MS) {
-          sendCorsResponse(400, "application/json", "{\"error\":\"maxSessionDuration must be 100-10000ms\"}");
+          String errorJson = String("{\"error\":\"maxSessionDuration muss zwischen ")
+                            + String(MIN_SESSION_DURATION_MS)
+                            + "-"
+                            + String(MAX_SESSION_DURATION_MS)
+                            + "ms liegen\"}";
+          sendCorsResponse(400, "application/json", errorJson.c_str());
           return;
         }
 
