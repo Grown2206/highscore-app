@@ -779,37 +779,72 @@ void setupServer() {
     Serial.println("Sync erfolgreich abgeschlossen!");
   });
 
+  // **NEU v8.1**: CORS Preflight für /api/settings
+  server.on("/api/settings", HTTP_OPTIONS, []() {
+    server.sendHeader("Access-Control-Allow-Origin", "*");
+    server.sendHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+    server.sendHeader("Access-Control-Allow-Headers", "Content-Type");
+    server.send(204);
+  });
+
   // **NEU v8.1**: False Trigger Settings aktualisieren
   server.on("/api/settings", HTTP_POST, []() {
+    // Helper: CORS Headers
+    auto sendCorsResponse = [](int code, const char* contentType, const char* body) {
+      server.sendHeader("Access-Control-Allow-Origin", "*");
+      server.sendHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+      server.sendHeader("Access-Control-Allow-Headers", "Content-Type");
+      server.send(code, contentType, body);
+    };
+
     if (server.hasArg("plain")) {
       JsonDocument doc;
       DeserializationError error = deserializeJson(doc, server.arg("plain"));
 
       if (!error) {
+        // Werte aus JSON extrahieren
+        int newMin = doc.containsKey("minSessionDuration") ? doc["minSessionDuration"] : minSessionDuration;
+        int newMax = doc.containsKey("maxSessionDuration") ? doc["maxSessionDuration"] : maxSessionDuration;
+
+        // **FIX v8.2**: Validierung der Eingabewerte
+        // 1. Range Check: 100ms bis 10000ms
+        if (newMin < 100 || newMin > 10000) {
+          sendCorsResponse(400, "application/json", "{\"error\":\"minSessionDuration must be 100-10000ms\"}");
+          return;
+        }
+        if (newMax < 100 || newMax > 10000) {
+          sendCorsResponse(400, "application/json", "{\"error\":\"maxSessionDuration must be 100-10000ms\"}");
+          return;
+        }
+
+        // 2. Logic Check: min < max
+        if (newMin >= newMax) {
+          sendCorsResponse(400, "application/json", "{\"error\":\"minSessionDuration must be less than maxSessionDuration\"}");
+          return;
+        }
+
+        // Werte speichern
         if (doc.containsKey("minSessionDuration")) {
-          minSessionDuration = doc["minSessionDuration"];
+          minSessionDuration = newMin;
           prefs.putInt("minSession", minSessionDuration);
           Serial.print("Min Session Duration updated: ");
           Serial.println(minSessionDuration);
         }
 
         if (doc.containsKey("maxSessionDuration")) {
-          maxSessionDuration = doc["maxSessionDuration"];
+          maxSessionDuration = newMax;
           prefs.putInt("maxSession", maxSessionDuration);
           Serial.print("Max Session Duration updated: ");
           Serial.println(maxSessionDuration);
         }
 
-        server.sendHeader("Access-Control-Allow-Origin", "*");
-        server.send(200, "application/json", "{\"success\":true}");
+        sendCorsResponse(200, "application/json", "{\"success\":true}");
         playTone(1600, 100);
       } else {
-        server.sendHeader("Access-Control-Allow-Origin", "*");
-        server.send(400, "application/json", "{\"error\":\"Invalid JSON\"}");
+        sendCorsResponse(400, "application/json", "{\"error\":\"Invalid JSON\"}");
       }
     } else {
-      server.sendHeader("Access-Control-Allow-Origin", "*");
-      server.send(400, "application/json", "{\"error\":\"No data\"}");
+      sendCorsResponse(400, "application/json", "{\"error\":\"No data\"}");
     }
   });
 
