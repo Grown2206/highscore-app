@@ -187,6 +187,10 @@ int batteryPercent = 0;
 unsigned long lastBatteryRead = 0;
 #define BATTERY_READ_INTERVAL 30000  // Alle 30 Sekunden
 
+// **NEU v8.1**: Configurable False Trigger Prevention
+int minSessionDuration = MIN_SESSION_DURATION;  // Default 800ms
+int maxSessionDuration = MAX_SESSION_DURATION;  // Default 4500ms
+
 // ===== HIT ID GENERATOR (NEU v8.0) =====
 /**
  * Generiert eine eindeutige Hit ID
@@ -304,11 +308,20 @@ void setup() {
 
   hitCounter = prefs.getULong("hitCounter", 0);
 
+  // **NEU v8.1**: False Trigger Settings laden
+  minSessionDuration = prefs.getInt("minSession", MIN_SESSION_DURATION);
+  maxSessionDuration = prefs.getInt("maxSession", MAX_SESSION_DURATION);
+
   #ifdef DEBUG_SERIAL
   Serial.print("Boot Counter: ");
   Serial.println(bootCounter);
   Serial.print("Hit Counter: ");
   Serial.println(hitCounter);
+  Serial.print("False Trigger: ");
+  Serial.print(minSessionDuration);
+  Serial.print("ms - ");
+  Serial.print(maxSessionDuration);
+  Serial.println("ms");
   #endif
 
   // **NEU v7.0: Pending Hits aus Preferences laden**
@@ -655,6 +668,9 @@ void setupServer() {
     // NEU v7.1: Battery Monitoring
     doc["batteryVoltage"] = batteryVoltage;
     doc["batteryPercent"] = batteryPercent;
+    // **NEU v8.1**: False Trigger Prevention Settings
+    doc["minSessionDuration"] = minSessionDuration;
+    doc["maxSessionDuration"] = maxSessionDuration;
 
     String json;
     serializeJson(doc, json);
@@ -763,6 +779,40 @@ void setupServer() {
     Serial.println("Sync erfolgreich abgeschlossen!");
   });
 
+  // **NEU v8.1**: False Trigger Settings aktualisieren
+  server.on("/api/settings", HTTP_POST, []() {
+    if (server.hasArg("plain")) {
+      JsonDocument doc;
+      DeserializationError error = deserializeJson(doc, server.arg("plain"));
+
+      if (!error) {
+        if (doc.containsKey("minSessionDuration")) {
+          minSessionDuration = doc["minSessionDuration"];
+          prefs.putInt("minSession", minSessionDuration);
+          Serial.print("Min Session Duration updated: ");
+          Serial.println(minSessionDuration);
+        }
+
+        if (doc.containsKey("maxSessionDuration")) {
+          maxSessionDuration = doc["maxSessionDuration"];
+          prefs.putInt("maxSession", maxSessionDuration);
+          Serial.print("Max Session Duration updated: ");
+          Serial.println(maxSessionDuration);
+        }
+
+        server.sendHeader("Access-Control-Allow-Origin", "*");
+        server.send(200, "application/json", "{\"success\":true}");
+        playTone(1600, 100);
+      } else {
+        server.sendHeader("Access-Control-Allow-Origin", "*");
+        server.send(400, "application/json", "{\"error\":\"Invalid JSON\"}");
+      }
+    } else {
+      server.sendHeader("Access-Control-Allow-Origin", "*");
+      server.send(400, "application/json", "{\"error\":\"No data\"}");
+    }
+  });
+
   server.begin();
   Serial.println("HTTP server started");
 }
@@ -803,7 +853,7 @@ void detectSession() {
     unsigned long duration = now - sessionStartTime;
 
     // FIX v7.1: Konfigurierbare Dauer-Grenzen zur Fehlauslösungs-Vermeidung
-    if (duration >= MIN_SESSION_DURATION && duration <= MAX_SESSION_DURATION && !inCooldown) {
+    if (duration >= minSessionDuration && duration <= maxSessionDuration && !inCooldown) {
       Serial.print("✓ Valid Hit: ");
       Serial.print(duration / 1000.0, 2);
       Serial.println("s");
@@ -811,11 +861,11 @@ void detectSession() {
       cooldownUntil = now + COOLDOWN_TIME;  // 3 Sekunden Cooldown
     } else {
       // Fehlauslösung oder zu lange Session
-      if (duration < MIN_SESSION_DURATION) {
+      if (duration < minSessionDuration) {
         Serial.print("✗ REJECTED: Too short (");
         Serial.print(duration);
         Serial.println("ms) - False trigger?");
-      } else if (duration > MAX_SESSION_DURATION) {
+      } else if (duration > maxSessionDuration) {
         Serial.print("✗ REJECTED: Too long (");
         Serial.print(duration);
         Serial.println("ms) - Sensor stuck?");

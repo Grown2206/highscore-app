@@ -1,8 +1,12 @@
-import React, { useState, memo } from 'react';
-import { Wifi, WifiOff, Smartphone, RefreshCw, AlertCircle, CheckCircle, Radio, Activity, Clock, Flame, TrendingUp, Zap, Settings as SettingsIcon } from 'lucide-react';
+import React, { useState, memo, useEffect } from 'react';
+import { Wifi, WifiOff, Smartphone, RefreshCw, AlertCircle, CheckCircle, Radio, Activity, Clock, Flame, TrendingUp, Zap, Settings as SettingsIcon, Edit3, Save, X } from 'lucide-react';
 
 function ESP32DebugView({ ip, setIp, connected, isSimulating, setIsSimulating, lastError, connectionLog, flameHistory, liveData, errorCount, settings, setSettings }) {
   const [testing, setTesting] = useState(false);
+  const [editingTrigger, setEditingTrigger] = useState(false);
+  const [minDuration, setMinDuration] = useState(800);
+  const [maxDuration, setMaxDuration] = useState(4500);
+  const [saving, setSaving] = useState(false);
 
   const testConnection = async () => {
     setTesting(true);
@@ -10,6 +14,51 @@ function ESP32DebugView({ ip, setIp, connected, isSimulating, setIsSimulating, l
     // Test wird automatisch durch polling durchgeführt
     setTimeout(() => setTesting(false), 2000);
   };
+
+  // False Trigger Einstellungen speichern
+  const saveTriggerSettings = async () => {
+    if (isSimulating) {
+      alert('Im Demo Modus nicht verfügbar');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const response = await fetch(`http://${ip}/api/settings`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          minSessionDuration: minDuration,
+          maxSessionDuration: maxDuration
+        })
+      });
+
+      if (response.ok) {
+        if (navigator.vibrate) navigator.vibrate([50, 50, 50]);
+        setEditingTrigger(false);
+        alert('Einstellungen erfolgreich gespeichert!');
+      } else {
+        throw new Error('Speichern fehlgeschlagen');
+      }
+    } catch (error) {
+      console.error('Error saving settings:', error);
+      alert('Fehler beim Speichern der Einstellungen');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Sync False Trigger Settings von ESP32
+  useEffect(() => {
+    if (liveData.minSessionDuration !== undefined) {
+      setMinDuration(liveData.minSessionDuration);
+    }
+    if (liveData.maxSessionDuration !== undefined) {
+      setMaxDuration(liveData.maxSessionDuration);
+    }
+  }, [liveData.minSessionDuration, liveData.maxSessionDuration]);
 
   // Verbindungsqualität berechnen
   const getConnectionQuality = () => {
@@ -137,9 +186,18 @@ function ESP32DebugView({ ip, setIp, connected, isSimulating, setIsSimulating, l
 
         <div className="bg-zinc-900 border border-zinc-800 p-4 rounded-2xl">
           <div className="flex items-center gap-2 text-zinc-500 text-xs font-bold uppercase mb-2">
-            <Clock size={14}/> Polling
+            <Clock size={14}/> Uptime
           </div>
-          <div className="text-2xl font-bold text-blue-400">400ms</div>
+          <div className="text-lg font-bold text-purple-400">
+            {(() => {
+              const uptimeSec = liveData.uptime || 0;
+              const hours = Math.floor(uptimeSec / 3600);
+              const minutes = Math.floor((uptimeSec % 3600) / 60);
+              if (hours > 0) return `${hours}h ${minutes}m`;
+              if (minutes > 0) return `${minutes}m`;
+              return `${uptimeSec}s`;
+            })()}
+          </div>
         </div>
 
         <div className="bg-zinc-900 border border-zinc-800 p-4 rounded-2xl">
@@ -339,27 +397,110 @@ function ESP32DebugView({ ip, setIp, connected, isSimulating, setIsSimulating, l
           </div>
         </div>
 
-        {/* False Trigger Prevention Info */}
+        {/* False Trigger Prevention Einstellungen - **NEU v8.1**: Editierbar */}
         <div className="bg-zinc-950 rounded-xl p-4 border border-zinc-800">
-          <p className="text-xs font-bold text-emerald-300 mb-3 uppercase">False Trigger Prevention (v7.1)</p>
-
-          <div className="grid grid-cols-2 gap-3 text-xs">
-            <div className="bg-zinc-900 rounded-lg p-3 border border-zinc-800">
-              <p className="text-[10px] text-zinc-600 uppercase mb-1">Min. Dauer</p>
-              <p className="text-lg font-bold text-emerald-400">0.8s</p>
-              <p className="text-[9px] text-zinc-600">Mindest-Session</p>
-            </div>
-
-            <div className="bg-zinc-900 rounded-lg p-3 border border-zinc-800">
-              <p className="text-[10px] text-zinc-600 uppercase mb-1">Max. Dauer</p>
-              <p className="text-lg font-bold text-amber-400">4.5s</p>
-              <p className="text-[9px] text-zinc-600">Maximum-Session</p>
-            </div>
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-xs font-bold text-emerald-300 uppercase">False Trigger Prevention (v8.1)</p>
+            {!editingTrigger ? (
+              <button
+                onClick={() => setEditingTrigger(true)}
+                disabled={isSimulating}
+                className="flex items-center gap-1 px-2 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:bg-zinc-700 disabled:text-zinc-500 text-white text-xs transition-colors"
+              >
+                <Edit3 size={12} />
+                Bearbeiten
+              </button>
+            ) : (
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    setEditingTrigger(false);
+                    setMinDuration(liveData.minSessionDuration || 800);
+                    setMaxDuration(liveData.maxSessionDuration || 4500);
+                  }}
+                  className="flex items-center gap-1 px-2 py-1 rounded-lg bg-zinc-700 hover:bg-zinc-600 text-white text-xs transition-colors"
+                >
+                  <X size={12} />
+                  Abbrechen
+                </button>
+                <button
+                  onClick={saveTriggerSettings}
+                  disabled={saving}
+                  className="flex items-center gap-1 px-2 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 disabled:bg-zinc-700 text-white text-xs transition-colors"
+                >
+                  <Save size={12} />
+                  {saving ? 'Speichern...' : 'Speichern'}
+                </button>
+              </div>
+            )}
           </div>
+
+          {!editingTrigger ? (
+            <div className="grid grid-cols-2 gap-3 text-xs">
+              <div className="bg-zinc-900 rounded-lg p-3 border border-zinc-800">
+                <p className="text-[10px] text-zinc-600 uppercase mb-1">Min. Dauer</p>
+                <p className="text-lg font-bold text-emerald-400">{(minDuration / 1000).toFixed(1)}s</p>
+                <p className="text-[9px] text-zinc-600">Mindest-Session</p>
+              </div>
+
+              <div className="bg-zinc-900 rounded-lg p-3 border border-zinc-800">
+                <p className="text-[10px] text-zinc-600 uppercase mb-1">Max. Dauer</p>
+                <p className="text-lg font-bold text-amber-400">{(maxDuration / 1000).toFixed(1)}s</p>
+                <p className="text-[9px] text-zinc-600">Maximum-Session</p>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {/* Min Duration Slider */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs text-zinc-400">Min. Dauer (ms)</label>
+                  <span className="text-sm font-bold text-emerald-400">{minDuration}ms ({(minDuration / 1000).toFixed(2)}s)</span>
+                </div>
+                <input
+                  type="range"
+                  min="100"
+                  max="2000"
+                  step="50"
+                  value={minDuration}
+                  onChange={(e) => setMinDuration(parseInt(e.target.value))}
+                  className="w-full h-2 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+                />
+                <p className="text-[9px] text-zinc-600">Zu kurze Sessions → Fehlauslösungen (Flackern)</p>
+              </div>
+
+              {/* Max Duration Slider */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs text-zinc-400">Max. Dauer (ms)</label>
+                  <span className="text-sm font-bold text-amber-400">{maxDuration}ms ({(maxDuration / 1000).toFixed(2)}s)</span>
+                </div>
+                <input
+                  type="range"
+                  min="1000"
+                  max="10000"
+                  step="100"
+                  value={maxDuration}
+                  onChange={(e) => setMaxDuration(parseInt(e.target.value))}
+                  className="w-full h-2 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-amber-500"
+                />
+                <p className="text-[9px] text-zinc-600">Zu lange Sessions → Sensor hängt fest</p>
+              </div>
+
+              {/* Validation Warning */}
+              {minDuration >= maxDuration && (
+                <div className="bg-rose-500/10 border border-rose-500/20 rounded-lg p-2">
+                  <p className="text-[10px] text-rose-400">
+                    <strong>Warnung:</strong> Min. Dauer muss kleiner als Max. Dauer sein!
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="mt-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-2">
             <p className="text-[10px] text-emerald-300 leading-relaxed">
-              Sessions außerhalb 0.8-4.5s werden als Fehlauslösungen verworfen.
+              Sessions außerhalb {(minDuration / 1000).toFixed(1)}-{(maxDuration / 1000).toFixed(1)}s werden als Fehlauslösungen verworfen.
               Zu kurz → Flackern, Zu lang → Sensor hängt fest.
             </p>
           </div>
