@@ -3,7 +3,8 @@ import { Settings, Shield, Download, Upload, Target, AlertCircle, Database, Tras
 import { generateTestData, mergeTestData, removeTestData } from '../utils/testDataGenerator';
 import { DEFAULT_SETTINGS, STORAGE_KEYS, LEGACY_KEYS } from '../utils/constants';
 
-function SettingsView({ settings, setSettings, historyData, setHistoryData, sessionHits, setSessionHits, goals, setGoals, showRecovery, setShowRecovery, isSimulating, setIsSimulating }) {
+// **FIX v8.8.1**: Entferne sessionHits/setSessionHits props
+function SettingsView({ settings, setSettings, historyData, setHistoryData, goals, setGoals, showRecovery, setShowRecovery, isSimulating, setIsSimulating }) {
   const [exportStatus, setExportStatus] = useState(null);
   const [testDataStatus, setTestDataStatus] = useState(null);
   const fileInputRef = useRef(null);
@@ -11,14 +12,14 @@ function SettingsView({ settings, setSettings, historyData, setHistoryData, sess
   const upd = (k, v) => setSettings(p => ({ ...p, [k]: v }));
 
   // Export/Import Funktionen
+  // **FIX v8.8.1**: Export ohne sessionHits
   const exportData = () => {
     try {
       const exportObj = {
-        version: '7.0', // Badge-System statt Achievements
+        version: '8.8', // Nur historyData
         exportDate: new Date().toISOString(),
         settings,
         historyData,
-        sessionHits,
         goals: goals || []
       };
 
@@ -54,7 +55,6 @@ function SettingsView({ settings, setSettings, historyData, setHistoryData, sess
         if (window.confirm('Achtung: Alle aktuellen Daten werden überschrieben. Fortfahren?')) {
           setSettings(data.settings);
           setHistoryData(data.historyData || []);
-          setSessionHits(data.sessionHits || []);
           if (setGoals) setGoals(data.goals || []);
 
           setExportStatus({ type: 'success', msg: 'Daten erfolgreich importiert!' });
@@ -74,11 +74,10 @@ function SettingsView({ settings, setSettings, historyData, setHistoryData, sess
     try {
       const testData = generateTestData(days, settings);
       const merged = mergeTestData(
-        { sessionHits, historyData },
+        { historyData },
         testData
       );
 
-      setSessionHits(merged.sessionHits);
       setHistoryData(merged.historyData);
 
       setTestDataStatus({ type: 'success', msg: `${days} Tage Testdaten hinzugefügt!` });
@@ -90,11 +89,10 @@ function SettingsView({ settings, setSettings, historyData, setHistoryData, sess
   };
 
   const clearTestData = () => {
-    if (!window.confirm('Alle Testdaten (IDs mit "test_") wirklich löschen?')) return;
+    if (!window.confirm('Alle Testdaten wirklich löschen?')) return;
 
     try {
-      const cleaned = removeTestData(sessionHits, historyData);
-      setSessionHits(cleaned.sessionHits);
+      const cleaned = removeTestData(historyData);
       setHistoryData(cleaned.historyData);
 
       setTestDataStatus({ type: 'success', msg: 'Testdaten entfernt!' });
@@ -114,7 +112,6 @@ function SettingsView({ settings, setSettings, historyData, setHistoryData, sess
       const strainsBackup = settings.strains || [];
 
       // Alle Daten zurücksetzen
-      setSessionHits([]);
       setHistoryData([]);
       if (setGoals) setGoals({ dailyLimit: 0, tBreakDays: 0 });
 

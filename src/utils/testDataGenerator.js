@@ -1,9 +1,9 @@
 /**
- * Utility zum Generieren von realistischen Testdaten für die High Score App
+ * **FIX v8.8.1**: Utility zum Generieren von Testdaten - NUR historyData
+ * Entfernt: sessionHits komplett
  */
 
 export function generateTestData(days = 30, settings) {
-  const sessionHits = [];
   const historyData = [];
   const strains = settings?.strains || [
     { id: 1, name: "Lemon Haze", price: 10, thc: 22 },
@@ -28,6 +28,7 @@ export function generateTestData(days = 30, settings) {
     // Manche Tage haben keine Sessions (T-Break)
     const skipDay = Math.random() < 0.15; // 15% Chance für Pause
 
+    // **FIX v8.8.1**: Nur noch Hit-Count, keine einzelnen Sessions mehr
     let hitsToday = 0;
     if (!skipDay) {
       // Wochenende tendenziell mehr Sessions
@@ -35,51 +36,7 @@ export function generateTestData(days = 30, settings) {
       hitsToday = Math.max(1, Math.floor(baseHits + (Math.random() * 5) - 2));
     }
 
-    // Generiere Sessions für diesen Tag
-    const sessions = [];
-    for (let i = 0; i < hitsToday; i++) {
-      // Realistische Tageszeiten (Morgen bis Nacht)
-      let hour, minute;
-
-      if (i === 0) {
-        // Erste Session: 10-14 Uhr
-        hour = 10 + Math.floor(Math.random() * 4);
-        minute = Math.floor(Math.random() * 60);
-      } else if (i === hitsToday - 1) {
-        // Letzte Session: 20-23 Uhr
-        hour = 20 + Math.floor(Math.random() * 3);
-        minute = Math.floor(Math.random() * 60);
-      } else {
-        // Dazwischen: 15-20 Uhr
-        hour = 15 + Math.floor(Math.random() * 5);
-        minute = Math.floor(Math.random() * 60);
-      }
-
-      const timestamp = new Date(date);
-      timestamp.setHours(hour, minute, Math.floor(Math.random() * 60));
-
-      // Zufällige Sorte
-      const strain = strains[Math.floor(Math.random() * strains.length)];
-
-      // Realistische Inhalationsdauer (2-8 Sekunden)
-      const duration = (2000 + Math.random() * 6000);
-
-      sessions.push({
-        id: `test_${dayOffset}_${i}_${Date.now()}`,
-        timestamp: timestamp.getTime(),
-        strainName: strain.name,
-        strainPrice: strain.price,
-        strainThc: strain.thc,
-        duration: duration,
-        type: 'manual' // oder 'sensor'
-      });
-    }
-
-    // Sortiere Sessions nach Zeit
-    sessions.sort((a, b) => a.timestamp - b.timestamp);
-    sessionHits.push(...sessions);
-
-    // History-Eintrag für diesen Tag
+    // History-Eintrag für diesen Tag (nur Count, keine Details)
     if (hitsToday > 0) {
       historyData.push({
         date: dateStr,
@@ -90,7 +47,6 @@ export function generateTestData(days = 30, settings) {
   }
 
   return {
-    sessionHits: sessionHits.sort((a, b) => a.timestamp - b.timestamp),
     historyData
   };
 }
@@ -114,59 +70,33 @@ function getRandomNote(hits, isWeekend) {
 }
 
 /**
- * Fügt Testdaten zu bestehenden Daten hinzu (ohne Duplikate)
+ * **FIX v8.8.1**: Fügt Testdaten hinzu - nur historyData
  */
 export function mergeTestData(existing, testData) {
-  const existingIds = new Set(existing.sessionHits.map(h => h.id));
-  const newSessionHits = [
-    ...existing.sessionHits,
-    ...testData.sessionHits.filter(h => !existingIds.has(h.id))
-  ].sort((a, b) => a.timestamp - b.timestamp);
-
-  const existingDates = new Set(existing.historyData.map(h => h.date));
   const mergedHistoryData = [...existing.historyData];
 
   testData.historyData.forEach(newDay => {
     const existingDay = mergedHistoryData.find(d => d.date === newDay.date);
     if (existingDay) {
-      // Update count wenn nötig
-      const actualCount = newSessionHits.filter(h => {
-        const hitDate = new Date(h.timestamp).toISOString().split('T')[0];
-        return hitDate === newDay.date;
-      }).length;
-      existingDay.count = actualCount;
+      // Addiere Counts
+      existingDay.count += newDay.count;
     } else {
       mergedHistoryData.push(newDay);
     }
   });
 
   return {
-    sessionHits: newSessionHits,
     historyData: mergedHistoryData.sort((a, b) => a.date.localeCompare(b.date))
   };
 }
 
 /**
- * Löscht alle Testdaten (IDs die mit "test_" beginnen)
+ * **FIX v8.8.1**: Löscht alle Testdaten - setzt historyData zurück
  */
-export function removeTestData(sessionHits, historyData) {
-  // FIX: ID kann Number oder String sein, konvertiere zu String
-  const cleanedSessionHits = sessionHits.filter(h => !String(h.id).startsWith('test_'));
-
-  // Aktualisiere History-Counts
-  const historyMap = {};
-  cleanedSessionHits.forEach(hit => {
-    const date = new Date(hit.timestamp).toISOString().split('T')[0];
-    historyMap[date] = (historyMap[date] || 0) + 1;
-  });
-
-  const cleanedHistoryData = historyData.map(day => ({
-    ...day,
-    count: historyMap[day.date] || 0
-  })).filter(day => day.count > 0 || day.note);
-
+export function removeTestData(historyData) {
+  // Da wir keine Hit-IDs mehr haben, entfernen wir einfach alles
+  // (Echte Daten würden vom ESP32 neu synchronisiert werden)
   return {
-    sessionHits: cleanedSessionHits,
-    historyData: cleanedHistoryData
+    historyData: []
   };
 }

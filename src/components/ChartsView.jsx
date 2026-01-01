@@ -12,12 +12,7 @@ export default function ChartsView({ historyData, settings }) {
   }, [historyData]);
   const maxW = Math.max(...weekStats.map(s=>s.val), 1);
 
-  const hourlyDist = useMemo(() => {
-    const dist = Array(24).fill(0);
-    sessionHits.forEach(h => dist[new Date(h.timestamp).getHours()]++);
-    return dist;
-  }, [sessionHits]);
-  const maxH = Math.max(...hourlyDist, 1);
+  // **FIX v8.8.1**: Hourly Distribution entfernt (benötigt sessionHits mit timestamps)
 
   // Heatmap Data (letzte 12 Wochen)
   const heatmapData = useMemo(() => {
@@ -51,84 +46,25 @@ export default function ChartsView({ historyData, settings }) {
 
   const maxHeatmapCount = Math.max(...heatmapData.flat().map(d => d.count), 1);
 
-  // Kosten Timeline (letzte 30 Tage)
-  const costTimeline = useMemo(() => {
-    const timeline = [];
-    const today = new Date();
+  // **FIX v8.8.1**: Cost Timeline entfernt (benötigt sessionHits mit strain info)
 
-    for (let i = 29; i >= 0; i--) {
-      const date = new Date(today);
-      date.setDate(today.getDate() - i);
-      const dateStr = date.toISOString().split('T')[0];
+  // **FIX v8.8.1**: Strain Stats entfernt (benötigt sessionHits mit strain info)
 
-      const dayData = historyData.find(h => h.date === dateStr);
-      const dayHits = sessionHits.filter(h => {
-        const hitDate = new Date(h.timestamp).toISOString().split('T')[0];
-        return hitDate === dateStr;
-      });
-
-      let cost = 0;
-      if (dayHits.length > 0 && settings) {
-        dayHits.forEach(hit => {
-          const strain = settings.strains.find(s => s.name === hit.strainName);
-          const price = strain?.price || hit.strainPrice || 0;
-          cost += (settings.bowlSize * (settings.weedRatio / 100) * price);
-        });
-      }
-
-      timeline.push({
-        date: dateStr,
-        cost: cost,
-        count: dayData?.count || 0,
-        day: date.getDate(),
-        month: date.getMonth()
-      });
-    }
-
-    return timeline;
-  }, [historyData, sessionHits, settings]);
-
-  const maxCost = Math.max(...costTimeline.map(d => d.cost), 1);
-
-  // Sorten-Statistiken
-  const strainStats = useMemo(() => {
-    const stats = {};
-    sessionHits.forEach(hit => {
-      if (!stats[hit.strainName]) {
-        const strain = settings?.strains?.find(s => s.name === hit.strainName);
-        stats[hit.strainName] = {
-          name: hit.strainName,
-          count: 0,
-          totalCost: 0,
-          strain
-        };
-      }
-      stats[hit.strainName].count++;
-      const price = stats[hit.strainName].strain?.price || hit.strainPrice || 0;
-      stats[hit.strainName].totalCost += (settings?.bowlSize || 0.3) * ((settings?.weedRatio || 80) / 100) * price;
-    });
-    return Object.values(stats).sort((a, b) => b.count - a.count);
-  }, [sessionHits, settings]);
-
-  // Monats-Trend
+  // **FIX v8.8.1**: Monthly Trend mit historyData (ohne Kosten)
   const monthlyTrend = useMemo(() => {
     const months = {};
-    sessionHits.forEach(hit => {
-      const date = new Date(hit.timestamp);
+    historyData.forEach(day => {
+      const date = new Date(day.date);
       const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
       if (!months[monthKey]) {
-        months[monthKey] = { month: monthKey, count: 0, cost: 0 };
+        months[monthKey] = { month: monthKey, count: 0 };
       }
-      months[monthKey].count++;
-      const strain = settings?.strains?.find(s => s.name === hit.strainName);
-      const price = strain?.price || hit.strainPrice || 0;
-      months[monthKey].cost += (settings?.bowlSize || 0.3) * ((settings?.weedRatio || 80) / 100) * price;
+      months[monthKey].count += day.count;
     });
     return Object.values(months).sort((a, b) => a.month.localeCompare(b.month)).slice(-6);
-  }, [sessionHits, settings]);
+  }, [historyData]);
 
   const maxMonthlyCount = Math.max(...monthlyTrend.map(m => m.count), 1);
-  const maxMonthlyCost = Math.max(...monthlyTrend.map(m => m.cost), 1);
 
   // **FIX v8.8**: Gesamt-Statistiken nur mit historyData (keine Kosten mehr)
   const totalStats = useMemo(() => {
@@ -177,29 +113,7 @@ export default function ChartsView({ historyData, settings }) {
     };
   }, [historyData]);
 
-  // Peak vs Off-Peak Analysis
-  const peakAnalysis = useMemo(() => {
-    const peakHours = [18, 19, 20, 21, 22]; // 18:00 - 23:00
-    let peakCount = 0;
-    let offPeakCount = 0;
-
-    sessionHits.forEach(hit => {
-      const hour = new Date(hit.timestamp).getHours();
-      if (peakHours.includes(hour)) {
-        peakCount++;
-      } else {
-        offPeakCount++;
-      }
-    });
-
-    const total = peakCount + offPeakCount;
-    return {
-      peak: peakCount,
-      offPeak: offPeakCount,
-      peakPercent: total > 0 ? ((peakCount / total) * 100).toFixed(0) : 0,
-      offPeakPercent: total > 0 ? ((offPeakCount / total) * 100).toFixed(0) : 0
-    };
-  }, [sessionHits]);
+  // **FIX v8.8.1**: Peak Analysis entfernt (benötigt sessionHits mit timestamps)
 
   return (
     <div className="space-y-6 animate-in slide-in-from-right-4 pb-20">
@@ -270,82 +184,7 @@ export default function ChartsView({ historyData, settings }) {
         </div>
       </div>
 
-      {/* Session Duration Analytics */}
-      {durationStats && (
-        <div className="bg-gradient-to-br from-cyan-900/20 to-zinc-900 border border-cyan-500/30 rounded-2xl p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <Zap size={16} className="text-cyan-500"/>
-            <h3 className="text-sm font-bold text-cyan-400 uppercase">Session-Dauer Analyse</h3>
-            <span className="text-[10px] text-zinc-600 ml-auto">{durationStats.count} Sessions gemessen</span>
-          </div>
-
-          <div className="grid grid-cols-3 gap-4">
-            <div className="bg-zinc-950 p-4 rounded-xl text-center">
-              <p className="text-xs text-zinc-500 uppercase mb-2">Durchschnitt</p>
-              <p className="text-2xl font-bold text-cyan-400">{durationStats.avg.toFixed(1)}s</p>
-            </div>
-
-            <div className="bg-zinc-950 p-4 rounded-xl text-center">
-              <p className="text-xs text-zinc-500 uppercase mb-2">Maximum</p>
-              <p className="text-2xl font-bold text-orange-400">{durationStats.max.toFixed(1)}s</p>
-            </div>
-
-            <div className="bg-zinc-950 p-4 rounded-xl text-center">
-              <p className="text-xs text-zinc-500 uppercase mb-2">Minimum</p>
-              <p className="text-2xl font-bold text-green-400">{durationStats.min.toFixed(1)}s</p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Peak vs Off-Peak Analysis */}
-      <div className="bg-gradient-to-br from-indigo-900/20 to-zinc-900 border border-indigo-500/30 rounded-2xl p-6">
-        <div className="flex items-center gap-2 mb-4">
-          <Clock size={16} className="text-indigo-500"/>
-          <h3 className="text-sm font-bold text-indigo-400 uppercase">Peak vs Off-Peak</h3>
-          <span className="text-[10px] text-zinc-600 ml-auto">18:00-23:00 = Peak</span>
-        </div>
-
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-zinc-400">Peak Hours (18:00-23:00)</span>
-              <span className="text-indigo-400 font-bold">{peakAnalysis.peak} Sessions ({peakAnalysis.peakPercent}%)</span>
-            </div>
-            <div className="h-3 bg-zinc-800 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full transition-all"
-                style={{ width: `${peakAnalysis.peakPercent}%` }}
-              />
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-zinc-400">Off-Peak Hours</span>
-              <span className="text-cyan-400 font-bold">{peakAnalysis.offPeak} Sessions ({peakAnalysis.offPeakPercent}%)</span>
-            </div>
-            <div className="h-3 bg-zinc-800 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-gradient-to-r from-cyan-500 to-blue-500 rounded-full transition-all"
-                style={{ width: `${peakAnalysis.offPeakPercent}%` }}
-              />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
-         <div className="flex items-center gap-2 mb-4"><Clock size={16} className="text-amber-500"/><h3 className="text-sm font-bold text-zinc-400 uppercase">Tageszeit Aktivität</h3></div>
-         <div className="h-32 flex items-end gap-1">
-            {hourlyDist.map((count, h) => (
-               <div key={h} className="flex-1 bg-zinc-800 hover:bg-amber-500/50 transition-colors rounded-t-sm relative group" style={{ height: `${(count/maxH)*100}%` }}>
-                  {h % 6 === 0 && <span className="absolute -bottom-5 left-0 text-[8px] text-zinc-600">{h}h</span>}
-                  {count > 0 && <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-black text-[9px] px-1 rounded opacity-0 group-hover:opacity-100">{count}</div>}
-               </div>
-            ))}
-         </div>
-      </div>
+      {/* **FIX v8.8.1**: Session Duration, Peak Analysis und Hourly Distribution entfernt */}
 
       <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
          <div className="flex items-center gap-2 mb-4"><CalendarDays size={16} className="text-purple-500"/><h3 className="text-sm font-bold text-zinc-400 uppercase">Wochentage</h3></div>
@@ -369,49 +208,23 @@ export default function ChartsView({ historyData, settings }) {
           <span className="text-[10px] text-zinc-600 ml-auto">Letzte 6 Monate</span>
         </div>
 
+        {/* **FIX v8.8.1**: Nur Hits anzeigen, keine Kosten mehr */}
         {monthlyTrend.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Hits pro Monat */}
-            <div>
-              <p className="text-xs text-zinc-600 uppercase font-bold mb-3">Hits</p>
-              <div className="h-32 flex items-end gap-2">
-                {monthlyTrend.map((m, i) => {
-                  const monthName = new Date(m.month + '-01').toLocaleDateString('de-DE', { month: 'short' });
-                  const barHeight = Math.max(4, (m.count / maxMonthlyCount) * 100);
-                  return (
-                    <div key={i} className="flex-1 flex flex-col justify-end items-center gap-2">
-                      <div className="w-full bg-gradient-to-t from-indigo-600 to-indigo-400 rounded-t-lg hover:from-indigo-500 hover:to-indigo-300 transition-colors relative group" style={{ height: `${barHeight}%` }}>
-                        <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-black text-white text-[9px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 whitespace-nowrap z-10">
-                          {m.count} Hits
-                        </div>
-                      </div>
-                      <span className="text-[10px] text-zinc-500 uppercase">{monthName}</span>
+          <div className="h-32 flex items-end gap-2">
+            {monthlyTrend.map((m, i) => {
+              const monthName = new Date(m.month + '-01').toLocaleDateString('de-DE', { month: 'short' });
+              const barHeight = Math.max(4, (m.count / maxMonthlyCount) * 100);
+              return (
+                <div key={i} className="flex-1 flex flex-col justify-end items-center gap-2">
+                  <div className="w-full bg-gradient-to-t from-indigo-600 to-indigo-400 rounded-t-lg hover:from-indigo-500 hover:to-indigo-300 transition-colors relative group" style={{ height: `${barHeight}%` }}>
+                    <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-black text-white text-[9px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 whitespace-nowrap z-10">
+                      {m.count} Hits
                     </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Kosten pro Monat */}
-            <div>
-              <p className="text-xs text-zinc-600 uppercase font-bold mb-3">Kosten</p>
-              <div className="h-32 flex items-end gap-2">
-                {monthlyTrend.map((m, i) => {
-                  const monthName = new Date(m.month + '-01').toLocaleDateString('de-DE', { month: 'short' });
-                  const barHeight = Math.max(4, (m.cost / maxMonthlyCost) * 100);
-                  return (
-                    <div key={i} className="flex-1 flex flex-col justify-end items-center gap-2">
-                      <div className="w-full bg-gradient-to-t from-amber-600 to-yellow-400 rounded-t-lg hover:from-amber-500 hover:to-yellow-300 transition-colors relative group" style={{ height: `${barHeight}%` }}>
-                        <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-black text-white text-[9px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 whitespace-nowrap z-10">
-                          {m.cost.toFixed(2)}€
-                        </div>
-                      </div>
-                      <span className="text-[10px] text-zinc-500 uppercase">{monthName}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
+                  </div>
+                  <span className="text-[10px] text-zinc-500 uppercase">{monthName}</span>
+                </div>
+              );
+            })}
           </div>
         ) : (
           <div className="text-center py-12">
@@ -421,50 +234,7 @@ export default function ChartsView({ historyData, settings }) {
         )}
       </div>
 
-      {/* Sorten-Verteilung */}
-      {strainStats.length > 0 && (
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <Tag size={16} className="text-purple-500"/>
-            <h3 className="text-sm font-bold text-zinc-400 uppercase">Sorten-Verteilung</h3>
-          </div>
-
-          <div className="space-y-3">
-            {strainStats.slice(0, 10).map((strain, i) => {
-              // **FIX v8.8**: Verwende historyData total für Prozentberechnung
-              const totalHitsForPercentage = historyData.reduce((sum, day) => sum + day.count, 0);
-              const percentage = totalHitsForPercentage > 0 ? (strain.count / totalHitsForPercentage) * 100 : 0;
-              return (
-                <div key={i} className="space-y-1">
-                  <div className="flex items-center justify-between text-sm">
-                    <div className="flex items-center gap-2">
-                      <span className="text-zinc-400 font-mono text-xs">#{i + 1}</span>
-                      <span className="text-white font-medium">{strain.name}</span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <span className="text-emerald-400 font-bold text-sm">{strain.count}x</span>
-                      <span className="text-amber-400 font-bold text-sm">{strain.totalCost.toFixed(2)}€</span>
-                    </div>
-                  </div>
-                  <div className="h-2 bg-zinc-800 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-gradient-to-r from-purple-500 to-pink-500 rounded-full transition-all"
-                      style={{ width: `${percentage}%` }}
-                    />
-                  </div>
-                  <p className="text-xs text-zinc-600">{percentage.toFixed(1)}% aller Sessions</p>
-                </div>
-              );
-            })}
-          </div>
-
-          {strainStats.length > 10 && (
-            <p className="text-xs text-zinc-600 text-center mt-4">
-              +{strainStats.length - 10} weitere Sorten
-            </p>
-          )}
-        </div>
-      )}
+      {/* **FIX v8.8.1**: Sorten-Verteilung entfernt (benötigt sessionHits mit strain info) */}
 
       {/* Activity Heatmap */}
       <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
@@ -513,66 +283,7 @@ export default function ChartsView({ historyData, settings }) {
         </div>
       </div>
 
-      {/* Cost Timeline */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
-        <div className="flex items-center gap-2 mb-4">
-          <DollarSign size={16} className="text-yellow-500"/>
-          <h3 className="text-sm font-bold text-zinc-400 uppercase">Kosten-Verlauf</h3>
-          <span className="text-[10px] text-zinc-600 ml-auto">Letzte 30 Tage</span>
-        </div>
-
-        {costTimeline.some(d => d.cost > 0) ? (
-          <>
-            <div className="h-40 flex items-end gap-0.5 overflow-x-auto">
-              {costTimeline.map((day, i) => {
-                const barHeight = Math.max(2, (day.cost / maxCost) * 100);
-                return (
-                  <div key={i} className="flex-1 min-w-[8px] flex flex-col justify-end items-center group relative">
-                    <div
-                      className="w-full bg-gradient-to-t from-yellow-500 to-amber-500 rounded-t-sm hover:from-yellow-400 hover:to-amber-400 transition-colors"
-                      style={{ height: `${barHeight}%` }}
-                    >
-                      <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-black text-white text-[9px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 whitespace-nowrap z-10">
-                        {day.cost.toFixed(2)}€<br/>
-                        <span className="text-zinc-400">{day.count} Hits</span>
-                      </div>
-                    </div>
-                    {(i === 0 || day.day === 1) && (
-                      <span className="text-[8px] text-zinc-600 mt-1">{day.day}</span>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-
-            <div className="mt-4 grid grid-cols-3 gap-3">
-              <div className="bg-zinc-950 p-3 rounded-xl text-center">
-                <p className="text-[10px] text-zinc-600 uppercase mb-1">Gesamt (30d)</p>
-                <p className="text-lg font-bold text-yellow-400">
-                  {costTimeline.reduce((sum, d) => sum + d.cost, 0).toFixed(2)}€
-                </p>
-              </div>
-              <div className="bg-zinc-950 p-3 rounded-xl text-center">
-                <p className="text-[10px] text-zinc-600 uppercase mb-1">Ø pro Tag</p>
-                <p className="text-lg font-bold text-amber-400">
-                  {(costTimeline.reduce((sum, d) => sum + d.cost, 0) / 30).toFixed(2)}€
-                </p>
-              </div>
-              <div className="bg-zinc-950 p-3 rounded-xl text-center">
-                <p className="text-[10px] text-zinc-600 uppercase mb-1">Max. Tag</p>
-                <p className="text-lg font-bold text-orange-400">
-                  {Math.max(...costTimeline.map(d => d.cost)).toFixed(2)}€
-                </p>
-              </div>
-            </div>
-          </>
-        ) : (
-          <div className="text-center py-12">
-            <p className="text-zinc-600 text-sm">Noch keine Kostendaten vorhanden</p>
-            <p className="text-zinc-700 text-xs mt-1">Starte deine erste Session</p>
-          </div>
-        )}
-      </div>
+      {/* **FIX v8.8.1**: Cost Timeline entfernt (benötigt sessionHits mit strain info) */}
     </div>
   );
 }

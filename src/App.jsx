@@ -259,8 +259,8 @@ export default function App() {
   const [isManuallyHolding, setIsManuallyHolding] = useState(false);
   const [showRecovery, setShowRecovery] = useState(false);
 
-  // Auto-Backup System: Speichert automatisch bei Änderungen
-  useAutoBackup(settings, historyData, sessionHits, goals);
+  // **FIX v8.8.1**: Auto-Backup ohne sessionHits
+  useAutoBackup(settings, historyData, goals);
 
   // Low-Battery Warning (v7.1)
   const [lowBatteryWarningShown, setLowBatteryWarningShown] = useState(false);
@@ -280,12 +280,11 @@ export default function App() {
     }
   }, [liveData.batteryPercent, lowBatteryWarningShown, connected]);
 
-  // Recovery Handler
+  // **FIX v8.8.1**: Recovery Handler ohne sessionHits
   const handleDataRestore = useCallback((backupData) => {
     try {
       if (backupData.settings) setSettings(backupData.settings);
       if (backupData.historyData) setHistoryData(backupData.historyData);
-      if (backupData.sessionHits) setSessionHits(backupData.sessionHits);
       if (backupData.goals) setGoals(backupData.goals);
 
       setShowRecovery(false);
@@ -295,7 +294,7 @@ export default function App() {
       setNotification({ type: 'error', msg: '❌ Wiederherstellung fehlgeschlagen!' });
       setTimeout(() => setNotification(null), 3000);
     }
-  }, [setSettings, setHistoryData, setSessionHits, setGoals, setNotification]);
+  }, [setSettings, setHistoryData, setGoals, setNotification]);
 
   const sensorStartRef = useRef(0);
   const simRef = useRef({
@@ -323,6 +322,7 @@ export default function App() {
     hasSyncedRef.current = false;
   }, [ip]);
 
+  // **FIX v8.8.1**: registerHit ohne sessionHits - nur historyData Count erhöhen
   const registerHit = (isManual, duration) => {
     const now = Date.now();
     setLastHitTime(now);
@@ -335,10 +335,8 @@ export default function App() {
 
     if (isGuestMode) { setGuestHits(p => p + 1); return; }
     const strain = settings.strains.find(s => s.id == currentStrainId) || settings.strains[0] || {name:'?',price:0};
-    const newHit = { id: now, timestamp: now, type: isManual ? 'Manuell' : 'Sensor', strainName: strain.name, strainPrice: strain.price, duration };
 
-    // Prepare updated data BEFORE state updates
-    const updatedSessionHits = [newHit, ...sessionHits];
+    // Update historyData (nur Count erhöhen)
     const todayStr = new Date().toISOString().split('T')[0];
     const idx = historyData.findIndex(d => d.date === todayStr);
     const updatedHistoryData = [...historyData];
@@ -348,8 +346,7 @@ export default function App() {
       updatedHistoryData.push({ date: todayStr, count: 1, strainId: strain.id, note: "" });
     }
 
-    // Update States
-    setSessionHits(updatedSessionHits);
+    // Update State
     setHistoryData(updatedHistoryData);
     setManualOffset(p => p + 1);
 
@@ -416,82 +413,35 @@ export default function App() {
 
       const { pendingHits = [], pendingCount = 0, espUptime = 0 } = json;
 
+      // **FIX v8.8.1**: Vereinfachter Sync ohne sessionHits - nur Count erhöhen
       if (pendingCount > 0 && pendingHits.length > 0) {
         console.log(`🔄 Auto-Sync: ${pendingCount} pending hits gefunden`);
 
-        // Konvertiere ESP32 Hits in App-Format
         const strain = settings.strains.find(s => s.id == currentStrainId) || settings.strains[0] || { name: '?', price: 0 };
-        const now = Date.now();
 
-        const importedHits = pendingHits.map((hit) => {
-          let realTimestamp;
-
-          // FIX: Auto-detect timestamp format
-          // Wenn timestamp > 1000000000000 (~ Sept 2001), ist es bereits Unix timestamp
-          // Sonst ist es millis() und muss konvertiert werden
-          if (hit.timestamp > 1000000000000) {
-            // NEU: ESP32 mit NTP sendet echte Unix timestamps
-            realTimestamp = hit.timestamp;
+        // Einfach die Anzahl zu historyData addieren (heute)
+        const todayStr = new Date().toISOString().split('T')[0];
+        setHistoryData(prev => {
+          const updated = [...prev];
+          const idx = updated.findIndex(d => d.date === todayStr);
+          if (idx >= 0) {
+            updated[idx] = { ...updated[idx], count: updated[idx].count + pendingCount };
           } else {
-            // ALT: ESP32 ohne NTP sendet millis() → konvertiere mit espUptime
-            const hitAgeMs = espUptime - hit.timestamp;
-            realTimestamp = now - hitAgeMs;
+            updated.push({ date: todayStr, count: pendingCount, strainId: strain.id, note: "" });
           }
-
-          // **NEU v8.0**: Stabiler Hash-basierter Fallback (order-independent, collision-resistant)
-          const fallbackIdSuffix = createHitFingerprint({
-            ts: realTimestamp,
-            payload: hit,
-          });
-
-          return {
-            id: hit.id || `fallback_${fallbackIdSuffix}`, // **NEU v8.0**: Nutze ESP32 Unique ID (mit stabilem Hash-Fallback)
-            timestamp: realTimestamp,
-            type: 'Sensor',
-            strainName: strain.name,
-            strainPrice: strain.price,
-            duration: hit.duration || 0
-          };
+          return updated;
         });
 
-        // Importiere Hits in sessionHits mit Duplikatsprüfung im functional updater
-        // (verhindert Race Conditions bei concurrent updates)
-        let actuallyImportedCount = 0;
-        setSessionHits(prev => {
-          const existingIds = new Set(prev.map(h => h.id));
-          const newHits = importedHits.filter(h => !existingIds.has(h.id));
-          actuallyImportedCount = newHits.length; // Closure-Variable wird synchron gesetzt
-          return newHits.length > 0 ? [...newHits, ...prev] : prev;
+        setNotification({
+          type: 'success',
+          message: `✅ ${pendingCount} Offline-Hits importiert!`,
+          icon: RefreshCw
         });
+        setTimeout(() => setNotification(null), 4000);
 
-        // Update History Data - NUR mit tatsächlich importierten Hits
-        if (actuallyImportedCount > 0) {
-          const todayStr = new Date().toISOString().split('T')[0];
-          setHistoryData(prev => {
-            const updated = [...prev];
-            const idx = updated.findIndex(d => d.date === todayStr);
-            if (idx >= 0) {
-              updated[idx] = { ...updated[idx], count: updated[idx].count + actuallyImportedCount };
-            } else {
-              updated.push({ date: todayStr, count: actuallyImportedCount, strainId: strain.id, note: "" });
-            }
-            return updated;
-          });
+        console.log(`✅ Auto-Sync erfolgreich: ${pendingCount} hits importiert`);
 
-          setNotification({
-            type: 'success',
-            message: `✅ ${actuallyImportedCount} Offline-Hits importiert!`,
-            icon: RefreshCw
-          });
-          setTimeout(() => setNotification(null), 4000);
-
-          console.log(`✅ Auto-Sync erfolgreich: ${actuallyImportedCount} hits importiert (${pendingCount - actuallyImportedCount} Duplikate übersprungen)`);
-        } else {
-          console.log(`✓ Auto-Sync: Alle ${pendingCount} hits bereits vorhanden (Duplikate)`);
-        }
-
-        // FIX: Sync Complete IMMER aufrufen (auch bei Duplikaten!)
-        // Sonst bleiben Pending Hits auf ESP32 und werden immer wieder gesendet
+        // Sync Complete aufrufen um Pending Hits auf ESP32 zu löschen
         await completeSyncRequest();
       } else {
         console.log('✓ Auto-Sync: Keine pending hits');
@@ -503,7 +453,7 @@ export default function App() {
     } finally {
       isSyncingRef.current = false;
     }
-  }, [isSimulating, ip, currentStrainId, settings.strains, setSessionHits, setHistoryData, setNotification]);
+  }, [isSimulating, ip, currentStrainId, settings.strains, setHistoryData, setNotification]);
 
   // AUTO-SYNC COMPLETE: ESP32 mitteilen dass Sync erfolgreich war
   const completeSyncRequest = async () => {
