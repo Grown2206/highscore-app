@@ -3,7 +3,7 @@ import {
   Leaf, LayoutDashboard, Calendar as CalendarIcon, BarChart3, Settings, Smartphone,
   Wifi, Zap, Wind, Flame, Star, Clock, Activity, Moon, CalendarDays, Shield, Tag, Gem, TrendingUp, Lock,
   Coins, List, Thermometer, Check, Plus, X, Edit2, Trash2, User, Users, Radio, Scale, WifiOff, RefreshCw,
-  Save, AlertTriangle, Brain, Bell
+  Save, AlertTriangle, Brain, Bell, Trophy
 } from 'lucide-react';
 import AnalyticsView from './components/AnalyticsView';
 import StreaksWidget from './components/StreaksWidget';
@@ -13,6 +13,7 @@ import CalendarView from './components/CalendarView';
 import ChartsView from './components/ChartsView';
 import SettingsView from './components/SettingsView';
 import DashboardView from './components/DashboardView';
+import AchievementsView from './components/AchievementsView';
 import ESP32DebugView from './components/ESP32DebugView';
 import DataRecovery from './components/DataRecovery';
 import { generateTestData } from './utils/testDataGenerator';
@@ -238,6 +239,37 @@ export default function App() {
 
   // **FIX v8.9.2**: Automatische Testdaten entfernt - nur manuell in Einstellungen
 
+  // **NEW**: Session-System - zählt Hits des heutigen Tages, reset bei Tageswechsel
+  const [sessionHitsCount, setSessionHitsCount] = useState(() => {
+    const saved = localStorage.getItem('sessionHitsCount');
+    return saved ? parseInt(saved, 10) : 0;
+  });
+  const [sessionDate, setSessionDate] = useState(() => {
+    const saved = localStorage.getItem('sessionDate');
+    return saved || new Date().toDateString();
+  });
+
+  // Auto-Reset bei Tageswechsel
+  useEffect(() => {
+    const checkDayChange = setInterval(() => {
+      const currentDate = new Date().toDateString();
+      if (currentDate !== sessionDate) {
+        console.log('📅 Tageswechsel erkannt - Session zurückgesetzt');
+        setSessionHitsCount(0);
+        setSessionDate(currentDate);
+        localStorage.setItem('sessionHitsCount', '0');
+        localStorage.setItem('sessionDate', currentDate);
+      }
+    }, 60000); // Prüfe jede Minute
+
+    return () => clearInterval(checkDayChange);
+  }, [sessionDate]);
+
+  // Persistiere sessionHitsCount
+  useEffect(() => {
+    localStorage.setItem('sessionHitsCount', String(sessionHitsCount));
+  }, [sessionHitsCount]);
+
   const [liveData, setLiveData] = useState({
     flame: false,
     today: 0,
@@ -377,6 +409,9 @@ export default function App() {
     const updatedHistoryData = rebuildHistoryFromSessions(updatedSessionHits);
     setHistoryData(updatedHistoryData);
     setManualOffset(p => p + 1);
+
+    // **NEW**: Erhöhe Session-Counter
+    setSessionHitsCount(p => p + 1);
 
     // Check Daily Limit Goal
     const todayStr = new Date().toISOString().split('T')[0];
@@ -709,9 +744,10 @@ export default function App() {
   }, [isSimulating, ip, manualOffset, isManuallyHolding, settings.triggerThreshold, errorCount, connected, syncPendingHits]);
 
   // **FIX v8.9**: Context mit sessionHits/setSessionHits
+  // **NEW**: sessionHitsCount hinzugefügt
   const ctx = useMemo(() => ({
     settings, setSettings, historyData, setHistoryData, sessionHits, setSessionHits,
-    goals, setGoals, lastHitTime,
+    goals, setGoals, lastHitTime, sessionHitsCount,
     liveData, currentStrainId, setCurrentStrainId, isGuestMode, setIsGuestMode, guestHits, resetGuestHits, deleteHit,
     connected, setConnected, isSimulating, setIsSimulating, isSensorInhaling,
     ip, setIp, lastError, selectedSession, setSelectedSession, notification,
@@ -722,7 +758,7 @@ export default function App() {
     onHoldEnd: () => setIsManuallyHolding(false)
   }), [
     settings, setSettings, historyData, setHistoryData, sessionHits, setSessionHits,
-    goals, setGoals, lastHitTime,
+    goals, setGoals, lastHitTime, sessionHitsCount,
     liveData, currentStrainId, setCurrentStrainId, isGuestMode, setIsGuestMode, guestHits, resetGuestHits, deleteHit,
     connected, setConnected, isSimulating, setIsSimulating, isSensorInhaling,
     ip, setIp, lastError, selectedSession, setSelectedSession, notification,
@@ -783,6 +819,7 @@ function AppLayout({ ctx }) {
           <NavBtn id="strains" icon={<Tag/>} label="Sorten" active={activeTab} set={safeSetActiveTab}/>
           <NavBtn id="charts" icon={<BarChart3/>} label="Statistik" active={activeTab} set={safeSetActiveTab}/>
           <NavBtn id="analytics" icon={<Brain/>} label="Analytics" active={activeTab} set={safeSetActiveTab}/>
+          <NavBtn id="achievements" icon={<Trophy/>} label="Erfolge" active={activeTab} set={safeSetActiveTab}/>
           <NavBtn id="esp32" icon={<Radio/>} label="ESP32 Debug" active={activeTab} set={safeSetActiveTab}/>
           <NavBtn id="settings" icon={<Settings/>} label="Einstellungen" active={activeTab} set={safeSetActiveTab}/>
         </nav>
@@ -815,6 +852,7 @@ function AppLayout({ ctx }) {
               setCurrentStrainId={ctx.setCurrentStrainId}
               isSensorInhaling={ctx.isSensorInhaling}
               sessionHits={ctx.sessionHits}
+              sessionHitsCount={ctx.sessionHitsCount}
             />
           )}
           {activeTab === 'calendar' && (
@@ -841,6 +879,13 @@ function AppLayout({ ctx }) {
           )}
           {activeTab === 'analytics' && (
             <AnalyticsView
+              historyData={ctx.historyData}
+              settings={ctx.settings}
+            />
+          )}
+          {activeTab === 'achievements' && (
+            <AchievementsView
+              sessionHits={ctx.sessionHits}
               historyData={ctx.historyData}
               settings={ctx.settings}
             />
@@ -885,6 +930,7 @@ function AppLayout({ ctx }) {
         <MobNavBtn id="strains" icon={<Tag/>} active={activeTab} set={safeSetActiveTab}/>
         <MobNavBtn id="charts" icon={<BarChart3/>} active={activeTab} set={safeSetActiveTab}/>
         <MobNavBtn id="analytics" icon={<Brain/>} active={activeTab} set={safeSetActiveTab}/>
+        <MobNavBtn id="achievements" icon={<Trophy/>} active={activeTab} set={safeSetActiveTab}/>
         <MobNavBtn id="esp32" icon={<Radio/>} active={activeTab} set={safeSetActiveTab}/>
         <MobNavBtn id="settings" icon={<Settings/>} active={activeTab} set={safeSetActiveTab}/>
       </div>

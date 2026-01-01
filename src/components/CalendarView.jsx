@@ -92,7 +92,8 @@ function CalendarView({ historyData, setHistoryData, settings, deleteHit, sessio
         }, 0);
 
         // Durchschnittliche Duration berechnen
-        const durationsWithValue = daySessions.filter(h => h.duration > 0);
+        // **CRITICAL FIX**: Filtere ungültige Durations (nur 0-8s verwenden)
+        const durationsWithValue = daySessions.filter(h => h.duration > 0 && h.duration <= 8);
         const avgDuration = durationsWithValue.length > 0
             ? durationsWithValue.reduce((sum, h) => sum + h.duration, 0) / durationsWithValue.length
             : 0;
