@@ -4,6 +4,18 @@
  */
 
 /**
+ * **FIX v8.8.1**: Format date as local YYYY-MM-DD (no UTC shift)
+ * @param {Date} date - JavaScript Date object
+ * @returns {string} Date in YYYY-MM-DD format (local timezone)
+ */
+export const formatLocalDate = (date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+/**
  * Calculate total hits from historyData
  * @param {Array} historyData - Array of {date, count} objects
  * @returns {number} Total hit count
@@ -39,7 +51,7 @@ export const getHitsForDate = (historyData, dateStr) => {
 };
 
 /**
- * Get hits for date range
+ * **FIX v8.8.1**: Get hits for date range using LOCAL time (no UTC shift)
  * @param {Array} historyData - Array of {date, count} objects
  * @param {number} days - Number of days to look back
  * @returns {Array} Array of {date, count} for the range
@@ -52,7 +64,7 @@ export const getLastNDays = (historyData, days) => {
   for (let i = days - 1; i >= 0; i--) {
     const date = new Date(today);
     date.setDate(date.getDate() - i);
-    const dateStr = date.toISOString().split('T')[0];
+    const dateStr = formatLocalDate(date); // FIX: Use local date formatting
     const count = getHitsForDate(historyData, dateStr);
     result.push({ date: dateStr, count });
   }

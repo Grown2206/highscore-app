@@ -1,7 +1,9 @@
 import React, { useMemo, useState } from 'react';
 import { Clock, CalendarDays, DollarSign, TrendingUp, BarChart3, Tag, Zap, TrendingDown, Calendar as CalendarIcon } from 'lucide-react';
+import { getTotalHits, getAvgHitsPerDay, formatLocalDate, getLastNDays } from '../utils/historyDataHelpers';
 
 // **FIX v8.8**: Entferne sessionHits - verwende nur historyData
+// **FIX v8.8.1**: Verwende historyDataHelpers für Aggregationen
 export default function ChartsView({ historyData, settings }) {
   const [timeRange, setTimeRange] = useState('30'); // 7, 30, 90 Tage
   const weekStats = useMemo(() => {
@@ -66,11 +68,11 @@ export default function ChartsView({ historyData, settings }) {
 
   const maxMonthlyCount = Math.max(...monthlyTrend.map(m => m.count), 1);
 
-  // **FIX v8.8**: Gesamt-Statistiken nur mit historyData (keine Kosten mehr)
+  // **FIX v8.8.1**: Verwende historyDataHelpers statt inline reduce/filter
   const totalStats = useMemo(() => {
     const activeDays = historyData.filter(h => h.count > 0).length;
-    const totalHits = historyData.reduce((sum, day) => sum + day.count, 0);
-    const avgPerDay = activeDays > 0 ? totalHits / activeDays : 0;
+    const totalHits = getTotalHits(historyData);
+    const avgPerDay = getAvgHitsPerDay(historyData);
     const totalAmount = totalHits * (settings?.bowlSize || 0.3) * ((settings?.weedRatio || 80) / 100);
 
     return { activeDays, totalHits, avgPerDay, totalAmount };
@@ -79,27 +81,13 @@ export default function ChartsView({ historyData, settings }) {
   // **FIX v8.8**: Session Duration - Entfernt (benötigt sessionHits mit duration)
   const durationStats = null;
 
-  // Comparison Stats (Last 7 days vs Previous 7 days)
+  // **FIX v8.8.1**: Verwende getLastNDays und lokale Datum-Formatierung
   const comparisonStats = useMemo(() => {
-    const today = new Date();
-    const last7Days = [];
-    const prev7Days = [];
+    const last14Days = getLastNDays(historyData, 14);
 
-    for (let i = 0; i < 7; i++) {
-      const date = new Date(today);
-      date.setDate(today.getDate() - i);
-      const dateStr = date.toISOString().split('T')[0];
-      const dayData = historyData.find(h => h.date === dateStr);
-      last7Days.push(dayData?.count || 0);
-    }
-
-    for (let i = 7; i < 14; i++) {
-      const date = new Date(today);
-      date.setDate(today.getDate() - i);
-      const dateStr = date.toISOString().split('T')[0];
-      const dayData = historyData.find(h => h.date === dateStr);
-      prev7Days.push(dayData?.count || 0);
-    }
+    // Split in letzte 7 und vorherige 7 Tage
+    const last7Days = last14Days.slice(-7).map(d => d.count);
+    const prev7Days = last14Days.slice(0, 7).map(d => d.count);
 
     const last7Total = last7Days.reduce((a, b) => a + b, 0);
     const prev7Total = prev7Days.reduce((a, b) => a + b, 0);
