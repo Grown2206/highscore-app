@@ -75,11 +75,19 @@ function CalendarView({ historyData, setHistoryData, settings, deleteHit, sessio
         }).sort((a, b) => b.timestamp - a.timestamp); // Neueste zuerst
 
         const totalHits = daySessions.length;
-        const totalAmount = totalHits * (settings.bowlSize * (settings.weedRatio / 100));
 
-        // Kosten berechnen
+        // Berechne totalAmount aus per-hit Settings (fallback auf globale settings)
+        const totalAmount = daySessions.reduce((sum, hit) => {
+            const bowlSize = hit.bowlSize ?? settings.bowlSize;
+            const weedRatio = hit.weedRatio ?? settings.weedRatio;
+            return sum + (bowlSize * (weedRatio / 100));
+        }, 0);
+
+        // Kosten berechnen mit per-hit Settings (fallback auf globale settings)
         const totalCost = daySessions.reduce((sum, hit) => {
-            const cost = (hit.strainPrice || 0) * settings.bowlSize * (settings.weedRatio / 100);
+            const bowlSize = hit.bowlSize ?? settings.bowlSize;
+            const weedRatio = hit.weedRatio ?? settings.weedRatio;
+            const cost = (hit.strainPrice || 0) * bowlSize * (weedRatio / 100);
             return sum + cost;
         }, 0);
 
