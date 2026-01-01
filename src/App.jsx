@@ -824,6 +824,7 @@ function AppLayout({ ctx }) {
               setHistoryData={ctx.setHistoryData}
               settings={ctx.settings}
               deleteHit={ctx.deleteHit}
+              sessionHits={ctx.sessionHits}
             />
           )}
           {activeTab === 'strains' && (

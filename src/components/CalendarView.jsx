@@ -3,9 +3,9 @@ import { Save, Wind, Scale, Coins, Clock, Tag, TrendingUp, TrendingDown, Minus, 
 import SwipeableHitRow from './SwipeableHitRow';
 import { formatLocalDate, getTotalHits, getAvgHitsPerDay } from '../utils/historyDataHelpers';
 
-// **FIX v8.8**: Entferne sessionHits - verwende nur historyData
-// **FIX v8.8.1**: Verwende historyDataHelpers für Aggregationen
-function CalendarView({ historyData, setHistoryData, settings, deleteHit }) {
+// **FIX v8.9**: sessionHits wiederhergestellt - Timeline und Hit-Liste funktionieren wieder
+// Verwende historyDataHelpers für Aggregationen
+function CalendarView({ historyData, setHistoryData, settings, deleteHit, sessionHits }) {
     const [sel, setSel] = useState(formatLocalDate(new Date())); // FIX: Lokales Datum
     const [note, setNote] = useState("");
     const [viewDate, setViewDate] = useState(new Date()); // NEU: Aktuell angezeigte Monat
@@ -66,22 +66,60 @@ function CalendarView({ historyData, setHistoryData, settings, deleteHit }) {
         return result;
     }, [viewDate]);
 
-    // **FIX v8.8**: Tages-Statistiken nur aus historyData (keine Details mehr)
+    // **FIX v8.9**: Tages-Statistiken aus sessionHits - mit allen Details
     const dayStats = useMemo(() => {
-        const dayData = historyData.find(d => d.date === sel);
-        const totalHits = dayData ? dayData.count : 0;
+        // Filtere Sessions für den ausgewählten Tag
+        const daySessions = (sessionHits || []).filter(hit => {
+            const hitDate = formatLocalDate(new Date(hit.timestamp));
+            return hitDate === sel;
+        }).sort((a, b) => b.timestamp - a.timestamp); // Neueste zuerst
+
+        const totalHits = daySessions.length;
         const totalAmount = totalHits * (settings.bowlSize * (settings.weedRatio / 100));
 
+        // Kosten berechnen
+        const totalCost = daySessions.reduce((sum, hit) => {
+            const cost = (hit.strainPrice || 0) * settings.bowlSize * (settings.weedRatio / 100);
+            return sum + cost;
+        }, 0);
+
+        // Durchschnittliche Duration berechnen
+        const durationsWithValue = daySessions.filter(h => h.duration > 0);
+        const avgDuration = durationsWithValue.length > 0
+            ? durationsWithValue.reduce((sum, h) => sum + h.duration, 0) / durationsWithValue.length
+            : 0;
+
+        // Sorten-Nutzung
+        const strainMap = {};
+        daySessions.forEach(hit => {
+            const name = hit.strainName || 'Unbekannt';
+            if (!strainMap[name]) {
+                strainMap[name] = { count: 0 };
+            }
+            strainMap[name].count++;
+        });
+        const strainUsage = Object.entries(strainMap).sort((a, b) => b[1].count - a[1].count);
+
+        // Zeitspanne berechnen
+        let timespan = null;
+        if (daySessions.length > 0) {
+            const timestamps = daySessions.map(s => s.timestamp);
+            const first = new Date(Math.min(...timestamps));
+            const last = new Date(Math.max(...timestamps));
+            const durationHours = (last - first) / (1000 * 60 * 60);
+            timespan = { first, last, duration: durationHours };
+        }
+
         return {
-            sessions: [],
+            sessions: daySessions,
             totalHits,
             totalAmount,
-            totalCost: 0,
-            avgDuration: 0,
-            strainUsage: [],
-            timespan: null
+            totalCost,
+            avgDuration,
+            strainUsage,
+            timespan
         };
-    }, [sel, historyData, settings]);
+    }, [sel, sessionHits, settings]);
 
     // **FIX v8.8.1**: Verwende historyDataHelpers statt inline reduce/filter
     const avgStats = useMemo(() => {
@@ -208,7 +246,24 @@ function CalendarView({ historyData, setHistoryData, settings, deleteHit }) {
                            <p className="text-2xl font-bold text-lime-400">{dayStats.totalAmount.toFixed(2)}g</p>
                        </div>
 
-                       {/* **FIX v8.8**: Kosten & Duration Displays entfernt (benötigen sessionHits) */}
+                       {/* **FIX v8.9**: Kosten & Duration Displays wiederhergestellt */}
+                       <div className="bg-zinc-950 rounded-xl p-3">
+                           <div className="flex items-center gap-2 text-zinc-600 text-[10px] font-bold uppercase mb-1">
+                               <Coins size={12} />
+                               Kosten
+                           </div>
+                           <p className="text-2xl font-bold text-yellow-400">{dayStats.totalCost.toFixed(2)}€</p>
+                       </div>
+
+                       {dayStats.avgDuration > 0 && (
+                           <div className="bg-zinc-950 rounded-xl p-3">
+                               <div className="flex items-center gap-2 text-zinc-600 text-[10px] font-bold uppercase mb-1">
+                                   <Clock size={12} />
+                                   Ø Dauer
+                               </div>
+                               <p className="text-2xl font-bold text-cyan-400">{dayStats.avgDuration.toFixed(1)}s</p>
+                           </div>
+                       )}
                    </div>
                )}
 
