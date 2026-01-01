@@ -4,8 +4,8 @@ import HoldButton from './HoldButton';
 import { MetricCard, AdminMetric } from './UIComponents';
 import SwipeableHitRow from './SwipeableHitRow';
 
-// **FIX v8.8**: Entferne sessionHits - Timeline nicht mehr verfügbar
-export default function DashboardView({ liveData, lastHitTime, settings, isGuestMode, setIsGuestMode, guestHits, resetGuestHits, deleteHit, onManualTrigger, onHoldStart, onHoldEnd, currentStrainId, setCurrentStrainId, isSensorInhaling }) {
+// **FIX v8.9.2**: sessionHits wiederhergestellt - Timeline mit Hit-Liste funktioniert wieder
+export default function DashboardView({ liveData, lastHitTime, settings, isGuestMode, setIsGuestMode, guestHits, resetGuestHits, deleteHit, onManualTrigger, onHoldStart, onHoldEnd, currentStrainId, setCurrentStrainId, isSensorInhaling, sessionHits }) {
   const [timeSince, setTimeSince] = useState("00:00:00");
   
   useEffect(() => {
@@ -82,15 +82,40 @@ export default function DashboardView({ liveData, lastHitTime, settings, isGuest
       <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
         <div className="bg-zinc-950 px-4 py-3 border-b border-zinc-800 flex items-center gap-2">
           <Clock size={14} className="text-zinc-500"/>
-          <span className="text-xs font-bold uppercase text-zinc-500">Timeline</span>
+          <span className="text-xs font-bold uppercase text-zinc-500">Heutige Hits</span>
+          <span className="text-[10px] text-zinc-600 ml-auto">← Wische zum Löschen</span>
         </div>
-        <div className="p-8 text-center">
-          <div className="text-zinc-600 text-sm mb-2">⚠️ Timeline nicht mehr verfügbar</div>
-          <div className="text-zinc-700 text-xs">
-            Die Hit-Timeline wurde entfernt.<br/>
-            Nutze den Kalender-Tab für Tagesübersichten.
-          </div>
-        </div>
+        {(() => {
+          // Filtere Hits von heute
+          const today = new Date();
+          const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+          const todayHits = (sessionHits || []).filter(hit => {
+            const hitDate = new Date(hit.timestamp);
+            const hitDateStr = `${hitDate.getFullYear()}-${String(hitDate.getMonth() + 1).padStart(2, '0')}-${String(hitDate.getDate()).padStart(2, '0')}`;
+            return hitDateStr === todayStr;
+          }).sort((a, b) => b.timestamp - a.timestamp); // Neueste zuerst
+
+          return todayHits.length > 0 ? (
+            <div className="max-h-64 overflow-y-auto">
+              <table className="w-full text-left text-xs text-zinc-400">
+                <tbody className="divide-y divide-zinc-800">
+                  {todayHits.map((hit, i) => (
+                    <SwipeableHitRow
+                      key={hit.id}
+                      hit={hit}
+                      hitNumber={i + 1}
+                      onDelete={deleteHit}
+                    />
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="p-8 text-center">
+              <div className="text-zinc-600 text-sm">Noch keine Hits heute</div>
+            </div>
+          );
+        })()}
       </div>
 
       {settings.adminMode && (

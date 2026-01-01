@@ -69,7 +69,10 @@ export default function ChartsView({ historyData, settings, sessionHits }) {
       if (!dailyCosts[dateStr]) {
         dailyCosts[dateStr] = 0;
       }
-      const hitCost = (hit.strainPrice || 0) * (settings?.bowlSize || 0.3) * ((settings?.weedRatio || 80) / 100);
+      // Verwende per-hit Settings (fallback auf globale settings)
+      const bowlSize = hit.bowlSize ?? settings?.bowlSize ?? 0.3;
+      const weedRatio = hit.weedRatio ?? settings?.weedRatio ?? 80;
+      const hitCost = (hit.strainPrice || 0) * bowlSize * (weedRatio / 100);
       dailyCosts[dateStr] += hitCost;
     });
 
@@ -92,7 +95,10 @@ export default function ChartsView({ historyData, settings, sessionHits }) {
         strainMap[strainName] = { name: strainName, count: 0, cost: 0 };
       }
       strainMap[strainName].count++;
-      const hitCost = (hit.strainPrice || 0) * (settings?.bowlSize || 0.3) * ((settings?.weedRatio || 80) / 100);
+      // Verwende per-hit Settings (fallback auf globale settings)
+      const bowlSize = hit.bowlSize ?? settings?.bowlSize ?? 0.3;
+      const weedRatio = hit.weedRatio ?? settings?.weedRatio ?? 80;
+      const hitCost = (hit.strainPrice || 0) * bowlSize * (weedRatio / 100);
       strainMap[strainName].cost += hitCost;
     });
 
@@ -124,7 +130,10 @@ export default function ChartsView({ historyData, settings, sessionHits }) {
       if (!months[monthKey]) {
         months[monthKey] = { month: monthKey, count: 0, cost: 0 };
       }
-      const hitCost = (hit.strainPrice || 0) * (settings?.bowlSize || 0.3) * ((settings?.weedRatio || 80) / 100);
+      // Verwende per-hit Settings (fallback auf globale settings)
+      const bowlSize = hit.bowlSize ?? settings?.bowlSize ?? 0.3;
+      const weedRatio = hit.weedRatio ?? settings?.weedRatio ?? 80;
+      const hitCost = (hit.strainPrice || 0) * bowlSize * (weedRatio / 100);
       months[monthKey].cost += hitCost;
     });
 

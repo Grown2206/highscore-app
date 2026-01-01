@@ -52,7 +52,9 @@ export function generateTestData(days = 30, settings) {
           strainName: strain.name,
           strainPrice: strain.price,
           strainId: strain.id,
-          duration: duration
+          duration: duration,
+          bowlSize: settings?.bowlSize || 0.3,
+          weedRatio: settings?.weedRatio || 80
         });
       }
     }

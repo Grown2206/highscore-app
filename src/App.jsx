@@ -236,20 +236,7 @@ export default function App() {
     return result.sort((a, b) => a.date.localeCompare(b.date));
   }, [historyData]);
 
-  // **FIX v8.9**: Automatisch Testdaten - sessionHits + historyData
-  useEffect(() => {
-    if (sessionHits.length === 0 && historyData.length === 0) {
-      console.log('🧪 Keine Daten vorhanden - Generiere 30 Tage Testdaten...');
-      try {
-        const testData = generateTestData(30, settings);
-        console.log('✅ Testdaten generiert:', testData.sessionHits.length, 'Sessions');
-        setSessionHits(testData.sessionHits);
-        setHistoryData(rebuildHistoryFromSessions(testData.sessionHits));
-      } catch (error) {
-        console.error('❌ Fehler beim Generieren der Testdaten:', error);
-      }
-    }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // **FIX v8.9.2**: Automatische Testdaten entfernt - nur manuell in Einstellungen
 
   const [liveData, setLiveData] = useState({
     flame: false,
@@ -369,7 +356,7 @@ export default function App() {
     if (isGuestMode) { setGuestHits(p => p + 1); return; }
     const strain = settings.strains.find(s => s.id == currentStrainId) || settings.strains[0] || {name:'?',price:0};
 
-    // Erstelle Hit-Objekt mit allen Details
+    // Erstelle Hit-Objekt mit allen Details (inkl. Settings für historische Genauigkeit)
     const newHit = {
       id: now,
       timestamp: now,
@@ -377,7 +364,9 @@ export default function App() {
       strainName: strain.name,
       strainPrice: strain.price,
       strainId: strain.id,
-      duration: duration || 0
+      duration: duration || 0,
+      bowlSize: settings.bowlSize,
+      weedRatio: settings.weedRatio
     };
 
     // Update sessionHits (primäre Quelle)
@@ -816,6 +805,7 @@ function AppLayout({ ctx }) {
               currentStrainId={ctx.currentStrainId}
               setCurrentStrainId={ctx.setCurrentStrainId}
               isSensorInhaling={ctx.isSensorInhaling}
+              sessionHits={ctx.sessionHits}
             />
           )}
           {activeTab === 'calendar' && (
