@@ -246,8 +246,27 @@ export default function App() {
   });
   const [sessionDate, setSessionDate] = useState(() => {
     const saved = localStorage.getItem('sessionDate');
-    return saved || new Date().toDateString();
+    const currentDate = new Date().toDateString();
+    // **FIX**: Persistiere initialen Wert sofort
+    if (!saved) {
+      localStorage.setItem('sessionDate', currentDate);
+    }
+    return saved || currentDate;
   });
+
+  // **FIX**: Initialer Tageswechsel-Check beim App-Start
+  useEffect(() => {
+    const storedDate = localStorage.getItem('sessionDate');
+    const currentDate = new Date().toDateString();
+
+    if (storedDate && storedDate !== currentDate) {
+      console.log('📅 Tageswechsel beim Start erkannt - Session zurückgesetzt');
+      setSessionHitsCount(0);
+      setSessionDate(currentDate);
+      localStorage.setItem('sessionHitsCount', '0');
+      localStorage.setItem('sessionDate', currentDate);
+    }
+  }, []); // Einmalig beim Mount
 
   // Auto-Reset bei Tageswechsel
   useEffect(() => {
