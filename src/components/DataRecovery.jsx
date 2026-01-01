@@ -109,8 +109,9 @@ export default function DataRecovery({ onRestore, onDismiss }) {
         <div className="space-y-3 mb-6">
           {sources.map((source, index) => {
             const isValid = validateData(source.data);
-            // **FIX v8.8.1**: sessionCount entfernt
+            // **FIX v8.9**: sessionCount wiederhergestellt
             const historyDays = source.data.historyData?.length || 0;
+            const sessionCount = source.data.sessionHits?.length || 0;
             const date = new Date(source.timestamp);
 
             return (
@@ -141,6 +142,9 @@ export default function DataRecovery({ onRestore, onDismiss }) {
                     <div className="flex gap-4 text-xs">
                       <span className="text-purple-400">
                         {historyDays} Tag{historyDays !== 1 ? 'e' : ''}
+                      </span>
+                      <span className="text-emerald-400">
+                        {sessionCount} Hit{sessionCount !== 1 ? 's' : ''}
                       </span>
                     </div>
 

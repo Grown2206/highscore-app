@@ -199,12 +199,13 @@ function HoldButton({ onTrigger, lastHit, active, flame }) {
 // --- 5. MAIN LOGIC & LAYOUT ---
 
 export default function App() {
-  // **FIX v8.8**: State ohne sessionHits - nur noch historyData als Quelle der Wahrheit
+  // **FIX v8.9**: sessionHits als primäre Quelle, historyData wird automatisch synchronisiert
   const [settings, setSettings] = useLocalStorage(STORAGE_KEYS.SETTINGS, {
     ...DEFAULT_SETTINGS,
     adminMode: false,
     strains: [{ id: 1, name: "Lemon Haze", price: 10, thc: 22 }]
   });
+  const [sessionHits, setSessionHits] = useLocalStorage(STORAGE_KEYS.SESSION_HITS, []);
   const [historyData, setHistoryData] = useLocalStorage(STORAGE_KEYS.HISTORY, []);
   const [goals, setGoals] = useLocalStorage(STORAGE_KEYS.GOALS, { dailyLimit: 0, tBreakDays: 0 });
   const [lastActiveDate, setLastActiveDate] = useLocalStorage(STORAGE_KEYS.LAST_DATE, '');
@@ -212,14 +213,38 @@ export default function App() {
   const [lastHitTime, setLastHitTime] = useLocalStorage(STORAGE_KEYS.LAST_HIT_TS, null);
   const [ip, setIp] = useLocalStorage(STORAGE_KEYS.DEVICE_IP, '192.168.178.XXX');
 
-  // **FIX v8.8**: Automatisch Testdaten - nur noch historyData
+  // **FIX v8.9**: Auto-Sync - Rebuild historyData aus sessionHits
+  const rebuildHistoryFromSessions = useCallback((sessions) => {
+    const historyMap = {};
+
+    sessions.forEach(hit => {
+      const dateStr = new Date(hit.timestamp).toISOString().split('T')[0];
+      if (!historyMap[dateStr]) {
+        historyMap[dateStr] = { date: dateStr, count: 0, strainId: null, note: "" };
+      }
+      historyMap[dateStr].count++;
+      // Verwende die letzte strain ID des Tages
+      if (hit.strainId) historyMap[dateStr].strainId = hit.strainId;
+    });
+
+    // Behalte Notizen aus bestehendem historyData
+    const result = Object.values(historyMap).map(day => {
+      const existing = historyData.find(h => h.date === day.date);
+      return { ...day, note: existing?.note || "" };
+    });
+
+    return result.sort((a, b) => a.date.localeCompare(b.date));
+  }, [historyData]);
+
+  // **FIX v8.9**: Automatisch Testdaten - sessionHits + historyData
   useEffect(() => {
-    if (historyData.length === 0) {
+    if (sessionHits.length === 0 && historyData.length === 0) {
       console.log('🧪 Keine Daten vorhanden - Generiere 30 Tage Testdaten...');
       try {
         const testData = generateTestData(30, settings);
-        console.log('✅ Testdaten generiert:', testData.historyData.length, 'Tage');
-        setHistoryData(testData.historyData);
+        console.log('✅ Testdaten generiert:', testData.sessionHits.length, 'Sessions');
+        setSessionHits(testData.sessionHits);
+        setHistoryData(rebuildHistoryFromSessions(testData.sessionHits));
       } catch (error) {
         console.error('❌ Fehler beim Generieren der Testdaten:', error);
       }
@@ -259,8 +284,8 @@ export default function App() {
   const [isManuallyHolding, setIsManuallyHolding] = useState(false);
   const [showRecovery, setShowRecovery] = useState(false);
 
-  // **FIX v8.8.1**: Auto-Backup ohne sessionHits
-  useAutoBackup(settings, historyData, goals);
+  // **FIX v8.9**: Auto-Backup mit sessionHits (primäre Quelle)
+  useAutoBackup(settings, historyData, sessionHits, goals);
 
   // Low-Battery Warning (v7.1)
   const [lowBatteryWarningShown, setLowBatteryWarningShown] = useState(false);
@@ -280,11 +305,19 @@ export default function App() {
     }
   }, [liveData.batteryPercent, lowBatteryWarningShown, connected]);
 
-  // **FIX v8.8.1**: Recovery Handler ohne sessionHits
+  // **FIX v8.9**: Recovery Handler mit sessionHits und Auto-Sync
   const handleDataRestore = useCallback((backupData) => {
     try {
       if (backupData.settings) setSettings(backupData.settings);
-      if (backupData.historyData) setHistoryData(backupData.historyData);
+      if (backupData.sessionHits) {
+        setSessionHits(backupData.sessionHits);
+        // Auto-Sync: Rebuild historyData aus sessionHits
+        const rebuiltHistory = rebuildHistoryFromSessions(backupData.sessionHits);
+        setHistoryData(rebuiltHistory);
+      } else if (backupData.historyData) {
+        // Fallback für alte Backups ohne sessionHits
+        setHistoryData(backupData.historyData);
+      }
       if (backupData.goals) setGoals(backupData.goals);
 
       setShowRecovery(false);
@@ -294,7 +327,7 @@ export default function App() {
       setNotification({ type: 'error', msg: '❌ Wiederherstellung fehlgeschlagen!' });
       setTimeout(() => setNotification(null), 3000);
     }
-  }, [setSettings, setHistoryData, setGoals, setNotification]);
+  }, [setSettings, setSessionHits, setHistoryData, setGoals, setNotification, rebuildHistoryFromSessions]);
 
   const sensorStartRef = useRef(0);
   const simRef = useRef({
@@ -322,7 +355,7 @@ export default function App() {
     hasSyncedRef.current = false;
   }, [ip]);
 
-  // **FIX v8.8.1**: registerHit ohne sessionHits - nur historyData Count erhöhen
+  // **FIX v8.9**: registerHit - sessionHits als Primärquelle, historyData wird auto-synchronisiert
   const registerHit = (isManual, duration) => {
     const now = Date.now();
     setLastHitTime(now);
@@ -336,22 +369,31 @@ export default function App() {
     if (isGuestMode) { setGuestHits(p => p + 1); return; }
     const strain = settings.strains.find(s => s.id == currentStrainId) || settings.strains[0] || {name:'?',price:0};
 
-    // Update historyData (nur Count erhöhen)
-    const todayStr = new Date().toISOString().split('T')[0];
-    const idx = historyData.findIndex(d => d.date === todayStr);
-    const updatedHistoryData = [...historyData];
-    if (idx >= 0) {
-      updatedHistoryData[idx] = { ...updatedHistoryData[idx], count: updatedHistoryData[idx].count + 1, strainId: strain.id };
-    } else {
-      updatedHistoryData.push({ date: todayStr, count: 1, strainId: strain.id, note: "" });
-    }
+    // Erstelle Hit-Objekt mit allen Details
+    const newHit = {
+      id: now,
+      timestamp: now,
+      type: isManual ? 'Manuell' : 'Sensor',
+      strainName: strain.name,
+      strainPrice: strain.price,
+      strainId: strain.id,
+      duration: duration || 0
+    };
 
-    // Update State
+    // Update sessionHits (primäre Quelle)
+    const updatedSessionHits = [newHit, ...sessionHits];
+    setSessionHits(updatedSessionHits);
+
+    // Auto-Sync: Rebuild historyData aus sessionHits
+    const updatedHistoryData = rebuildHistoryFromSessions(updatedSessionHits);
     setHistoryData(updatedHistoryData);
     setManualOffset(p => p + 1);
 
     // Check Daily Limit Goal
-    const todayCount = idx >= 0 ? updatedHistoryData[idx].count : 1;
+    const todayStr = new Date().toISOString().split('T')[0];
+    const todayData = updatedHistoryData.find(d => d.date === todayStr);
+    const todayCount = todayData ? todayData.count : 0;
+
     if (goals.dailyLimit > 0 && todayCount >= goals.dailyLimit) {
       setNotification({
         type: 'warning',
@@ -369,17 +411,25 @@ export default function App() {
     console.log('🔄 Gäste-Hits zurückgesetzt');
   };
 
-  // DELETE HIT: Einzelnen Hit löschen
-  // **FIX v8.8**: DELETE HIT - Entfernt (keine einzelnen Hits mehr, nur noch Tageszähler)
-  // Funktion bleibt als Platzhalter für Kompatibilität
+  // **FIX v8.9**: DELETE HIT - Lösche aus sessionHits, historyData wird auto-synchronisiert
   const deleteHit = (hitId) => {
-    console.warn('⚠️ deleteHit: Feature entfernt - keine einzelnen Hits mehr');
+    if (!window.confirm('Diesen Hit wirklich löschen?')) return;
+
+    // Lösche aus sessionHits
+    const updatedSessionHits = sessionHits.filter(h => h.id !== hitId);
+    setSessionHits(updatedSessionHits);
+
+    // Auto-Sync: Rebuild historyData aus sessionHits
+    const updatedHistoryData = rebuildHistoryFromSessions(updatedSessionHits);
+    setHistoryData(updatedHistoryData);
+
     setNotification({
-      type: 'error',
-      message: '⚠️ Einzelne Hits können nicht gelöscht werden',
+      type: 'success',
+      message: '✅ Hit gelöscht - Diagramme aktualisiert',
       icon: Trash2
     });
     setTimeout(() => setNotification(null), 2000);
+    console.log('🗑️ Hit gelöscht:', hitId);
   };
 
   // AUTO-SYNC: Pending Hits vom ESP32 abrufen und importieren
@@ -413,35 +463,75 @@ export default function App() {
 
       const { pendingHits = [], pendingCount = 0, espUptime = 0 } = json;
 
-      // **FIX v8.8.1**: Vereinfachter Sync ohne sessionHits - nur Count erhöhen
+      // **FIX v8.9**: Vollständiger Sync - Erstelle Hit-Objekte und sync zu sessionHits
       if (pendingCount > 0 && pendingHits.length > 0) {
         console.log(`🔄 Auto-Sync: ${pendingCount} pending hits gefunden`);
 
         const strain = settings.strains.find(s => s.id == currentStrainId) || settings.strains[0] || { name: '?', price: 0 };
+        const now = Date.now();
 
-        // Einfach die Anzahl zu historyData addieren (heute)
-        const todayStr = new Date().toISOString().split('T')[0];
-        setHistoryData(prev => {
-          const updated = [...prev];
-          const idx = updated.findIndex(d => d.date === todayStr);
-          if (idx >= 0) {
-            updated[idx] = { ...updated[idx], count: updated[idx].count + pendingCount };
+        // Konvertiere ESP32 Hits in App-Format mit allen Details
+        const importedHits = pendingHits.map((hit) => {
+          let realTimestamp;
+
+          // Auto-detect timestamp format
+          if (hit.timestamp > 1000000000000) {
+            // ESP32 mit NTP sendet echte Unix timestamps
+            realTimestamp = hit.timestamp;
           } else {
-            updated.push({ date: todayStr, count: pendingCount, strainId: strain.id, note: "" });
+            // ESP32 ohne NTP sendet millis() → konvertiere mit espUptime
+            const hitAgeMs = espUptime - hit.timestamp;
+            realTimestamp = now - hitAgeMs;
           }
+
+          // Stabiler Hash-basierter Fallback für ID
+          const fallbackIdSuffix = createHitFingerprint({
+            ts: realTimestamp,
+            payload: hit,
+          });
+
+          return {
+            id: hit.id || `fallback_${fallbackIdSuffix}`,
+            timestamp: realTimestamp,
+            type: 'Sensor',
+            strainName: strain.name,
+            strainPrice: strain.price,
+            strainId: strain.id,
+            duration: hit.duration || 0
+          };
+        });
+
+        // Importiere Hits in sessionHits mit Duplikatsprüfung
+        let actuallyImportedCount = 0;
+        setSessionHits(prev => {
+          const existingIds = new Set(prev.map(h => h.id));
+          const newHits = importedHits.filter(h => !existingIds.has(h.id));
+          actuallyImportedCount = newHits.length;
+          const updated = newHits.length > 0 ? [...newHits, ...prev] : prev;
+
+          // Auto-Sync: Rebuild historyData aus aktualisierten sessionHits
+          if (newHits.length > 0) {
+            const updatedHistoryData = rebuildHistoryFromSessions(updated);
+            setHistoryData(updatedHistoryData);
+          }
+
           return updated;
         });
 
-        setNotification({
-          type: 'success',
-          message: `✅ ${pendingCount} Offline-Hits importiert!`,
-          icon: RefreshCw
-        });
-        setTimeout(() => setNotification(null), 4000);
+        if (actuallyImportedCount > 0) {
+          setNotification({
+            type: 'success',
+            message: `✅ ${actuallyImportedCount} Offline-Hits importiert!`,
+            icon: RefreshCw
+          });
+          setTimeout(() => setNotification(null), 4000);
 
-        console.log(`✅ Auto-Sync erfolgreich: ${pendingCount} hits importiert`);
+          console.log(`✅ Auto-Sync erfolgreich: ${actuallyImportedCount} hits importiert (${pendingCount - actuallyImportedCount} Duplikate übersprungen)`);
+        } else {
+          console.log(`✓ Auto-Sync: Alle ${pendingCount} hits bereits vorhanden (Duplikate)`);
+        }
 
-        // Sync Complete aufrufen um Pending Hits auf ESP32 zu löschen
+        // Sync Complete aufrufen (auch bei Duplikaten!)
         await completeSyncRequest();
       } else {
         console.log('✓ Auto-Sync: Keine pending hits');
@@ -620,9 +710,9 @@ export default function App() {
     };
   }, [isSimulating, ip, manualOffset, isManuallyHolding, settings.triggerThreshold, errorCount, connected, syncPendingHits]);
 
-  // **FIX v8.8**: Context ohne sessionHits/setSessionHits
+  // **FIX v8.9**: Context mit sessionHits/setSessionHits
   const ctx = useMemo(() => ({
-    settings, setSettings, historyData, setHistoryData,
+    settings, setSettings, historyData, setHistoryData, sessionHits, setSessionHits,
     goals, setGoals, lastHitTime,
     liveData, currentStrainId, setCurrentStrainId, isGuestMode, setIsGuestMode, guestHits, resetGuestHits, deleteHit,
     connected, setConnected, isSimulating, setIsSimulating, isSensorInhaling,
@@ -633,7 +723,7 @@ export default function App() {
     onHoldStart: () => setIsManuallyHolding(true),
     onHoldEnd: () => setIsManuallyHolding(false)
   }), [
-    settings, setSettings, historyData, setHistoryData,
+    settings, setSettings, historyData, setHistoryData, sessionHits, setSessionHits,
     goals, setGoals, lastHitTime,
     liveData, currentStrainId, setCurrentStrainId, isGuestMode, setIsGuestMode, guestHits, resetGuestHits, deleteHit,
     connected, setConnected, isSimulating, setIsSimulating, isSensorInhaling,
@@ -746,6 +836,7 @@ function AppLayout({ ctx }) {
             <ChartsView
               historyData={ctx.historyData}
               settings={ctx.settings}
+              sessionHits={ctx.sessionHits}
             />
           )}
           {activeTab === 'analytics' && (
@@ -776,6 +867,8 @@ function AppLayout({ ctx }) {
               setSettings={ctx.setSettings}
               historyData={ctx.historyData}
               setHistoryData={ctx.setHistoryData}
+              sessionHits={ctx.sessionHits}
+              setSessionHits={ctx.setSessionHits}
               goals={ctx.goals}
               setGoals={ctx.setGoals}
               showRecovery={ctx.showRecovery}
