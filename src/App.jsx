@@ -3,7 +3,7 @@ import {
   Leaf, LayoutDashboard, Calendar as CalendarIcon, BarChart3, Settings, Smartphone,
   Wifi, Zap, Wind, Flame, Star, Clock, Activity, Moon, CalendarDays, Shield, Tag, Gem, TrendingUp, Lock,
   Coins, List, Thermometer, Check, Plus, X, Edit2, Trash2, User, Users, Radio, Scale, WifiOff, RefreshCw,
-  Save, AlertTriangle, Brain, Bell
+  Save, AlertTriangle, Brain, Bell, Trophy
 } from 'lucide-react';
 import AnalyticsView from './components/AnalyticsView';
 import StreaksWidget from './components/StreaksWidget';
@@ -13,6 +13,7 @@ import CalendarView from './components/CalendarView';
 import ChartsView from './components/ChartsView';
 import SettingsView from './components/SettingsView';
 import DashboardView from './components/DashboardView';
+import AchievementsView from './components/AchievementsView';
 import ESP32DebugView from './components/ESP32DebugView';
 import DataRecovery from './components/DataRecovery';
 import { generateTestData } from './utils/testDataGenerator';
@@ -818,6 +819,7 @@ function AppLayout({ ctx }) {
           <NavBtn id="strains" icon={<Tag/>} label="Sorten" active={activeTab} set={safeSetActiveTab}/>
           <NavBtn id="charts" icon={<BarChart3/>} label="Statistik" active={activeTab} set={safeSetActiveTab}/>
           <NavBtn id="analytics" icon={<Brain/>} label="Analytics" active={activeTab} set={safeSetActiveTab}/>
+          <NavBtn id="achievements" icon={<Trophy/>} label="Erfolge" active={activeTab} set={safeSetActiveTab}/>
           <NavBtn id="esp32" icon={<Radio/>} label="ESP32 Debug" active={activeTab} set={safeSetActiveTab}/>
           <NavBtn id="settings" icon={<Settings/>} label="Einstellungen" active={activeTab} set={safeSetActiveTab}/>
         </nav>
@@ -881,6 +883,13 @@ function AppLayout({ ctx }) {
               settings={ctx.settings}
             />
           )}
+          {activeTab === 'achievements' && (
+            <AchievementsView
+              sessionHits={ctx.sessionHits}
+              historyData={ctx.historyData}
+              settings={ctx.settings}
+            />
+          )}
           {activeTab === 'esp32' && (
             <ESP32DebugView
               ip={ctx.ip}
@@ -921,6 +930,7 @@ function AppLayout({ ctx }) {
         <MobNavBtn id="strains" icon={<Tag/>} active={activeTab} set={safeSetActiveTab}/>
         <MobNavBtn id="charts" icon={<BarChart3/>} active={activeTab} set={safeSetActiveTab}/>
         <MobNavBtn id="analytics" icon={<Brain/>} active={activeTab} set={safeSetActiveTab}/>
+        <MobNavBtn id="achievements" icon={<Trophy/>} active={activeTab} set={safeSetActiveTab}/>
         <MobNavBtn id="esp32" icon={<Radio/>} active={activeTab} set={safeSetActiveTab}/>
         <MobNavBtn id="settings" icon={<Settings/>} active={activeTab} set={safeSetActiveTab}/>
       </div>
