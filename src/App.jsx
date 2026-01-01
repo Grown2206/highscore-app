@@ -238,6 +238,37 @@ export default function App() {
 
   // **FIX v8.9.2**: Automatische Testdaten entfernt - nur manuell in Einstellungen
 
+  // **NEW**: Session-System - zählt Hits des heutigen Tages, reset bei Tageswechsel
+  const [sessionHitsCount, setSessionHitsCount] = useState(() => {
+    const saved = localStorage.getItem('sessionHitsCount');
+    return saved ? parseInt(saved, 10) : 0;
+  });
+  const [sessionDate, setSessionDate] = useState(() => {
+    const saved = localStorage.getItem('sessionDate');
+    return saved || new Date().toDateString();
+  });
+
+  // Auto-Reset bei Tageswechsel
+  useEffect(() => {
+    const checkDayChange = setInterval(() => {
+      const currentDate = new Date().toDateString();
+      if (currentDate !== sessionDate) {
+        console.log('📅 Tageswechsel erkannt - Session zurückgesetzt');
+        setSessionHitsCount(0);
+        setSessionDate(currentDate);
+        localStorage.setItem('sessionHitsCount', '0');
+        localStorage.setItem('sessionDate', currentDate);
+      }
+    }, 60000); // Prüfe jede Minute
+
+    return () => clearInterval(checkDayChange);
+  }, [sessionDate]);
+
+  // Persistiere sessionHitsCount
+  useEffect(() => {
+    localStorage.setItem('sessionHitsCount', String(sessionHitsCount));
+  }, [sessionHitsCount]);
+
   const [liveData, setLiveData] = useState({
     flame: false,
     today: 0,
@@ -377,6 +408,9 @@ export default function App() {
     const updatedHistoryData = rebuildHistoryFromSessions(updatedSessionHits);
     setHistoryData(updatedHistoryData);
     setManualOffset(p => p + 1);
+
+    // **NEW**: Erhöhe Session-Counter
+    setSessionHitsCount(p => p + 1);
 
     // Check Daily Limit Goal
     const todayStr = new Date().toISOString().split('T')[0];
@@ -709,9 +743,10 @@ export default function App() {
   }, [isSimulating, ip, manualOffset, isManuallyHolding, settings.triggerThreshold, errorCount, connected, syncPendingHits]);
 
   // **FIX v8.9**: Context mit sessionHits/setSessionHits
+  // **NEW**: sessionHitsCount hinzugefügt
   const ctx = useMemo(() => ({
     settings, setSettings, historyData, setHistoryData, sessionHits, setSessionHits,
-    goals, setGoals, lastHitTime,
+    goals, setGoals, lastHitTime, sessionHitsCount,
     liveData, currentStrainId, setCurrentStrainId, isGuestMode, setIsGuestMode, guestHits, resetGuestHits, deleteHit,
     connected, setConnected, isSimulating, setIsSimulating, isSensorInhaling,
     ip, setIp, lastError, selectedSession, setSelectedSession, notification,
@@ -722,7 +757,7 @@ export default function App() {
     onHoldEnd: () => setIsManuallyHolding(false)
   }), [
     settings, setSettings, historyData, setHistoryData, sessionHits, setSessionHits,
-    goals, setGoals, lastHitTime,
+    goals, setGoals, lastHitTime, sessionHitsCount,
     liveData, currentStrainId, setCurrentStrainId, isGuestMode, setIsGuestMode, guestHits, resetGuestHits, deleteHit,
     connected, setConnected, isSimulating, setIsSimulating, isSensorInhaling,
     ip, setIp, lastError, selectedSession, setSelectedSession, notification,
@@ -815,6 +850,7 @@ function AppLayout({ ctx }) {
               setCurrentStrainId={ctx.setCurrentStrainId}
               isSensorInhaling={ctx.isSensorInhaling}
               sessionHits={ctx.sessionHits}
+              sessionHitsCount={ctx.sessionHitsCount}
             />
           )}
           {activeTab === 'calendar' && (

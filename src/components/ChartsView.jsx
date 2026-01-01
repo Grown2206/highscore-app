@@ -154,8 +154,9 @@ export default function ChartsView({ historyData, settings, sessionHits }) {
   }, [historyData, settings]);
 
   // **FIX v8.9**: Session Duration wiederhergestellt - nutzt sessionHits mit duration
+  // **CRITICAL FIX**: Filtere ungültige Durations (nur 0-8s verwenden)
   const durationStats = useMemo(() => {
-    const durations = sessionHits?.filter(h => h.duration > 0).map(h => h.duration) || [];
+    const durations = sessionHits?.filter(h => h.duration > 0 && h.duration <= 8).map(h => h.duration) || [];
     if (durations.length === 0) return null;
 
     const total = durations.reduce((sum, d) => sum + d, 0);
