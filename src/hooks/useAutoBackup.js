@@ -1,12 +1,12 @@
 /**
- * **FIX v8.8.1**: useAutoBackup Hook ohne sessionHits
+ * **FIX v8.9**: useAutoBackup Hook mit sessionHits als primäre Quelle
  * Automatisches Backup bei Datenänderungen
  */
 
 import { useEffect, useRef } from 'react';
 import { createAutoBackup, cleanupOldBackups } from '../utils/autoBackup';
 
-export function useAutoBackup(settings, historyData, goals) {
+export function useAutoBackup(settings, historyData, sessionHits, goals) {
   const lastBackupRef = useRef(0);
   const backupTimeoutRef = useRef(null);
 
@@ -24,6 +24,7 @@ export function useAutoBackup(settings, historyData, goals) {
       const success = await createAutoBackup({
         settings,
         historyData,
+        sessionHits,
         goals
       });
 
@@ -44,7 +45,7 @@ export function useAutoBackup(settings, historyData, goals) {
         clearTimeout(backupTimeoutRef.current);
       }
     };
-  }, [settings, historyData, goals]);
+  }, [settings, historyData, sessionHits, goals]);
 
   // Cleanup alte Backups beim Mount
   useEffect(() => {
@@ -58,8 +59,8 @@ export function useAutoBackup(settings, historyData, goals) {
       try {
         const backupData = {
           timestamp: Date.now(),
-          version: '8.8',
-          data: { settings, historyData, goals }
+          version: '8.9',
+          data: { settings, historyData, sessionHits, goals }
         };
 
         // Speichere in localStorage (synchron)
@@ -75,7 +76,7 @@ export function useAutoBackup(settings, historyData, goals) {
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
     };
-  }, [settings, historyData, goals]);
+  }, [settings, historyData, sessionHits, goals]);
 
   // Visibility Change: Backup wenn App in Hintergrund geht
   useEffect(() => {
@@ -85,6 +86,7 @@ export function useAutoBackup(settings, historyData, goals) {
         await createAutoBackup({
           settings,
           historyData,
+          sessionHits,
           goals
         });
         console.log('✅ Background Backup erstellt');
@@ -96,5 +98,5 @@ export function useAutoBackup(settings, historyData, goals) {
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [settings, historyData, goals]);
+  }, [settings, historyData, sessionHits, goals]);
 }

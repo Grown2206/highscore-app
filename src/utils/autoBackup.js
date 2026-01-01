@@ -14,10 +14,11 @@ export async function createAutoBackup(data) {
     const timestamp = Date.now();
     const backupData = {
       timestamp,
-      version: '8.8',
+      version: '8.9',
       data: {
         settings: data.settings,
         historyData: data.historyData,
+        sessionHits: data.sessionHits,
         goals: data.goals,
       }
     };
@@ -131,15 +132,16 @@ async function loadFromFilesystem() {
 }
 
 /**
- * **FIX v8.8.1**: Prüfe ob Daten intakt sind (ohne sessionHits)
+ * **FIX v8.9**: Prüfe ob Daten intakt sind (mit sessionHits)
  */
 export function validateData(data) {
   try {
     // Prüfe kritische Keys
     const hasSettings = data.settings && typeof data.settings === 'object';
     const hasHistory = Array.isArray(data.historyData);
+    const hasSessions = Array.isArray(data.sessionHits);
 
-    return hasSettings && hasHistory;
+    return hasSettings && (hasHistory || hasSessions);
   } catch (error) {
     return false;
   }
@@ -206,17 +208,18 @@ export async function exportToDevice(data) {
 export async function attemptDataRecovery() {
   const sources = [];
 
-  // **FIX v8.8.1**: localStorage Haupt-Daten ohne sessionHits
+  // **FIX v8.9**: localStorage Haupt-Daten mit sessionHits
   try {
     const settings = JSON.parse(localStorage.getItem(STORAGE_KEYS.SETTINGS) || 'null');
     const historyData = JSON.parse(localStorage.getItem(STORAGE_KEYS.HISTORY) || '[]');
+    const sessionHits = JSON.parse(localStorage.getItem(STORAGE_KEYS.SESSION_HITS) || '[]');
     const goals = JSON.parse(localStorage.getItem(STORAGE_KEYS.GOALS) || 'null');
 
-    if (settings && historyData.length > 0) {
+    if (settings && (historyData.length > 0 || sessionHits.length > 0)) {
       sources.push({
         source: 'localStorage (Primary)',
         timestamp: Date.now(),
-        data: { settings, historyData, goals }
+        data: { settings, historyData, sessionHits, goals }
       });
     }
   } catch (e) {
