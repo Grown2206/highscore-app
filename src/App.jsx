@@ -479,6 +479,13 @@ export default function App() {
             payload: hit,
           });
 
+          // **CRITICAL FIX**: Validiere Duration - ignoriere unrealistische Werte
+          let validatedDuration = hit.duration || 0;
+          if (validatedDuration < 0 || validatedDuration > 8) {
+            console.warn(`⚠️ Ungültige Duration ${validatedDuration}s ignoriert (Hit ID: ${hit.id})`);
+            validatedDuration = 0;
+          }
+
           return {
             id: hit.id || `fallback_${fallbackIdSuffix}`,
             timestamp: realTimestamp,
@@ -486,7 +493,9 @@ export default function App() {
             strainName: strain.name,
             strainPrice: strain.price,
             strainId: strain.id,
-            duration: hit.duration || 0
+            duration: validatedDuration,
+            bowlSize: settings.bowlSize,
+            weedRatio: settings.weedRatio
           };
         });
 
