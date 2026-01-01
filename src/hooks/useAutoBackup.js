@@ -1,12 +1,12 @@
 /**
- * useAutoBackup Hook
+ * **FIX v8.8.1**: useAutoBackup Hook ohne sessionHits
  * Automatisches Backup bei Datenänderungen
  */
 
 import { useEffect, useRef } from 'react';
 import { createAutoBackup, cleanupOldBackups } from '../utils/autoBackup';
 
-export function useAutoBackup(settings, historyData, sessionHits, goals) {
+export function useAutoBackup(settings, historyData, goals) {
   const lastBackupRef = useRef(0);
   const backupTimeoutRef = useRef(null);
 
@@ -24,7 +24,6 @@ export function useAutoBackup(settings, historyData, sessionHits, goals) {
       const success = await createAutoBackup({
         settings,
         historyData,
-        sessionHits,
         goals
       });
 
@@ -45,7 +44,7 @@ export function useAutoBackup(settings, historyData, sessionHits, goals) {
         clearTimeout(backupTimeoutRef.current);
       }
     };
-  }, [settings, historyData, sessionHits, goals]);
+  }, [settings, historyData, goals]);
 
   // Cleanup alte Backups beim Mount
   useEffect(() => {
@@ -59,8 +58,8 @@ export function useAutoBackup(settings, historyData, sessionHits, goals) {
       try {
         const backupData = {
           timestamp: Date.now(),
-          version: '7.0',
-          data: { settings, historyData, sessionHits, goals }
+          version: '8.8',
+          data: { settings, historyData, goals }
         };
 
         // Speichere in localStorage (synchron)
@@ -76,7 +75,7 @@ export function useAutoBackup(settings, historyData, sessionHits, goals) {
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
     };
-  }, [settings, historyData, sessionHits, goals]);
+  }, [settings, historyData, goals]);
 
   // Visibility Change: Backup wenn App in Hintergrund geht
   useEffect(() => {
@@ -86,7 +85,6 @@ export function useAutoBackup(settings, historyData, sessionHits, goals) {
         await createAutoBackup({
           settings,
           historyData,
-          sessionHits,
           goals
         });
         console.log('✅ Background Backup erstellt');
@@ -98,5 +96,5 @@ export function useAutoBackup(settings, historyData, sessionHits, goals) {
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [settings, historyData, sessionHits, goals]);
+  }, [settings, historyData, goals]);
 }

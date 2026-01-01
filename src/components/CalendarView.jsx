@@ -1,16 +1,10 @@
 import React, { useState, useEffect, useMemo, memo } from 'react';
 import { Save, Wind, Scale, Coins, Clock, Tag, TrendingUp, TrendingDown, Minus, Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
 import SwipeableHitRow from './SwipeableHitRow';
-
-// FIX: Lokales Datum ohne UTC-Verschiebung
-const formatLocalDate = (date) => {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-};
+import { formatLocalDate, getTotalHits, getAvgHitsPerDay } from '../utils/historyDataHelpers';
 
 // **FIX v8.8**: Entferne sessionHits - verwende nur historyData
+// **FIX v8.8.1**: Verwende historyDataHelpers für Aggregationen
 function CalendarView({ historyData, setHistoryData, settings, deleteHit }) {
     const [sel, setSel] = useState(formatLocalDate(new Date())); // FIX: Lokales Datum
     const [note, setNote] = useState("");
@@ -89,17 +83,14 @@ function CalendarView({ historyData, setHistoryData, settings, deleteHit }) {
         };
     }, [sel, historyData, settings]);
 
-    // Durchschnittswerte berechnen
-    // **FIX v8.8**: Stats nur mit historyData (keine Kosten mehr)
+    // **FIX v8.8.1**: Verwende historyDataHelpers statt inline reduce/filter
     const avgStats = useMemo(() => {
         if (historyData.length === 0) return null;
 
-        const totalDays = historyData.filter(h => h.count > 0).length;
-        const totalHits = historyData.reduce((sum, day) => sum + day.count, 0);
-        const avgHitsPerDay = totalDays > 0 ? totalHits / totalDays : 0;
+        const avgHitsPerDay = getAvgHitsPerDay(historyData);
 
         return { avgHitsPerDay };
-    }, [historyData, settings]);
+    }, [historyData]);
 
     const getTrendIcon = (value, avg) => {
         if (value > avg * 1.2) return <TrendingUp className="text-rose-500" size={14} />;
