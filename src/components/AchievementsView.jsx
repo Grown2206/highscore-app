@@ -1,108 +1,110 @@
 import React, { useMemo } from 'react';
 import { Trophy, Star, Flame, Target, Calendar, TrendingUp, Award, Lock } from 'lucide-react';
 
-export default function AchievementsView({ sessionHits, historyData, settings }) {
-  // Achievement Definitionen
-  const achievementDefs = [
-    {
-      id: 'first_hit',
-      title: 'Erste Schritte',
-      description: 'Dein erster Hit',
-      icon: Star,
-      color: 'text-amber-400',
-      bg: 'bg-amber-500/10',
-      border: 'border-amber-500/30',
-      check: (hits) => hits.length >= 1
-    },
-    {
-      id: 'rookie',
-      title: 'Rookie',
-      description: '10 Hits erreicht',
-      icon: Target,
-      color: 'text-blue-400',
-      bg: 'bg-blue-500/10',
-      border: 'border-blue-500/30',
-      check: (hits) => hits.length >= 10
-    },
-    {
-      id: 'veteran',
-      title: 'Veteran',
-      description: '50 Hits erreicht',
-      icon: Award,
-      color: 'text-purple-400',
-      bg: 'bg-purple-500/10',
-      border: 'border-purple-500/30',
-      check: (hits) => hits.length >= 50
-    },
-    {
-      id: 'legend',
-      title: 'Legende',
-      description: '100 Hits erreicht',
-      icon: Trophy,
-      color: 'text-emerald-400',
-      bg: 'bg-emerald-500/10',
-      border: 'border-emerald-500/30',
-      check: (hits) => hits.length >= 100
-    },
-    {
-      id: 'master',
-      title: 'Meister',
-      description: '500 Hits erreicht',
-      icon: Trophy,
-      color: 'text-rose-400',
-      bg: 'bg-rose-500/10',
-      border: 'border-rose-500/30',
-      check: (hits) => hits.length >= 500
-    },
-    {
-      id: 'week_streak',
-      title: '7 Tage Streak',
-      description: '7 Tage in Folge aktiv',
-      icon: Flame,
-      color: 'text-orange-400',
-      bg: 'bg-orange-500/10',
-      border: 'border-orange-500/30',
-      check: (hits, history) => {
-        if (history.length < 7) return false;
-        const last7Days = history.slice(-7);
-        return last7Days.every(d => d.count > 0);
-      }
-    },
-    {
-      id: 'month_streak',
-      title: '30 Tage Streak',
-      description: '30 Tage in Folge aktiv',
-      icon: Calendar,
-      color: 'text-cyan-400',
-      bg: 'bg-cyan-500/10',
-      border: 'border-cyan-500/30',
-      check: (hits, history) => {
-        if (history.length < 30) return false;
-        const last30Days = history.slice(-30);
-        return last30Days.every(d => d.count > 0);
-      }
-    },
-    {
-      id: 'century',
-      title: 'Jahrhundert',
-      description: '100 Hits an einem Tag',
-      icon: TrendingUp,
-      color: 'text-lime-400',
-      bg: 'bg-lime-500/10',
-      border: 'border-lime-500/30',
-      check: (hits, history) => {
-        return history.some(d => d.count >= 100);
-      }
+// **PERFORMANCE FIX**: Achievement Definitionen außerhalb der Component
+// Verhindert Re-Creation bei jedem Render
+const achievementDefs = [
+  {
+    id: 'first_hit',
+    title: 'Erste Schritte',
+    description: 'Dein erster Hit',
+    icon: Star,
+    color: 'text-amber-400',
+    bg: 'bg-amber-500/10',
+    border: 'border-amber-500/30',
+    check: (hits) => hits.length >= 1
+  },
+  {
+    id: 'rookie',
+    title: 'Rookie',
+    description: '10 Hits erreicht',
+    icon: Target,
+    color: 'text-blue-400',
+    bg: 'bg-blue-500/10',
+    border: 'border-blue-500/30',
+    check: (hits) => hits.length >= 10
+  },
+  {
+    id: 'veteran',
+    title: 'Veteran',
+    description: '50 Hits erreicht',
+    icon: Award,
+    color: 'text-purple-400',
+    bg: 'bg-purple-500/10',
+    border: 'border-purple-500/30',
+    check: (hits) => hits.length >= 50
+  },
+  {
+    id: 'legend',
+    title: 'Legende',
+    description: '100 Hits erreicht',
+    icon: Trophy,
+    color: 'text-emerald-400',
+    bg: 'bg-emerald-500/10',
+    border: 'border-emerald-500/30',
+    check: (hits) => hits.length >= 100
+  },
+  {
+    id: 'master',
+    title: 'Meister',
+    description: '500 Hits erreicht',
+    icon: Trophy,
+    color: 'text-rose-400',
+    bg: 'bg-rose-500/10',
+    border: 'border-rose-500/30',
+    check: (hits) => hits.length >= 500
+  },
+  {
+    id: 'week_streak',
+    title: '7 Tage Streak',
+    description: '7 Tage in Folge aktiv',
+    icon: Flame,
+    color: 'text-orange-400',
+    bg: 'bg-orange-500/10',
+    border: 'border-orange-500/30',
+    check: (hits, history) => {
+      if (history.length < 7) return false;
+      const last7Days = history.slice(-7);
+      return last7Days.every(d => d.count > 0);
     }
-  ];
+  },
+  {
+    id: 'month_streak',
+    title: '30 Tage Streak',
+    description: '30 Tage in Folge aktiv',
+    icon: Calendar,
+    color: 'text-cyan-400',
+    bg: 'bg-cyan-500/10',
+    border: 'border-cyan-500/30',
+    check: (hits, history) => {
+      if (history.length < 30) return false;
+      const last30Days = history.slice(-30);
+      return last30Days.every(d => d.count > 0);
+    }
+  },
+  {
+    id: 'century',
+    title: 'Jahrhundert',
+    description: '100 Hits an einem Tag',
+    icon: TrendingUp,
+    color: 'text-lime-400',
+    bg: 'bg-lime-500/10',
+    border: 'border-lime-500/30',
+    check: (hits, history) => {
+      return history.some(d => d.count >= 100);
+    }
+  }
+];
 
+export default function AchievementsView({ sessionHits, historyData, settings }) {
+  // **PERFORMANCE FIX**: achievementDefs nicht mehr in dependencies
   // Berechne Achievement-Status
   const achievements = useMemo(() => {
     return achievementDefs.map(def => ({
       ...def,
       unlocked: def.check(sessionHits || [], historyData || [])
     }));
-  }, [sessionHits, historyData, achievementDefs]);
+  }, [sessionHits, historyData]);
 
   const unlockedCount = achievements.filter(a => a.unlocked).length;
   const totalCount = achievements.length;
