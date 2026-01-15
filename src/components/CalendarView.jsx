@@ -2,46 +2,33 @@ import React, { useState, useEffect, useMemo, memo } from 'react';
 import { Save, Wind, Scale, Coins, Clock, Tag, TrendingUp, TrendingDown, Minus, Calendar, ChevronLeft, ChevronRight, CheckSquare, Square, Trash2, X } from 'lucide-react';
 import SwipeableHitRow from './SwipeableHitRow';
 import { formatLocalDate, getTotalHits, getAvgHitsPerDay } from '../utils/historyDataHelpers';
+import { useHitSelection } from '../hooks/useHitSelection';
 
 // **FIX v8.9**: sessionHits wiederhergestellt - Timeline und Hit-Liste funktionieren wieder
-// **NEW v8.8**: Multi-select delete functionality
+// **NEW v8.8**: Multi-select delete functionality with custom hook
 // Verwende historyDataHelpers für Aggregationen
-function CalendarView({ historyData, setHistoryData, settings, deleteHit, sessionHits }) {
+function CalendarView({ historyData, setHistoryData, settings, deleteHit, deleteHits, sessionHits }) {
     const [sel, setSel] = useState(formatLocalDate(new Date())); // FIX: Lokales Datum
     const [note, setNote] = useState("");
     const [viewDate, setViewDate] = useState(new Date()); // NEU: Aktuell angezeigte Monat
-    const [selectMode, setSelectMode] = useState(false);
-    const [selectedHits, setSelectedHits] = useState(new Set());
 
-    // Multi-select handlers
-    const toggleSelectMode = () => {
-        setSelectMode(!selectMode);
-        setSelectedHits(new Set());
-    };
+    // **FIX v8.8**: Use shared hook for multi-select state
+    const {
+        selectMode,
+        selectedHits,
+        toggleSelectMode,
+        toggleHitSelection,
+        selectAllHits,
+        clearSelection
+    } = useHitSelection();
 
-    const toggleHitSelection = (hitId) => {
-        setSelectedHits(prev => {
-            const newSet = new Set(prev);
-            if (newSet.has(hitId)) {
-                newSet.delete(hitId);
-            } else {
-                newSet.add(hitId);
-            }
-            return newSet;
-        });
-    };
-
-    const selectAllHits = (hits) => {
-        setSelectedHits(new Set(hits.map(h => h.id)));
-    };
-
+    // **FIX v8.8**: Use batch delete for better performance
     const deleteSelectedHits = () => {
         if (selectedHits.size === 0) return;
         if (!window.confirm(`${selectedHits.size} Hit(s) wirklich löschen?`)) return;
 
-        selectedHits.forEach(hitId => deleteHit(hitId));
-        setSelectedHits(new Set());
-        setSelectMode(false);
+        deleteHits(Array.from(selectedHits));
+        clearSelection();
     };
 
     useEffect(() => {

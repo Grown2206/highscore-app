@@ -478,6 +478,26 @@ export default function App() {
     console.log('🗑️ Hit gelöscht:', hitId);
   };
 
+  // **NEW v8.8**: DELETE MULTIPLE HITS - Batch delete without per-hit confirmation
+  const deleteHits = (hitIds) => {
+    // Lösche alle Hits in einem Batch
+    const hitIdSet = new Set(hitIds);
+    const updatedSessionHits = sessionHits.filter(h => !hitIdSet.has(h.id));
+    setSessionHits(updatedSessionHits);
+
+    // Auto-Sync: Rebuild historyData aus sessionHits
+    const updatedHistoryData = rebuildHistoryFromSessions(updatedSessionHits);
+    setHistoryData(updatedHistoryData);
+
+    setNotification({
+      type: 'success',
+      message: `✅ ${hitIds.length} Hit(s) gelöscht`,
+      icon: Trash2
+    });
+    setTimeout(() => setNotification(null), 2000);
+    console.log(`🗑️ ${hitIds.length} Hits gelöscht:`, hitIds);
+  };
+
   // AUTO-SYNC: Pending Hits vom ESP32 abrufen und importieren
   const syncPendingHits = useCallback(async () => {
     if (isSimulating || isSyncingRef.current || hasSyncedRef.current) return;
@@ -778,7 +798,7 @@ export default function App() {
   const ctx = useMemo(() => ({
     settings, setSettings, historyData, setHistoryData, sessionHits, setSessionHits,
     goals, setGoals, lastHitTime, sessionHitsCount,
-    liveData, currentStrainId, setCurrentStrainId, isGuestMode, setIsGuestMode, guestHits, resetGuestHits, deleteHit,
+    liveData, currentStrainId, setCurrentStrainId, isGuestMode, setIsGuestMode, guestHits, resetGuestHits, deleteHit, deleteHits,
     connected, setConnected, isSimulating, setIsSimulating, isSensorInhaling,
     ip, setIp, lastError, selectedSession, setSelectedSession, notification,
     connectionLog, flameHistory, errorCount, isManuallyHolding,
@@ -789,7 +809,7 @@ export default function App() {
   }), [
     settings, setSettings, historyData, setHistoryData, sessionHits, setSessionHits,
     goals, setGoals, lastHitTime, sessionHitsCount,
-    liveData, currentStrainId, setCurrentStrainId, isGuestMode, setIsGuestMode, guestHits, resetGuestHits, deleteHit,
+    liveData, currentStrainId, setCurrentStrainId, isGuestMode, setIsGuestMode, guestHits, resetGuestHits, deleteHit, deleteHits,
     connected, setConnected, isSimulating, setIsSimulating, isSensorInhaling,
     ip, setIp, lastError, selectedSession, setSelectedSession, notification,
     connectionLog, flameHistory, errorCount, isManuallyHolding,
@@ -875,6 +895,7 @@ function AppLayout({ ctx }) {
               guestHits={ctx.guestHits}
               resetGuestHits={ctx.resetGuestHits}
               deleteHit={ctx.deleteHit}
+              deleteHits={ctx.deleteHits}
               onManualTrigger={ctx.onManualTrigger}
               onHoldStart={ctx.onHoldStart}
               onHoldEnd={ctx.onHoldEnd}
@@ -891,6 +912,7 @@ function AppLayout({ ctx }) {
               setHistoryData={ctx.setHistoryData}
               settings={ctx.settings}
               deleteHit={ctx.deleteHit}
+              deleteHits={ctx.deleteHits}
               sessionHits={ctx.sessionHits}
             />
           )}
