@@ -21,13 +21,13 @@ export default function DashboardView({ liveData, lastHitTime, settings, isGuest
   // Check for date change every minute
   useEffect(() => {
     const interval = setInterval(() => {
-      const newKey = getTodayKey();
-      if (newKey !== todayKey) {
-        setTodayKey(newKey);
-      }
+      setTodayKey(prevKey => {
+        const newKey = getTodayKey();
+        return newKey === prevKey ? prevKey : newKey;
+      });
     }, 60000); // Check every minute
     return () => clearInterval(interval);
-  }, [todayKey]);
+  }, []);
 
   // **FIX v8.8**: Use shared hook for multi-select state
   const {
