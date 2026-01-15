@@ -1,14 +1,48 @@
 import React, { useState, useEffect } from 'react';
-import { User, Users, Tag, Wind, Scale, Coins, List, Clock, Shield, Radio, Flame, Zap, RotateCcw, Battery } from 'lucide-react';
+import { User, Users, Tag, Wind, Scale, Coins, List, Clock, Shield, Radio, Flame, Zap, RotateCcw, Battery, CheckSquare, Square, Trash2, X } from 'lucide-react';
 import HoldButton from './HoldButton';
 import { MetricCard, AdminMetric } from './UIComponents';
 import SwipeableHitRow from './SwipeableHitRow';
 
 // **FIX v8.9.2**: sessionHits wiederhergestellt - Timeline mit Hit-Liste funktioniert wieder
 // **NEW**: sessionHitsCount für Session-System
+// **NEW v8.8**: Multi-select delete functionality
 export default function DashboardView({ liveData, lastHitTime, settings, isGuestMode, setIsGuestMode, guestHits, resetGuestHits, deleteHit, onManualTrigger, onHoldStart, onHoldEnd, currentStrainId, setCurrentStrainId, isSensorInhaling, sessionHits, sessionHitsCount }) {
   const [timeSince, setTimeSince] = useState("00:00:00");
-  
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedHits, setSelectedHits] = useState(new Set());
+
+  // Multi-select handlers
+  const toggleSelectMode = () => {
+    setSelectMode(!selectMode);
+    setSelectedHits(new Set()); // Clear selection when toggling mode
+  };
+
+  const toggleHitSelection = (hitId) => {
+    setSelectedHits(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(hitId)) {
+        newSet.delete(hitId);
+      } else {
+        newSet.add(hitId);
+      }
+      return newSet;
+    });
+  };
+
+  const selectAllHits = (hits) => {
+    setSelectedHits(new Set(hits.map(h => h.id)));
+  };
+
+  const deleteSelectedHits = () => {
+    if (selectedHits.size === 0) return;
+    if (!window.confirm(`${selectedHits.size} Hit(s) wirklich löschen?`)) return;
+
+    selectedHits.forEach(hitId => deleteHit(hitId));
+    setSelectedHits(new Set());
+    setSelectMode(false);
+  };
+
   useEffect(() => {
     if (!lastHitTime) return;
     const iv = setInterval(() => {
@@ -85,7 +119,63 @@ export default function DashboardView({ liveData, lastHitTime, settings, isGuest
         <div className="bg-zinc-950 px-4 py-3 border-b border-zinc-800 flex items-center gap-2">
           <Clock size={14} className="text-zinc-500"/>
           <span className="text-xs font-bold uppercase text-zinc-500">Heutige Hits</span>
-          <span className="text-[10px] text-zinc-600 ml-auto">← Wische zum Löschen</span>
+
+          {/* Multi-Select Mode Controls */}
+          {!selectMode ? (
+            <span className="text-[10px] text-zinc-600 ml-auto">← Wische zum Löschen</span>
+          ) : (
+            <div className="ml-auto flex items-center gap-2">
+              <span className="text-[10px] text-emerald-400 font-bold">
+                {selectedHits.size} ausgewählt
+              </span>
+            </div>
+          )}
+
+          <div className="flex items-center gap-1">
+            {!selectMode ? (
+              <button
+                onClick={toggleSelectMode}
+                className="flex items-center gap-1 px-2 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold transition-colors"
+              >
+                <CheckSquare size={12} />
+                Auswählen
+              </button>
+            ) : (
+              <>
+                <button
+                  onClick={() => {
+                    const today = new Date();
+                    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+                    const todayHits = (sessionHits || []).filter(hit => {
+                      const hitDate = new Date(hit.timestamp);
+                      const hitDateStr = `${hitDate.getFullYear()}-${String(hitDate.getMonth() + 1).padStart(2, '0')}-${String(hitDate.getDate()).padStart(2, '0')}`;
+                      return hitDateStr === todayStr;
+                    });
+                    selectAllHits(todayHits);
+                  }}
+                  className="flex items-center gap-1 px-2 py-1 rounded-lg bg-zinc-700 hover:bg-zinc-600 text-white text-[10px] font-bold transition-colors"
+                >
+                  <Square size={12} />
+                  Alle
+                </button>
+                <button
+                  onClick={deleteSelectedHits}
+                  disabled={selectedHits.size === 0}
+                  className="flex items-center gap-1 px-2 py-1 rounded-lg bg-red-600 hover:bg-red-700 disabled:bg-zinc-700 disabled:text-zinc-500 text-white text-[10px] font-bold transition-colors"
+                >
+                  <Trash2 size={12} />
+                  Löschen
+                </button>
+                <button
+                  onClick={toggleSelectMode}
+                  className="flex items-center gap-1 px-2 py-1 rounded-lg bg-zinc-700 hover:bg-zinc-600 text-white text-[10px] font-bold transition-colors"
+                >
+                  <X size={12} />
+                  Abbrechen
+                </button>
+              </>
+            )}
+          </div>
         </div>
         {(() => {
           // Filtere Hits von heute
@@ -107,6 +197,9 @@ export default function DashboardView({ liveData, lastHitTime, settings, isGuest
                       hit={hit}
                       hitNumber={i + 1}
                       onDelete={deleteHit}
+                      selectMode={selectMode}
+                      isSelected={selectedHits.has(hit.id)}
+                      onToggleSelect={toggleHitSelection}
                     />
                   ))}
                 </tbody>

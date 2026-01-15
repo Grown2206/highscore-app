@@ -1,14 +1,48 @@
 import React, { useState, useEffect, useMemo, memo } from 'react';
-import { Save, Wind, Scale, Coins, Clock, Tag, TrendingUp, TrendingDown, Minus, Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Save, Wind, Scale, Coins, Clock, Tag, TrendingUp, TrendingDown, Minus, Calendar, ChevronLeft, ChevronRight, CheckSquare, Square, Trash2, X } from 'lucide-react';
 import SwipeableHitRow from './SwipeableHitRow';
 import { formatLocalDate, getTotalHits, getAvgHitsPerDay } from '../utils/historyDataHelpers';
 
 // **FIX v8.9**: sessionHits wiederhergestellt - Timeline und Hit-Liste funktionieren wieder
+// **NEW v8.8**: Multi-select delete functionality
 // Verwende historyDataHelpers für Aggregationen
 function CalendarView({ historyData, setHistoryData, settings, deleteHit, sessionHits }) {
     const [sel, setSel] = useState(formatLocalDate(new Date())); // FIX: Lokales Datum
     const [note, setNote] = useState("");
     const [viewDate, setViewDate] = useState(new Date()); // NEU: Aktuell angezeigte Monat
+    const [selectMode, setSelectMode] = useState(false);
+    const [selectedHits, setSelectedHits] = useState(new Set());
+
+    // Multi-select handlers
+    const toggleSelectMode = () => {
+        setSelectMode(!selectMode);
+        setSelectedHits(new Set());
+    };
+
+    const toggleHitSelection = (hitId) => {
+        setSelectedHits(prev => {
+            const newSet = new Set(prev);
+            if (newSet.has(hitId)) {
+                newSet.delete(hitId);
+            } else {
+                newSet.add(hitId);
+            }
+            return newSet;
+        });
+    };
+
+    const selectAllHits = (hits) => {
+        setSelectedHits(new Set(hits.map(h => h.id)));
+    };
+
+    const deleteSelectedHits = () => {
+        if (selectedHits.size === 0) return;
+        if (!window.confirm(`${selectedHits.size} Hit(s) wirklich löschen?`)) return;
+
+        selectedHits.forEach(hitId => deleteHit(hitId));
+        setSelectedHits(new Set());
+        setSelectMode(false);
+    };
 
     useEffect(() => {
         const d = historyData.find(h=>h.date===sel);
@@ -329,7 +363,54 @@ function CalendarView({ historyData, setHistoryData, settings, deleteHit, sessio
                        <div className="bg-zinc-900 px-4 py-2 border-b border-zinc-800 flex items-center gap-2">
                            <Clock size={12} className="text-zinc-600"/>
                            <p className="text-xs text-zinc-600 uppercase font-bold">Timeline</p>
-                           <span className="text-[10px] text-zinc-600 ml-auto">← Wische zum Löschen</span>
+
+                           {/* Multi-Select Mode Controls */}
+                           {!selectMode ? (
+                               <span className="text-[10px] text-zinc-600 ml-auto">← Wische zum Löschen</span>
+                           ) : (
+                               <div className="ml-auto flex items-center gap-2">
+                                   <span className="text-[10px] text-emerald-400 font-bold">
+                                       {selectedHits.size} ausgewählt
+                                   </span>
+                               </div>
+                           )}
+
+                           <div className="flex items-center gap-1">
+                               {!selectMode ? (
+                                   <button
+                                       onClick={toggleSelectMode}
+                                       className="flex items-center gap-1 px-2 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold transition-colors"
+                                   >
+                                       <CheckSquare size={12} />
+                                       Auswählen
+                                   </button>
+                               ) : (
+                                   <>
+                                       <button
+                                           onClick={() => selectAllHits(dayStats.sessions)}
+                                           className="flex items-center gap-1 px-2 py-1 rounded-lg bg-zinc-700 hover:bg-zinc-600 text-white text-[10px] font-bold transition-colors"
+                                       >
+                                           <Square size={12} />
+                                           Alle
+                                       </button>
+                                       <button
+                                           onClick={deleteSelectedHits}
+                                           disabled={selectedHits.size === 0}
+                                           className="flex items-center gap-1 px-2 py-1 rounded-lg bg-red-600 hover:bg-red-700 disabled:bg-zinc-700 disabled:text-zinc-500 text-white text-[10px] font-bold transition-colors"
+                                       >
+                                           <Trash2 size={12} />
+                                           Löschen
+                                       </button>
+                                       <button
+                                           onClick={toggleSelectMode}
+                                           className="flex items-center gap-1 px-2 py-1 rounded-lg bg-zinc-700 hover:bg-zinc-600 text-white text-[10px] font-bold transition-colors"
+                                       >
+                                           <X size={12} />
+                                           Abbrechen
+                                       </button>
+                                   </>
+                               )}
+                           </div>
                        </div>
                        <div className="max-h-48 overflow-y-auto">
                            <table className="w-full text-left text-xs text-zinc-400">
@@ -340,6 +421,9 @@ function CalendarView({ historyData, setHistoryData, settings, deleteHit, sessio
                                            hit={session}
                                            hitNumber={i + 1}
                                            onDelete={deleteHit}
+                                           selectMode={selectMode}
+                                           isSelected={selectedHits.has(session.id)}
+                                           onToggleSelect={toggleHitSelection}
                                        />
                                    ))}
                                </tbody>
