@@ -834,8 +834,8 @@ void setupServer() {
 
       if (!error) {
         // Werte aus JSON extrahieren
-        int newMin = doc.containsKey("minSessionDuration") ? doc["minSessionDuration"] : minSessionDuration;
-        int newMax = doc.containsKey("maxSessionDuration") ? doc["maxSessionDuration"] : maxSessionDuration;
+        int newMin = doc["minSessionDuration"].is<int>() ? doc["minSessionDuration"] : minSessionDuration;
+        int newMax = doc["maxSessionDuration"].is<int>() ? doc["maxSessionDuration"] : maxSessionDuration;
 
         // **FIX v8.2**: Validierung der Eingabewerte
         // **FIX v8.4**: Error Messages nutzen Konstanten statt hardcoded values
@@ -862,14 +862,14 @@ void setupServer() {
         }
 
         // Werte speichern
-        if (doc.containsKey("minSessionDuration")) {
+        if (doc["minSessionDuration"].is<int>()) {
           minSessionDuration = newMin;
           prefs.putInt("minSession", minSessionDuration);
           Serial.print("Min Session Duration updated: ");
           Serial.println(minSessionDuration);
         }
 
-        if (doc.containsKey("maxSessionDuration")) {
+        if (doc["maxSessionDuration"].is<int>()) {
           maxSessionDuration = newMax;
           prefs.putInt("maxSession", maxSessionDuration);
           Serial.print("Max Session Duration updated: ");
