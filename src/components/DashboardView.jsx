@@ -11,6 +11,24 @@ import { useHitSelection } from '../hooks/useHitSelection';
 export default function DashboardView({ liveData, lastHitTime, settings, isGuestMode, setIsGuestMode, guestHits, resetGuestHits, deleteHit, deleteHits, onManualTrigger, onHoldStart, onHoldEnd, currentStrainId, setCurrentStrainId, isSensorInhaling, sessionHits, sessionHitsCount }) {
   const [timeSince, setTimeSince] = useState("00:00:00");
 
+  // **FIX v8.8**: Track current date to force todayHits recalculation at midnight
+  const getTodayKey = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+  const [todayKey, setTodayKey] = useState(getTodayKey);
+
+  // Check for date change every minute
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const newKey = getTodayKey();
+      if (newKey !== todayKey) {
+        setTodayKey(newKey);
+      }
+    }, 60000); // Check every minute
+    return () => clearInterval(interval);
+  }, [todayKey]);
+
   // **FIX v8.8**: Use shared hook for multi-select state
   const {
     selectMode,
@@ -22,15 +40,14 @@ export default function DashboardView({ liveData, lastHitTime, settings, isGuest
   } = useHitSelection();
 
   // **FIX v8.8**: Centralize today's hits computation (used by both render and select-all)
+  // Now properly updates at midnight via todayKey dependency
   const todayHits = useMemo(() => {
-    const today = new Date();
-    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
     return (sessionHits || []).filter(hit => {
       const hitDate = new Date(hit.timestamp);
       const hitDateStr = `${hitDate.getFullYear()}-${String(hitDate.getMonth() + 1).padStart(2, '0')}-${String(hitDate.getDate()).padStart(2, '0')}`;
-      return hitDateStr === todayStr;
+      return hitDateStr === todayKey;
     }).sort((a, b) => b.timestamp - a.timestamp); // Neueste zuerst
-  }, [sessionHits]);
+  }, [sessionHits, todayKey]);
 
   // **FIX v8.8**: Use batch delete for better performance
   const deleteSelectedHits = () => {

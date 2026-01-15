@@ -9,7 +9,7 @@ export function useHitSelection() {
   const [selectedHits, setSelectedHits] = useState(new Set());
 
   const toggleSelectMode = () => {
-    setSelectMode(!selectMode);
+    setSelectMode(prev => !prev); // Functional update to avoid stale closures
     setSelectedHits(new Set()); // Clear selection when toggling mode
   };
 
