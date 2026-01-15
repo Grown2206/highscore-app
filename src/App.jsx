@@ -294,7 +294,10 @@ export default function App() {
     today: 0,
     total: 0,
     batteryVoltage: null,
-    batteryPercent: null
+    batteryPercent: null,
+    minSessionDuration: null,
+    maxSessionDuration: null,
+    timeSync: false
   });
 
   // Load persisted strain ID from localStorage, fallback to first strain
@@ -504,11 +507,11 @@ export default function App() {
         json = await res.json();
       }
 
-      const { pendingHits = [], pendingCount = 0, espUptime = 0 } = json;
+      const { pendingHits = [], pendingCount = 0, espUptime = 0, timeSync = false } = json;
 
       // **FIX v8.9**: Vollständiger Sync - Erstelle Hit-Objekte und sync zu sessionHits
       if (pendingCount > 0 && pendingHits.length > 0) {
-        console.log(`🔄 Auto-Sync: ${pendingCount} pending hits gefunden`);
+        console.log(`🔄 Auto-Sync: ${pendingCount} pending hits gefunden (timeSync: ${timeSync})`);
 
         const strain = settings.strains.find(s => s.id == currentStrainId) || settings.strains[0] || { name: '?', price: 0 };
         const now = Date.now();
@@ -517,9 +520,9 @@ export default function App() {
         const importedHits = pendingHits.map((hit) => {
           let realTimestamp;
 
-          // Auto-detect timestamp format
-          if (hit.timestamp > 1000000000000) {
-            // ESP32 mit NTP sendet echte Unix timestamps
+          // **FIX v8.8**: Nutze expliziten timeSync-Flag statt Auto-Detection
+          if (timeSync) {
+            // ESP32 mit NTP sendet echte Unix timestamps (Millisekunden)
             realTimestamp = hit.timestamp;
           } else {
             // ESP32 ohne NTP sendet millis() → konvertiere mit espUptime
@@ -662,7 +665,12 @@ export default function App() {
         setLiveData({
           flame: flameDetected,
           today: simData.counts.today + manualOffset,
-          total: simData.counts.total + manualOffset
+          total: simData.counts.total + manualOffset,
+          batteryVoltage: null,
+          batteryPercent: null,
+          minSessionDuration: 800,
+          maxSessionDuration: 4500,
+          timeSync: false
         });
         setConnected(true);
         setLastError(null);
@@ -707,7 +715,10 @@ export default function App() {
             today: json.today + manualOffset,
             total: json.total + manualOffset,
             batteryVoltage: json.batteryVoltage ?? null,
-            batteryPercent: json.batteryPercent ?? null
+            batteryPercent: json.batteryPercent ?? null,
+            minSessionDuration: json.minSessionDuration ?? null,
+            maxSessionDuration: json.maxSessionDuration ?? null,
+            timeSync: json.timeSync ?? false
           });
 
           // Success

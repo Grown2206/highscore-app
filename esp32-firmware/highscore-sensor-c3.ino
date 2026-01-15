@@ -694,6 +694,8 @@ void setupServer() {
     // **NEU v8.1**: False Trigger Prevention Settings
     doc["minSessionDuration"] = minSessionDuration;
     doc["maxSessionDuration"] = maxSessionDuration;
+    // **FIX v8.8**: NTP-Status für Debugging
+    doc["timeSync"] = timeSync;
 
     String json;
     serializeJson(doc, json);
@@ -757,6 +759,7 @@ void setupServer() {
     JsonDocument doc;
     doc["pendingCount"] = pendingHitsCount;
     doc["espUptime"] = millis();
+    doc["timeSync"] = timeSync;  // **FIX v8.8**: NTP-Status explizit senden
 
     JsonArray hitsArray = doc["pendingHits"].to<JsonArray>();
 
@@ -833,9 +836,14 @@ void setupServer() {
       DeserializationError error = deserializeJson(doc, server.arg("plain"));
 
       if (!error) {
-        // Werte aus JSON extrahieren
-        int newMin = doc["minSessionDuration"].is<int>() ? doc["minSessionDuration"] : minSessionDuration;
-        int newMax = doc["maxSessionDuration"].is<int>() ? doc["maxSessionDuration"] : maxSessionDuration;
+        // **FIX v8.8**: Local JsonVariant variables to avoid repeated lookups
+        // Use .as<int>() for type-safe conversion (handles both int and numeric strings)
+        JsonVariant minVar = doc["minSessionDuration"];
+        JsonVariant maxVar = doc["maxSessionDuration"];
+
+        // Extract values with proper type conversion
+        int newMin = minVar.isNull() ? minSessionDuration : minVar.as<int>();
+        int newMax = maxVar.isNull() ? maxSessionDuration : maxVar.as<int>();
 
         // **FIX v8.2**: Validierung der Eingabewerte
         // **FIX v8.4**: Error Messages nutzen Konstanten statt hardcoded values
@@ -861,15 +869,15 @@ void setupServer() {
           return;
         }
 
-        // Werte speichern
-        if (doc["minSessionDuration"].is<int>()) {
+        // Werte speichern (nur wenn im JSON vorhanden)
+        if (!minVar.isNull()) {
           minSessionDuration = newMin;
           prefs.putInt("minSession", minSessionDuration);
           Serial.print("Min Session Duration updated: ");
           Serial.println(minSessionDuration);
         }
 
-        if (doc["maxSessionDuration"].is<int>()) {
+        if (!maxVar.isNull()) {
           maxSessionDuration = newMax;
           prefs.putInt("maxSession", maxSessionDuration);
           Serial.print("Max Session Duration updated: ");
