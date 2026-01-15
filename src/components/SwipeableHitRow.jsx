@@ -9,7 +9,8 @@ const Z_INDEX = {
 };
 
 // Swipeable Hit Row Component - used in DashboardView and CalendarView
-export default function SwipeableHitRow({ hit, hitNumber, onDelete }) {
+// **NEW v8.8**: Added selectMode and selection callbacks for multi-delete
+export default function SwipeableHitRow({ hit, hitNumber, onDelete, selectMode = false, isSelected = false, onToggleSelect }) {
   const [swipeX, setSwipeX] = useState(0);
   const [isSwiping, setIsSwiping] = useState(false);
   const [showDeleteBtn, setShowDeleteBtn] = useState(false); // Desktop hover state
@@ -17,12 +18,13 @@ export default function SwipeableHitRow({ hit, hitNumber, onDelete }) {
   const currentX = useRef(0);
 
   const handleTouchStart = (e) => {
+    if (selectMode) return; // Disable swipe in select mode
     startX.current = e.touches[0].clientX;
     setIsSwiping(true);
   };
 
   const handleTouchMove = (e) => {
-    if (!isSwiping) return;
+    if (!isSwiping || selectMode) return; // Disable swipe in select mode
     currentX.current = e.touches[0].clientX;
     const diff = currentX.current - startX.current;
     // Allow both left and right swipe
@@ -30,6 +32,7 @@ export default function SwipeableHitRow({ hit, hitNumber, onDelete }) {
   };
 
   const handleTouchEnd = () => {
+    if (selectMode) return; // Disable swipe in select mode
     setIsSwiping(false);
     if (swipeX < -60) {
       // Swiped left - lock at delete position
@@ -123,6 +126,18 @@ export default function SwipeableHitRow({ hit, hitNumber, onDelete }) {
             aria-label={`Hit #${hitNumber} - ${hit.strainName} um ${new Date(hit.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - Links wischen zum Löschen, Rechts für Details`}
           >
             <div className="w-full flex items-center py-3 px-4 hover:bg-zinc-800/50">
+              {/* **NEW v8.8**: Checkbox for multi-select mode */}
+              {selectMode && (
+                <div className="flex-none mr-3">
+                  <input
+                    type="checkbox"
+                    checked={isSelected}
+                    onChange={() => onToggleSelect && onToggleSelect(hit.id)}
+                    onClick={(e) => e.stopPropagation()}
+                    className="w-4 h-4 rounded border-zinc-700 bg-zinc-800 text-emerald-500 focus:ring-2 focus:ring-emerald-500 cursor-pointer"
+                  />
+                </div>
+              )}
               <div className="flex-none w-12 font-mono text-zinc-600 text-xs">#{hitNumber}</div>
               <div className="flex-none w-16 text-white text-xs">
                 {new Date(hit.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -134,8 +149,8 @@ export default function SwipeableHitRow({ hit, hitNumber, onDelete }) {
                     {(hit.duration / 1000).toFixed(1)}s
                   </span>
                 )}
-                {/* Desktop delete button - visible on hover */}
-                {showDeleteBtn && !isSwiping && (
+                {/* Desktop delete button - visible on hover (hidden in select mode) */}
+                {!selectMode && showDeleteBtn && !isSwiping && (
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
