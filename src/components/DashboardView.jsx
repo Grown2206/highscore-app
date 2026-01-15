@@ -1,46 +1,44 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { User, Users, Tag, Wind, Scale, Coins, List, Clock, Shield, Radio, Flame, Zap, RotateCcw, Battery, CheckSquare, Square, Trash2, X } from 'lucide-react';
 import HoldButton from './HoldButton';
 import { MetricCard, AdminMetric } from './UIComponents';
 import SwipeableHitRow from './SwipeableHitRow';
+import { useHitSelection } from '../hooks/useHitSelection';
 
 // **FIX v8.9.2**: sessionHits wiederhergestellt - Timeline mit Hit-Liste funktioniert wieder
 // **NEW**: sessionHitsCount für Session-System
-// **NEW v8.8**: Multi-select delete functionality
-export default function DashboardView({ liveData, lastHitTime, settings, isGuestMode, setIsGuestMode, guestHits, resetGuestHits, deleteHit, onManualTrigger, onHoldStart, onHoldEnd, currentStrainId, setCurrentStrainId, isSensorInhaling, sessionHits, sessionHitsCount }) {
+// **NEW v8.8**: Multi-select delete functionality with custom hook
+export default function DashboardView({ liveData, lastHitTime, settings, isGuestMode, setIsGuestMode, guestHits, resetGuestHits, deleteHit, deleteHits, onManualTrigger, onHoldStart, onHoldEnd, currentStrainId, setCurrentStrainId, isSensorInhaling, sessionHits, sessionHitsCount }) {
   const [timeSince, setTimeSince] = useState("00:00:00");
-  const [selectMode, setSelectMode] = useState(false);
-  const [selectedHits, setSelectedHits] = useState(new Set());
 
-  // Multi-select handlers
-  const toggleSelectMode = () => {
-    setSelectMode(!selectMode);
-    setSelectedHits(new Set()); // Clear selection when toggling mode
-  };
+  // **FIX v8.8**: Use shared hook for multi-select state
+  const {
+    selectMode,
+    selectedHits,
+    toggleSelectMode,
+    toggleHitSelection,
+    selectAllHits,
+    clearSelection
+  } = useHitSelection();
 
-  const toggleHitSelection = (hitId) => {
-    setSelectedHits(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(hitId)) {
-        newSet.delete(hitId);
-      } else {
-        newSet.add(hitId);
-      }
-      return newSet;
-    });
-  };
+  // **FIX v8.8**: Centralize today's hits computation (used by both render and select-all)
+  const todayHits = useMemo(() => {
+    const today = new Date();
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    return (sessionHits || []).filter(hit => {
+      const hitDate = new Date(hit.timestamp);
+      const hitDateStr = `${hitDate.getFullYear()}-${String(hitDate.getMonth() + 1).padStart(2, '0')}-${String(hitDate.getDate()).padStart(2, '0')}`;
+      return hitDateStr === todayStr;
+    }).sort((a, b) => b.timestamp - a.timestamp); // Neueste zuerst
+  }, [sessionHits]);
 
-  const selectAllHits = (hits) => {
-    setSelectedHits(new Set(hits.map(h => h.id)));
-  };
-
+  // **FIX v8.8**: Use batch delete for better performance
   const deleteSelectedHits = () => {
     if (selectedHits.size === 0) return;
     if (!window.confirm(`${selectedHits.size} Hit(s) wirklich löschen?`)) return;
 
-    selectedHits.forEach(hitId => deleteHit(hitId));
-    setSelectedHits(new Set());
-    setSelectMode(false);
+    deleteHits(Array.from(selectedHits));
+    clearSelection();
   };
 
   useEffect(() => {
@@ -143,16 +141,7 @@ export default function DashboardView({ liveData, lastHitTime, settings, isGuest
             ) : (
               <>
                 <button
-                  onClick={() => {
-                    const today = new Date();
-                    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-                    const todayHits = (sessionHits || []).filter(hit => {
-                      const hitDate = new Date(hit.timestamp);
-                      const hitDateStr = `${hitDate.getFullYear()}-${String(hitDate.getMonth() + 1).padStart(2, '0')}-${String(hitDate.getDate()).padStart(2, '0')}`;
-                      return hitDateStr === todayStr;
-                    });
-                    selectAllHits(todayHits);
-                  }}
+                  onClick={() => selectAllHits(todayHits)}
                   className="flex items-center gap-1 px-2 py-1 rounded-lg bg-zinc-700 hover:bg-zinc-600 text-white text-[10px] font-bold transition-colors"
                 >
                   <Square size={12} />
@@ -177,40 +166,29 @@ export default function DashboardView({ liveData, lastHitTime, settings, isGuest
             )}
           </div>
         </div>
-        {(() => {
-          // Filtere Hits von heute
-          const today = new Date();
-          const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-          const todayHits = (sessionHits || []).filter(hit => {
-            const hitDate = new Date(hit.timestamp);
-            const hitDateStr = `${hitDate.getFullYear()}-${String(hitDate.getMonth() + 1).padStart(2, '0')}-${String(hitDate.getDate()).padStart(2, '0')}`;
-            return hitDateStr === todayStr;
-          }).sort((a, b) => b.timestamp - a.timestamp); // Neueste zuerst
-
-          return todayHits.length > 0 ? (
-            <div className="max-h-64 overflow-y-auto">
-              <table className="w-full text-left text-xs text-zinc-400">
-                <tbody className="divide-y divide-zinc-800">
-                  {todayHits.map((hit, i) => (
-                    <SwipeableHitRow
-                      key={hit.id}
-                      hit={hit}
-                      hitNumber={i + 1}
-                      onDelete={deleteHit}
-                      selectMode={selectMode}
-                      isSelected={selectedHits.has(hit.id)}
-                      onToggleSelect={toggleHitSelection}
-                    />
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <div className="p-8 text-center">
-              <div className="text-zinc-600 text-sm">Noch keine Hits heute</div>
-            </div>
-          );
-        })()}
+        {todayHits.length > 0 ? (
+          <div className="max-h-64 overflow-y-auto">
+            <table className="w-full text-left text-xs text-zinc-400">
+              <tbody className="divide-y divide-zinc-800">
+                {todayHits.map((hit, i) => (
+                  <SwipeableHitRow
+                    key={hit.id}
+                    hit={hit}
+                    hitNumber={i + 1}
+                    onDelete={deleteHit}
+                    selectMode={selectMode}
+                    isSelected={selectedHits.has(hit.id)}
+                    onToggleSelect={toggleHitSelection}
+                  />
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="p-8 text-center">
+            <div className="text-zinc-600 text-sm">Noch keine Hits heute</div>
+          </div>
+        )}
       </div>
 
       {settings.adminMode && (

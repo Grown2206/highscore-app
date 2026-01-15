@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Trash2, Info } from 'lucide-react';
 
 // Z-index constants for layer stacking
@@ -16,6 +16,16 @@ export default function SwipeableHitRow({ hit, hitNumber, onDelete, selectMode =
   const [showDeleteBtn, setShowDeleteBtn] = useState(false); // Desktop hover state
   const startX = useRef(0);
   const currentX = useRef(0);
+
+  // **FIX v8.8**: Reset swipe state when entering select mode
+  // Prevents rows from staying partially swiped when mode changes
+  useEffect(() => {
+    if (selectMode) {
+      setSwipeX(0);
+      setShowDeleteBtn(false);
+      setIsSwiping(false);
+    }
+  }, [selectMode]);
 
   const handleTouchStart = (e) => {
     if (selectMode) return; // Disable swipe in select mode
