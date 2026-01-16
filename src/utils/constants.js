@@ -34,20 +34,23 @@ export const LEGACY_KEYS = {
 export const APP_VERSION = '8.0.0';
 
 // **FIX v8.9.3**: Timestamp Validation Constants for Corrupt Hit Detection
+// Minimum year for valid hits (data before this is likely corrupt)
+// Set to 2015 to allow some historical data while catching obvious errors
+const MIN_VALID_YEAR = 2015;
+
+// Precomputed minimum timestamp (computed once at module initialization, not on every access)
+// Using Date constructor with numeric arguments to avoid timezone-dependent string parsing
+const MIN_VALID_TIMESTAMP_MS = new Date(MIN_VALID_YEAR, 0, 1).getTime();
+
 // These define the acceptable range for hit timestamps
 export const TIMESTAMP_VALIDATION = {
-  // Minimum year for valid hits (data before this is likely corrupt)
-  // Set to 2015 to allow some historical data while catching obvious errors
-  MIN_VALID_YEAR: 2015,
+  MIN_VALID_YEAR,
 
   // Maximum future offset in milliseconds (1 year = 365.25 days)
   // Allows for some clock skew while catching obviously wrong future dates
   // Using Math.round to ensure integer value and avoid floating-point precision issues
   MAX_FUTURE_OFFSET_MS: Math.round(365.25 * 24 * 60 * 60 * 1000),
 
-  // Precomputed minimum timestamp for performance (computed once at module initialization)
-  // Using Date constructor with numeric arguments to avoid timezone-dependent string parsing
-  get MIN_VALID_TIMESTAMP_MS() {
-    return new Date(this.MIN_VALID_YEAR, 0, 1).getTime();
-  },
+  // Truly precomputed timestamp value (not a getter, computed once at module load)
+  MIN_VALID_TIMESTAMP_MS,
 };
