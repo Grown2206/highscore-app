@@ -32,3 +32,15 @@ export const LEGACY_KEYS = {
 
 // App Version
 export const APP_VERSION = '8.0.0';
+
+// **FIX v8.9.3**: Timestamp Validation Constants for Corrupt Hit Detection
+// These define the acceptable range for hit timestamps
+export const TIMESTAMP_VALIDATION = {
+  // Minimum year for valid hits (data before this is likely corrupt)
+  // Set to 2015 to allow some historical data while catching obvious errors
+  MIN_VALID_YEAR: 2015,
+
+  // Maximum future offset in milliseconds (1 year = 365.25 days)
+  // Allows for some clock skew while catching obviously wrong future dates
+  MAX_FUTURE_OFFSET_MS: 365.25 * 24 * 60 * 60 * 1000,
+};

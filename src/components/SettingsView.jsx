@@ -1,7 +1,7 @@
 import React, { useState, useRef, memo } from 'react';
 import { Settings, Shield, Download, Upload, Target, AlertCircle, Database, Trash, Scale, Percent, RefreshCw, Smartphone } from 'lucide-react';
 import { generateTestData, mergeTestData, removeTestData } from '../utils/testDataGenerator';
-import { DEFAULT_SETTINGS, STORAGE_KEYS, LEGACY_KEYS } from '../utils/constants';
+import { DEFAULT_SETTINGS, STORAGE_KEYS, LEGACY_KEYS, TIMESTAMP_VALIDATION } from '../utils/constants';
 
 // **FIX v8.9**: sessionHits/setSessionHits props wieder hinzugefügt
 function SettingsView({ settings, setSettings, historyData, setHistoryData, sessionHits, setSessionHits, goals, setGoals, showRecovery, setShowRecovery, isSimulating, setIsSimulating }) {
@@ -12,13 +12,18 @@ function SettingsView({ settings, setSettings, historyData, setHistoryData, sess
 
   const upd = (k, v) => setSettings(p => ({ ...p, [k]: v }));
 
-  // **NEW**: Find and remove corrupt hits with unrealistic timestamps
+  // **FIX v8.9.3**: Find and remove corrupt hits with unrealistic timestamps
+  // Code Review: Normalized null checks, centralized validation constants, dynamic future bounds
   const findAndRemoveCorruptHits = () => {
-    const now = Date.now();
-    const minValidTimestamp = new Date('2020-01-01').getTime(); // Before 2020 is corrupt
-    const maxValidTimestamp = new Date('2030-01-01').getTime(); // After 2030 is corrupt
+    // Normalize sessionHits to avoid null/undefined issues
+    const hits = sessionHits || [];
 
-    const corruptHits = (sessionHits || []).filter(hit => {
+    // Calculate validation bounds dynamically
+    const now = Date.now();
+    const minValidTimestamp = new Date(`${TIMESTAMP_VALIDATION.MIN_VALID_YEAR}-01-01`).getTime();
+    const maxValidTimestamp = now + TIMESTAMP_VALIDATION.MAX_FUTURE_OFFSET_MS;
+
+    const corruptHits = hits.filter(hit => {
       return hit.timestamp < minValidTimestamp || hit.timestamp > maxValidTimestamp;
     });
 
@@ -39,7 +44,8 @@ function SettingsView({ settings, setSettings, historyData, setHistoryData, sess
     );
 
     if (confirmed) {
-      const validHits = sessionHits.filter(hit =>
+      // Use normalized hits variable for consistency
+      const validHits = hits.filter(hit =>
         hit.timestamp >= minValidTimestamp && hit.timestamp <= maxValidTimestamp
       );
       setSessionHits(validHits);
