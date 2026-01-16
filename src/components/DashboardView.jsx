@@ -5,6 +5,13 @@ import { MetricCard, AdminMetric } from './UIComponents';
 import SwipeableHitRow from './SwipeableHitRow';
 import { useHitSelection } from '../hooks/useHitSelection';
 
+// **FIX v8.8**: Pure utility function for getting today's date key
+// Defined outside component to ensure stable reference (no props/context dependencies)
+const getTodayKey = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
 // **FIX v8.9.2**: sessionHits wiederhergestellt - Timeline mit Hit-Liste funktioniert wieder
 // **NEW**: sessionHitsCount für Session-System
 // **NEW v8.8**: Multi-select delete functionality with custom hook
@@ -12,10 +19,6 @@ export default function DashboardView({ liveData, lastHitTime, settings, isGuest
   const [timeSince, setTimeSince] = useState("00:00:00");
 
   // **FIX v8.8**: Track current date to force todayHits recalculation at midnight
-  const getTodayKey = () => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-  };
   const [todayKey, setTodayKey] = useState(getTodayKey);
 
   // Check for date change every minute
