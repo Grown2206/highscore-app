@@ -7,9 +7,46 @@ import { DEFAULT_SETTINGS, STORAGE_KEYS, LEGACY_KEYS } from '../utils/constants'
 function SettingsView({ settings, setSettings, historyData, setHistoryData, sessionHits, setSessionHits, goals, setGoals, showRecovery, setShowRecovery, isSimulating, setIsSimulating }) {
   const [exportStatus, setExportStatus] = useState(null);
   const [testDataStatus, setTestDataStatus] = useState(null);
+  const [corruptHitsStatus, setCorruptHitsStatus] = useState(null);
   const fileInputRef = useRef(null);
 
   const upd = (k, v) => setSettings(p => ({ ...p, [k]: v }));
+
+  // **NEW**: Find and remove corrupt hits with unrealistic timestamps
+  const findAndRemoveCorruptHits = () => {
+    const now = Date.now();
+    const minValidTimestamp = new Date('2020-01-01').getTime(); // Before 2020 is corrupt
+    const maxValidTimestamp = new Date('2030-01-01').getTime(); // After 2030 is corrupt
+
+    const corruptHits = (sessionHits || []).filter(hit => {
+      return hit.timestamp < minValidTimestamp || hit.timestamp > maxValidTimestamp;
+    });
+
+    if (corruptHits.length === 0) {
+      setCorruptHitsStatus({ type: 'success', msg: '✓ Keine corrupt Hits gefunden!' });
+      setTimeout(() => setCorruptHitsStatus(null), 3000);
+      return;
+    }
+
+    // Show details and confirm deletion
+    const details = corruptHits.map(h => {
+      const date = new Date(h.timestamp);
+      return `• ${date.toLocaleString('de-DE')} - ${h.strainName} (ID: ${String(h.id).slice(0, 8)})`;
+    }).join('\n');
+
+    const confirmed = window.confirm(
+      `${corruptHits.length} Corrupt Hit(s) gefunden mit ungültigem Datum:\n\n${details}\n\nWirklich löschen?`
+    );
+
+    if (confirmed) {
+      const validHits = sessionHits.filter(hit =>
+        hit.timestamp >= minValidTimestamp && hit.timestamp <= maxValidTimestamp
+      );
+      setSessionHits(validHits);
+      setCorruptHitsStatus({ type: 'success', msg: `✓ ${corruptHits.length} corrupt Hit(s) gelöscht!` });
+      setTimeout(() => setCorruptHitsStatus(null), 3000);
+    }
+  };
 
   // Export/Import Funktionen
   // **FIX v8.9**: Export mit sessionHits (primäre Quelle)
@@ -310,6 +347,41 @@ function SettingsView({ settings, setSettings, historyData, setHistoryData, sess
               <strong>Hinweis:</strong> Testdaten simulieren realistische Sessions über mehrere Tage.
               Sie werden mit "test_" IDs markiert und können jederzeit wieder entfernt werden.
               Perfekt zum Testen der Analytics, Charts und Statistiken!
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* CORRUPT HITS BEREINIGUNG (nur im Admin Mode) */}
+      {settings.adminMode && (
+        <div className="bg-gradient-to-br from-rose-900/20 to-zinc-900 border border-rose-500/30 rounded-2xl p-6 space-y-4">
+          <div className="flex items-center gap-2">
+            <AlertCircle size={16} className="text-rose-400"/>
+            <h3 className="text-sm font-bold text-rose-400 uppercase">Corrupt Hits Bereinigung (Admin)</h3>
+          </div>
+
+          {corruptHitsStatus && (
+            <div className={`p-3 rounded-xl border flex items-center gap-2 text-sm ${corruptHitsStatus.type === 'success' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500' : 'bg-rose-500/10 border-rose-500/20 text-rose-500'}`}>
+              <AlertCircle size={14} />
+              {corruptHitsStatus.msg}
+            </div>
+          )}
+
+          <div className="space-y-3">
+            <button
+              onClick={findAndRemoveCorruptHits}
+              className="w-full flex items-center justify-center gap-2 bg-rose-600 hover:bg-rose-700 text-white p-3 rounded-xl transition-colors font-medium"
+            >
+              <AlertCircle size={18} />
+              Corrupt Hits Finden & Löschen
+            </button>
+          </div>
+
+          <div className="bg-rose-950/30 border border-rose-500/20 rounded-xl p-3">
+            <p className="text-[10px] text-rose-300 leading-relaxed">
+              <strong>Hinweis:</strong> Findet und löscht Hits mit unrealistischen Timestamps
+              (vor 2020 oder nach 2030). Löst Probleme wie "Längste Pause 203999 Tage" oder
+              falsche Offline-Hits vom ESP32 wenn NTP-Sync fehlgeschlagen ist.
             </p>
           </div>
         </div>

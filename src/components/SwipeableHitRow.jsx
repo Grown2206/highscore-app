@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Trash2, Info } from 'lucide-react';
+import { Trash2, Info, WifiOff } from 'lucide-react';
 
 // Z-index constants for layer stacking
 const Z_INDEX = {
@@ -99,7 +99,16 @@ export default function SwipeableHitRow({ hit, hitNumber, onDelete, selectMode =
               <div className="flex flex-col">
                 <span className="text-[10px] text-blue-200">ID: {idLabel}</span>
                 <span className="text-[10px] text-blue-200">
-                  {new Date(hit.timestamp).toLocaleString('de-DE')}
+                  {new Date(hit.timestamp).toLocaleString('de-DE', {
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })}
+                </span>
+                <span className="text-[10px] text-blue-200">
+                  Typ: {hit.type === 'Sensor' ? 'Offline (ESP32)' : 'Manuell'}
                 </span>
               </div>
             </div>
@@ -149,10 +158,19 @@ export default function SwipeableHitRow({ hit, hitNumber, onDelete, selectMode =
                 </div>
               )}
               <div className="flex-none w-12 font-mono text-zinc-600 text-xs">#{hitNumber}</div>
-              <div className="flex-none w-16 text-white text-xs">
+              <div className="flex-none w-20 text-white text-xs">
                 {new Date(hit.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               </div>
-              <div className="flex-1 text-zinc-400 text-xs px-2">{hit.strainName}</div>
+              <div className="flex-1 text-zinc-400 text-xs px-2 flex items-center gap-1">
+                {hit.strainName}
+                {/* **NEW**: Offline/Sensor Hit Indicator */}
+                {hit.type === 'Sensor' && (
+                  <span className="inline-flex items-center gap-0.5 bg-blue-500/10 text-blue-400 border border-blue-500/30 px-1 py-0.5 rounded text-[9px] font-bold">
+                    <WifiOff size={9} />
+                    O
+                  </span>
+                )}
+              </div>
               <div className="flex-none text-right flex items-center gap-2">
                 {hit.duration > 0 && (
                   <span className="bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 px-1.5 py-0.5 rounded">
