@@ -20,7 +20,8 @@ function SettingsView({ settings, setSettings, historyData, setHistoryData, sess
 
     // Calculate validation bounds dynamically
     const now = Date.now();
-    const minValidTimestamp = new Date(`${TIMESTAMP_VALIDATION.MIN_VALID_YEAR}-01-01`).getTime();
+    // Use precomputed constant for better performance and timezone consistency
+    const minValidTimestamp = TIMESTAMP_VALIDATION.MIN_VALID_TIMESTAMP_MS;
     const maxValidTimestamp = now + TIMESTAMP_VALIDATION.MAX_FUTURE_OFFSET_MS;
 
     const corruptHits = hits.filter(hit => {
