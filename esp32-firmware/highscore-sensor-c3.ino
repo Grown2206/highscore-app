@@ -538,15 +538,15 @@ void setupWiFi() {
       Serial.print("Syncing time with NTP (Europe/Berlin)...");
       configTzTime(timezone, ntpServer);
 
-      // Warten auf Sync (max 5 Sekunden)
+      // FIX v8.9.3: Timeout erhöht auf 10 Sekunden für bessere NTP-Sync
       struct tm timeinfo;
       int retries = 0;
-      while (!getLocalTime(&timeinfo) && retries < 10) {
+      while (!getLocalTime(&timeinfo) && retries < 20) {
         delay(500);
         retries++;
       }
 
-      if (retries < 10) {
+      if (retries < 20) {
         timeSync = true;
         Serial.println(" OK!");
         Serial.print("Current time (CET/CEST): ");
