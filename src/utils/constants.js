@@ -42,5 +42,12 @@ export const TIMESTAMP_VALIDATION = {
 
   // Maximum future offset in milliseconds (1 year = 365.25 days)
   // Allows for some clock skew while catching obviously wrong future dates
-  MAX_FUTURE_OFFSET_MS: 365.25 * 24 * 60 * 60 * 1000,
+  // Using Math.round to ensure integer value and avoid floating-point precision issues
+  MAX_FUTURE_OFFSET_MS: Math.round(365.25 * 24 * 60 * 60 * 1000),
+
+  // Precomputed minimum timestamp for performance (computed once at module initialization)
+  // Using Date constructor with numeric arguments to avoid timezone-dependent string parsing
+  get MIN_VALID_TIMESTAMP_MS() {
+    return new Date(this.MIN_VALID_YEAR, 0, 1).getTime();
+  },
 };
