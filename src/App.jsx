@@ -237,6 +237,21 @@ export default function App() {
     return result.sort((a, b) => a.date.localeCompare(b.date));
   }, [historyData]);
 
+  // **FIX v8.9.3**: Auto-Rebuild historyData aus sessionHits beim App-Start
+  const hasInitializedRef = useRef(false);
+  useEffect(() => {
+    // Einmaliger Rebuild beim ersten Mount wenn sessionHits vorhanden
+    if (!hasInitializedRef.current && sessionHits && sessionHits.length > 0) {
+      const rebuiltHistory = rebuildHistoryFromSessions(sessionHits);
+      // Rebuild nur wenn historyData leer oder veraltet ist
+      if (historyData.length === 0 || rebuiltHistory.length !== historyData.length) {
+        console.log('🔄 Auto-Rebuild: historyData aus sessionHits aktualisiert');
+        setHistoryData(rebuiltHistory);
+      }
+      hasInitializedRef.current = true;
+    }
+  }, [sessionHits, historyData, rebuildHistoryFromSessions, setHistoryData]);
+
   // **FIX v8.9.2**: Automatische Testdaten entfernt - nur manuell in Einstellungen
 
   // **NEW**: Session-System - zählt Hits des heutigen Tages, reset bei Tageswechsel

@@ -73,8 +73,10 @@ export default function DashboardView({ liveData, lastHitTime, settings, isGuest
     return () => clearInterval(iv);
   }, [lastHitTime]);
 
-  // **NEW**: Berechne Menge und Kosten basierend auf sessionHitsCount
-  const weedAmount = sessionHitsCount * settings.bowlSize * (settings.weedRatio / 100);
+  // **NEW**: Berechne Menge und Kosten basierend auf todayHits.length (nicht sessionHitsCount)
+  // **FIX**: sessionHitsCount kann inkonsistent sein wenn offline hits importiert werden
+  const actualTodayCount = todayHits.length;
+  const weedAmount = actualTodayCount * settings.bowlSize * (settings.weedRatio / 100);
   const currentStrain = settings.strains.find(s => s.id == currentStrainId) || {price:0};
   const cost = weedAmount * currentStrain.price;
 
@@ -125,7 +127,7 @@ export default function DashboardView({ liveData, lastHitTime, settings, isGuest
             </div>
          ) : (
            <>
-             <MetricCard label="Session" val={sessionHitsCount} icon={<Wind size={16}/>} color="text-emerald-400" />
+             <MetricCard label="Session" val={actualTodayCount} icon={<Wind size={16}/>} color="text-emerald-400" />
              <MetricCard label="Menge" val={`${weedAmount.toFixed(2)}g`} icon={<Scale size={16}/>} color="text-lime-400" />
              <MetricCard label="Kosten" val={`${cost.toFixed(2)}€`} icon={<Coins size={16}/>} color="text-amber-400" />
              <MetricCard label="Gesamt" val={liveData.total} icon={<List size={16}/>} color="text-zinc-200" />

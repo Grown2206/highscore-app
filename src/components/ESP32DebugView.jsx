@@ -70,10 +70,10 @@ function ESP32DebugView({ ip, setIp, connected, isSimulating, setIsSimulating, l
 
   // Sync False Trigger Settings von ESP32
   useEffect(() => {
-    if (liveData.minSessionDuration !== undefined) {
+    if (liveData.minSessionDuration !== undefined && liveData.minSessionDuration !== null) {
       setMinDuration(liveData.minSessionDuration);
     }
-    if (liveData.maxSessionDuration !== undefined) {
+    if (liveData.maxSessionDuration !== undefined && liveData.maxSessionDuration !== null) {
       setMaxDuration(liveData.maxSessionDuration);
     }
   }, [liveData.minSessionDuration, liveData.maxSessionDuration]);
