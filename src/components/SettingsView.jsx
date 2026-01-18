@@ -36,6 +36,11 @@ function SettingsView({
     setSettings(p => ({ ...p, [key]: value }));
   }, [setSettings]);
 
+  /**
+   * NOTE: State setter functions from useState are guaranteed to be stable by React.
+   * They are included in dependency arrays below to satisfy ESLint's exhaustive-deps rule.
+   */
+
   // Find and remove corrupt hits with unrealistic timestamps
   const findAndRemoveCorruptHits = useCallback(() => {
     const hits = sessionHits || [];
