@@ -35,7 +35,9 @@ export default function StatusAlert({
   className = ''
 }: StatusAlertProps) {
   const baseClasses = 'p-3 rounded-xl border flex items-center gap-2 text-sm';
-  const safeType = type in TYPE_CLASSES ? type : 'error';
+  const safeType = Object.hasOwn(TYPE_CLASSES, type as PropertyKey)
+    ? (type as keyof typeof TYPE_CLASSES)
+    : 'error';
   const typeClasses = TYPE_CLASSES[safeType];
 
   return (
