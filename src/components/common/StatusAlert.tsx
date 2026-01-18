@@ -13,6 +13,12 @@ const TYPE_CLASSES = {
   warning: 'bg-amber-500/10 border-amber-500/20 text-amber-500',
 } as const;
 
+/**
+ * Valid alert types for StatusAlert component.
+ *
+ * Note: The component includes a runtime guard that falls back to 'error' styling
+ * for invalid type values from non-TypeScript or loosely typed call sites.
+ */
 export type AlertType = keyof typeof TYPE_CLASSES;
 
 interface StatusAlertProps {
@@ -29,8 +35,8 @@ export default function StatusAlert({
   className = ''
 }: StatusAlertProps) {
   const baseClasses = 'p-3 rounded-xl border flex items-center gap-2 text-sm';
-  // Runtime guard: fallback to 'error' for invalid types from non-TS or loosely typed call sites
-  const typeClasses = TYPE_CLASSES[type] || TYPE_CLASSES.error;
+  const safeType = type in TYPE_CLASSES ? type : 'error';
+  const typeClasses = TYPE_CLASSES[safeType];
 
   return (
     <div className={`${baseClasses} ${typeClasses} ${className}`}>
