@@ -2,7 +2,7 @@ import React, { useState, memo, useEffect } from 'react';
 import { Wifi, WifiOff, Smartphone, RefreshCw, AlertCircle, CheckCircle, Radio, Activity, Clock, Flame, TrendingUp, Zap, Settings as SettingsIcon, Edit3, Save, X } from 'lucide-react';
 import { MIN_SESSION_DURATION_MS, MAX_SESSION_DURATION_MS, DEFAULT_MIN_SESSION_DURATION_MS, DEFAULT_MAX_SESSION_DURATION_MS, MIN_DURATION_SLIDER_MAX, MAX_DURATION_SLIDER_MIN } from '../config/sessionDuration';
 
-function ESP32DebugView({ ip, setIp, connected, isSimulating, setIsSimulating, lastError, connectionLog, flameHistory, liveData, errorCount, settings, setSettings }) {
+function ESP32DebugView({ ip, setIp, connected, isSimulating, setIsSimulating, lastError, connectionLog, flameHistory, liveData, errorCount, settings, setSettings, forceSyncPendingHits, isSyncing, lastSyncTime }) {
   const [testing, setTesting] = useState(false);
   const [editingTrigger, setEditingTrigger] = useState(false);
   const [minDuration, setMinDuration] = useState(DEFAULT_MIN_SESSION_DURATION_MS);
@@ -166,7 +166,21 @@ function ESP32DebugView({ ip, setIp, connected, isSimulating, setIsSimulating, l
                 <RefreshCw size={16} className={testing ? 'animate-spin' : ''}/>
                 Test
               </button>
+              <button
+                onClick={forceSyncPendingHits}
+                disabled={isSyncing || !connected}
+                className="bg-blue-600 hover:bg-blue-700 disabled:bg-zinc-700 text-white px-4 rounded-lg transition-colors flex items-center gap-2"
+                title="Offline-Hits vom ESP32 synchronisieren"
+              >
+                <RefreshCw size={16} className={isSyncing ? 'animate-spin' : ''}/>
+                Sync
+              </button>
             </div>
+            {lastSyncTime && (
+              <p className="text-xs text-zinc-500">
+                Letzter Sync: {new Date(lastSyncTime).toLocaleTimeString('de-DE')}
+              </p>
+            )}
           </div>
         )}
 

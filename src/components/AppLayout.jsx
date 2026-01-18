@@ -168,6 +168,9 @@ export default function AppLayout({ ctx }) {
               errorCount={ctx.errorCount}
               settings={ctx.settings}
               setSettings={ctx.setSettings}
+              forceSyncPendingHits={ctx.forceSyncPendingHits}
+              isSyncing={ctx.isSyncing}
+              lastSyncTime={ctx.lastSyncTime}
             />
           )}
           {activeTab === 'settings' && (

@@ -3,7 +3,9 @@ import { DEFAULT_SETTINGS, STORAGE_KEYS } from './utils/constants';
 import { useAutoBackup } from './hooks/useAutoBackup.ts';
 import { useLocalStorage } from './hooks/useLocalStorage.ts';
 import { useESP32Polling } from './hooks/useESP32Polling.ts';
-import { useHitManagement } from './hooks/useHitManagement.ts';
+import { useHitManagement, Settings, Goals, Notification } from './hooks/useHitManagement.ts';
+import { Hit } from './hooks/useHitSelection';
+import { HistoryDataEntry } from './utils/historyDataHelpers';
 import AppLayout from './components/AppLayout';
 
 // --- MAIN APP COMPONENT ---
@@ -24,8 +26,8 @@ export default function App() {
   const [ip, setIp] = useLocalStorage(STORAGE_KEYS.DEVICE_IP, '192.168.178.XXX');
 
   // **FIX v8.9**: Auto-Sync - Rebuild historyData aus sessionHits
-  const rebuildHistoryFromSessions = useCallback((sessions) => {
-    const historyMap = {};
+  const rebuildHistoryFromSessions = useCallback((sessions: Hit[]): HistoryDataEntry[] => {
+    const historyMap: Record<string, { date: string; count: number; strainId: number | null; note: string }> = {};
 
     sessions.forEach(hit => {
       const dateStr = new Date(hit.timestamp).toISOString().split('T')[0];
@@ -47,7 +49,7 @@ export default function App() {
   }, [historyData]);
 
   // **FIX v8.9.3**: Auto-Rebuild historyData aus sessionHits beim App-Start
-  const hasInitializedRef = useRef(false);
+  const hasInitializedRef = useRef<boolean>(false);
   useEffect(() => {
     // Einmaliger Rebuild beim ersten Mount wenn sessionHits vorhanden
     if (!hasInitializedRef.current && sessionHits && sessionHits.length > 0) {
@@ -195,7 +197,10 @@ export default function App() {
     isSensorInhaling,
     connectionLog,
     flameHistory,
-    errorCount
+    errorCount,
+    forceSyncPendingHits,
+    isSyncing,
+    lastSyncTime
   } = useESP32Polling({
     isSimulating,
     ip,
@@ -230,7 +235,7 @@ export default function App() {
   }, [liveData.batteryPercent, lowBatteryWarningShown, connected]);
 
   // **FIX v8.9**: Context mit sessionHits/setSessionHits
-  // **NEW**: sessionHitsCount hinzugefügt
+  // **NEW**: sessionHitsCount, forceSyncPendingHits, isSyncing, lastSyncTime hinzugefügt
   const ctx = useMemo(() => ({
     settings, setSettings, historyData, setHistoryData, sessionHits, setSessionHits,
     goals, setGoals, lastHitTime, sessionHitsCount,
@@ -238,6 +243,7 @@ export default function App() {
     connected, setConnected, isSimulating, setIsSimulating, isSensorInhaling,
     ip, setIp, lastError, selectedSession, setSelectedSession, notification,
     connectionLog, flameHistory, errorCount, isManuallyHolding,
+    forceSyncPendingHits, isSyncing, lastSyncTime,
     showRecovery, setShowRecovery, handleDataRestore,
     onManualTrigger: (d) => registerHit(true, d),
     onHoldStart: () => setIsManuallyHolding(true),
@@ -249,6 +255,7 @@ export default function App() {
     connected, setConnected, isSimulating, setIsSimulating, isSensorInhaling,
     ip, setIp, lastError, selectedSession, setSelectedSession, notification,
     connectionLog, flameHistory, errorCount, isManuallyHolding,
+    forceSyncPendingHits, isSyncing, lastSyncTime,
     showRecovery, setShowRecovery, handleDataRestore, registerHit
   ]);
 
