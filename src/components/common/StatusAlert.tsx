@@ -13,7 +13,7 @@ const TYPE_CLASSES = {
   warning: 'bg-amber-500/10 border-amber-500/20 text-amber-500',
 } as const;
 
-type AlertType = keyof typeof TYPE_CLASSES;
+export type AlertType = keyof typeof TYPE_CLASSES;
 
 interface StatusAlertProps {
   type: AlertType;
@@ -29,7 +29,8 @@ export default function StatusAlert({
   className = ''
 }: StatusAlertProps) {
   const baseClasses = 'p-3 rounded-xl border flex items-center gap-2 text-sm';
-  const typeClasses = TYPE_CLASSES[type];
+  // Runtime guard: fallback to 'error' for invalid types from non-TS or loosely typed call sites
+  const typeClasses = TYPE_CLASSES[type] || TYPE_CLASSES.error;
 
   return (
     <div className={`${baseClasses} ${typeClasses} ${className}`}>
