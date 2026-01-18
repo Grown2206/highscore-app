@@ -195,7 +195,10 @@ export default function App() {
     isSensorInhaling,
     connectionLog,
     flameHistory,
-    errorCount
+    errorCount,
+    forceSyncPendingHits,
+    isSyncing,
+    lastSyncTime
   } = useESP32Polling({
     isSimulating,
     ip,
@@ -230,7 +233,7 @@ export default function App() {
   }, [liveData.batteryPercent, lowBatteryWarningShown, connected]);
 
   // **FIX v8.9**: Context mit sessionHits/setSessionHits
-  // **NEW**: sessionHitsCount hinzugefügt
+  // **NEW**: sessionHitsCount, forceSyncPendingHits, isSyncing, lastSyncTime hinzugefügt
   const ctx = useMemo(() => ({
     settings, setSettings, historyData, setHistoryData, sessionHits, setSessionHits,
     goals, setGoals, lastHitTime, sessionHitsCount,
@@ -238,6 +241,7 @@ export default function App() {
     connected, setConnected, isSimulating, setIsSimulating, isSensorInhaling,
     ip, setIp, lastError, selectedSession, setSelectedSession, notification,
     connectionLog, flameHistory, errorCount, isManuallyHolding,
+    forceSyncPendingHits, isSyncing, lastSyncTime,
     showRecovery, setShowRecovery, handleDataRestore,
     onManualTrigger: (d) => registerHit(true, d),
     onHoldStart: () => setIsManuallyHolding(true),
@@ -249,6 +253,7 @@ export default function App() {
     connected, setConnected, isSimulating, setIsSimulating, isSensorInhaling,
     ip, setIp, lastError, selectedSession, setSelectedSession, notification,
     connectionLog, flameHistory, errorCount, isManuallyHolding,
+    forceSyncPendingHits, isSyncing, lastSyncTime,
     showRecovery, setShowRecovery, handleDataRestore, registerHit
   ]);
 

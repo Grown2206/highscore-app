@@ -52,6 +52,9 @@ export interface ESP32PollingReturn {
   connectionLog: ConnectionLogEntry[];
   flameHistory: FlameHistoryEntry[];
   errorCount: number;
+  forceSyncPendingHits: () => Promise<void>;
+  isSyncing: boolean;
+  lastSyncTime: number | null;
 }
 
 interface SimulationRef {
@@ -190,6 +193,8 @@ export function useESP32Polling({
   const [connectionLog, setConnectionLog] = useState<ConnectionLogEntry[]>([]);
   const [flameHistory, setFlameHistory] = useState<FlameHistoryEntry[]>([]);
   const [currentErrorCount, setCurrentErrorCount] = useState(0);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [lastSyncTime, setLastSyncTime] = useState<number | null>(null);
 
   const prevApiTotalRef = useRef(0);
   const hasSyncedRef = useRef(false);
@@ -207,18 +212,28 @@ export function useESP32Polling({
     hasSyncedRef.current = false;
   }, [ip]);
 
-  // AUTO-SYNC: Pending Hits vom ESP32 abrufen und importieren
-  const syncPendingHits = useCallback(async () => {
-    if (isSimulating || isSyncingRef.current || hasSyncedRef.current) return;
-
-    // IP-Validierung VOR dem Setzen des Sync-Flags
+  // CORE SYNC LOGIC: Pending Hits vom ESP32 abrufen und importieren
+  const performSync = useCallback(async (source: string = 'auto') => {
+    // IP-Validierung
     const cleanIp = normalizeIp(ip);
     if (!cleanIp) {
-      console.warn('⚠️ Auto-Sync übersprungen: keine gültige IP konfiguriert');
+      console.warn(`⚠️ ${source}-Sync übersprungen: keine gültige IP konfiguriert`);
+      return;
+    }
+
+    if (isSimulating) {
+      console.log(`⚠️ ${source}-Sync übersprungen: Simulation aktiv`);
+      return;
+    }
+
+    // Prevent concurrent syncs
+    if (isSyncingRef.current) {
+      console.log(`⚠️ ${source}-Sync übersprungen: Sync bereits läuft`);
       return;
     }
 
     isSyncingRef.current = true;
+    setIsSyncing(true);
 
     try {
       const url = `http://${cleanIp}/api/sync`;
@@ -322,12 +337,31 @@ export function useESP32Polling({
       }
 
       hasSyncedRef.current = true;
+      setLastSyncTime(Date.now());
     } catch (e: any) {
-      console.error('❌ Auto-Sync Fehler:', e.message);
+      console.error(`❌ ${source}-Sync Fehler:`, e.message);
+      setNotification({
+        type: 'error',
+        message: `Sync fehlgeschlagen: ${e.message}`,
+        icon: RefreshCw
+      });
+      setTimeout(() => setNotification(null), 3000);
     } finally {
       isSyncingRef.current = false;
+      setIsSyncing(false);
     }
   }, [isSimulating, ip, currentStrainId, settings.strains, settings.bowlSize, settings.weedRatio, setSessionHits, setHistoryData, setNotification, rebuildHistoryFromSessions]);
+
+  // AUTO-SYNC: Wird nur beim ersten Reconnect aufgerufen
+  const syncPendingHits = useCallback(async () => {
+    if (hasSyncedRef.current) return;
+    await performSync('auto');
+  }, [performSync]);
+
+  // FORCE SYNC: Kann jederzeit manuell aufgerufen werden (z.B. Button, Visibility API)
+  const forceSyncPendingHits = useCallback(async () => {
+    await performSync('manual');
+  }, [performSync]);
 
   // AUTO-SYNC COMPLETE: ESP32 mitteilen dass Sync erfolgreich war
   const completeSyncRequest = async () => {
@@ -502,6 +536,27 @@ export function useESP32Polling({
     };
   }, [isSimulating, ip, manualOffset, isManuallyHolding, currentErrorCount, connected, syncPendingHits, registerHitCallback]);
 
+  // VISIBILITY API: Auto-Sync beim Tab-Fokus / App-Rückkehr
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden && connected && !isSimulating) {
+        console.log('👁️ Tab fokussiert - Auto-Sync wird ausgeführt...');
+        setTimeout(() => forceSyncPendingHits(), 500); // Kurzer Delay für stabilere Verbindung
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [connected, isSimulating, forceSyncPendingHits]);
+
+  // APP MOUNT: Initial Sync beim ersten App-Start
+  useEffect(() => {
+    if (connected && !isSimulating && !hasSyncedRef.current) {
+      console.log('🚀 App-Mount - Initial Sync wird ausgeführt...');
+      setTimeout(() => syncPendingHits(), 1000);
+    }
+  }, [connected, isSimulating, syncPendingHits]);
+
   return {
     connected,
     setConnected,
@@ -510,6 +565,9 @@ export function useESP32Polling({
     isSensorInhaling,
     connectionLog,
     flameHistory,
-    errorCount: currentErrorCount
+    errorCount: currentErrorCount,
+    forceSyncPendingHits,
+    isSyncing,
+    lastSyncTime
   };
 }
