@@ -3,7 +3,7 @@ import { User, Users, Tag, Wind, Scale, Coins, List, Clock, Shield, Radio, Flame
 import HoldButton from './HoldButton';
 import { MetricCard, AdminMetric } from './UIComponents';
 import SwipeableHitRow from './SwipeableHitRow';
-import { useHitSelection } from '../hooks/useHitSelection';
+import { useHitSelection } from '../hooks/useHitSelection.ts';
 
 // **FIX v8.8**: Pure utility function for getting today's date key
 // Defined outside component to ensure stable reference (no props/context dependencies)

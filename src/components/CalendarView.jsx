@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo, memo } from 'react';
 import { Save, Wind, Scale, Coins, Clock, Tag, TrendingUp, TrendingDown, Minus, Calendar, ChevronLeft, ChevronRight, CheckSquare, Square, Trash2, X } from 'lucide-react';
 import SwipeableHitRow from './SwipeableHitRow';
-import { formatLocalDate, getTotalHits, getAvgHitsPerDay } from '../utils/historyDataHelpers';
-import { useHitSelection } from '../hooks/useHitSelection';
+import { formatLocalDate, getTotalHits, getAvgHitsPerDay } from '../utils/historyDataHelpers.ts';
+import { useHitSelection } from '../hooks/useHitSelection.ts';
 
 // **FIX v8.9**: sessionHits wiederhergestellt - Timeline und Hit-Liste funktionieren wieder
 // **NEW v8.8**: Multi-select delete functionality with custom hook
