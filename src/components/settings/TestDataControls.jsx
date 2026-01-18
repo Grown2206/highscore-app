@@ -1,18 +1,17 @@
 import React from 'react';
-import { Database, Trash, AlertCircle } from 'lucide-react';
+import { Database, Trash } from 'lucide-react';
+import StatusAlert from '../common/StatusAlert';
 
 /**
  * Test Data Controls Component (Admin only)
  * Generate and manage test data for testing analytics
+ * Note: Parent component (SettingsView) should gate rendering based on adminMode
  */
 export default function TestDataControls({
-  adminMode,
   testDataStatus,
   onAddTestData,
   onClearTestData
 }) {
-  if (!adminMode) return null;
-
   return (
     <div className="bg-gradient-to-br from-indigo-900/20 to-zinc-900 border border-indigo-500/30 rounded-2xl p-6 space-y-4">
       <div className="flex items-center gap-2">
@@ -21,14 +20,9 @@ export default function TestDataControls({
       </div>
 
       {testDataStatus && (
-        <div className={`p-3 rounded-xl border flex items-center gap-2 text-sm ${
-          testDataStatus.type === 'success'
-            ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500'
-            : 'bg-rose-500/10 border-rose-500/20 text-rose-500'
-        }`}>
-          <AlertCircle size={14} />
+        <StatusAlert type={testDataStatus.type}>
           {testDataStatus.msg}
-        </div>
+        </StatusAlert>
       )}
 
       <div className="space-y-3">

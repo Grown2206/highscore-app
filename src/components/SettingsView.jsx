@@ -1,4 +1,4 @@
-import React, { useState, useRef, memo } from 'react';
+import React, { useState, useRef, memo, useCallback } from 'react';
 import { generateTestData, mergeTestData, removeTestData } from '../utils/testDataGenerator';
 import { DEFAULT_SETTINGS, STORAGE_KEYS, LEGACY_KEYS, TIMESTAMP_VALIDATION } from '../utils/constants';
 
@@ -32,10 +32,12 @@ function SettingsView({
   const [corruptHitsStatus, setCorruptHitsStatus] = useState(null);
   const fileInputRef = useRef(null);
 
-  const updateSetting = (key, value) => setSettings(p => ({ ...p, [key]: value }));
+  const updateSetting = useCallback((key, value) => {
+    setSettings(p => ({ ...p, [key]: value }));
+  }, [setSettings]);
 
   // Find and remove corrupt hits with unrealistic timestamps
-  const findAndRemoveCorruptHits = () => {
+  const findAndRemoveCorruptHits = useCallback(() => {
     const hits = sessionHits || [];
     const now = Date.now();
     const minValidTimestamp = TIMESTAMP_VALIDATION.MIN_VALID_TIMESTAMP_MS;
@@ -68,10 +70,10 @@ function SettingsView({
       setCorruptHitsStatus({ type: 'success', msg: `✓ ${corruptHits.length} corrupt Hit(s) gelöscht!` });
       setTimeout(() => setCorruptHitsStatus(null), 3000);
     }
-  };
+  }, [sessionHits, setSessionHits]);
 
   // Export data
-  const exportData = () => {
+  const exportData = useCallback(() => {
     try {
       const exportObj = {
         version: '8.9',
@@ -96,10 +98,10 @@ function SettingsView({
       setExportStatus({ type: 'error', msg: 'Export fehlgeschlagen: ' + e.message });
       setTimeout(() => setExportStatus(null), 3000);
     }
-  };
+  }, [settings, historyData, sessionHits, goals]);
 
   // Import data
-  const importData = (event) => {
+  const importData = useCallback((event) => {
     const file = event.target.files[0];
     if (!file) return;
 
@@ -128,10 +130,10 @@ function SettingsView({
     };
     reader.readAsText(file);
     event.target.value = '';
-  };
+  }, [setSettings, setHistoryData, setSessionHits, setGoals]);
 
   // Add test data
-  const addTestData = (days = 30) => {
+  const addTestData = useCallback((days = 30) => {
     try {
       const testData = generateTestData(days, settings);
       const merged = mergeTestData(
@@ -147,10 +149,10 @@ function SettingsView({
       setTestDataStatus({ type: 'error', msg: 'Fehler beim Generieren: ' + e.message });
       setTimeout(() => setTestDataStatus(null), 3000);
     }
-  };
+  }, [settings, sessionHits, historyData, setSessionHits]);
 
   // Clear test data
-  const clearTestData = () => {
+  const clearTestData = useCallback(() => {
     if (!window.confirm('Alle Testdaten (IDs mit "test_") wirklich löschen?')) return;
 
     try {
@@ -163,10 +165,10 @@ function SettingsView({
       setTestDataStatus({ type: 'error', msg: 'Fehler beim Löschen: ' + e.message });
       setTimeout(() => setTestDataStatus(null), 3000);
     }
-  };
+  }, [sessionHits, setSessionHits]);
 
   // Reset all data except strains
-  const resetAllDataExceptStrains = () => {
+  const resetAllDataExceptStrains = useCallback(() => {
     if (!window.confirm('⚠️ ACHTUNG: Alle Daten (Sessions, Erfolge, Tagebuch) werden gelöscht!\n\nNur die Sorten bleiben erhalten.\n\nWirklich fortfahren?')) return;
 
     try {
@@ -200,7 +202,7 @@ function SettingsView({
       setExportStatus({ type: 'error', msg: 'Fehler beim Zurücksetzen: ' + e.message });
       setTimeout(() => setExportStatus(null), 4000);
     }
-  };
+  }, [settings.strains, setSessionHits, setHistoryData, setGoals, setSettings]);
 
   return (
     <div className="space-y-8 animate-in slide-in-from-right-4 pb-20">
@@ -218,18 +220,20 @@ function SettingsView({
         setGoals={setGoals}
       />
 
-      <TestDataControls
-        adminMode={settings.adminMode}
-        testDataStatus={testDataStatus}
-        onAddTestData={addTestData}
-        onClearTestData={clearTestData}
-      />
+      {settings.adminMode && (
+        <>
+          <TestDataControls
+            testDataStatus={testDataStatus}
+            onAddTestData={addTestData}
+            onClearTestData={clearTestData}
+          />
 
-      <CorruptHitsCleanup
-        adminMode={settings.adminMode}
-        corruptHitsStatus={corruptHitsStatus}
-        onFindAndRemoveCorruptHits={findAndRemoveCorruptHits}
-      />
+          <CorruptHitsCleanup
+            corruptHitsStatus={corruptHitsStatus}
+            onFindAndRemoveCorruptHits={findAndRemoveCorruptHits}
+          />
+        </>
+      )}
 
       <DataManagement
         exportStatus={exportStatus}
