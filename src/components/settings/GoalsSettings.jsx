@@ -24,7 +24,7 @@ export default function GoalsSettings({ goals, setGoals }) {
               min="0"
               max="50"
               value={goals?.dailyLimit || 0}
-              onChange={(e) => setGoals(p => ({ ...p, dailyLimit: parseInt(e.target.value) || 0 }))}
+              onChange={(e) => setGoals(p => ({ ...p, dailyLimit: parseInt(e.target.value, 10) || 0 }))}
               className="flex-1 bg-zinc-900 border border-zinc-700 rounded p-2 text-white font-mono"
             />
             <span className="text-sm text-zinc-500">Hits/Tag</span>
@@ -40,7 +40,7 @@ export default function GoalsSettings({ goals, setGoals }) {
               min="0"
               max="30"
               value={goals?.tBreakDays || 0}
-              onChange={(e) => setGoals(p => ({ ...p, tBreakDays: parseInt(e.target.value) || 0 }))}
+              onChange={(e) => setGoals(p => ({ ...p, tBreakDays: parseInt(e.target.value, 10) || 0 }))}
               className="flex-1 bg-zinc-900 border border-zinc-700 rounded p-2 text-white font-mono"
             />
             <span className="text-sm text-zinc-500">Tage</span>

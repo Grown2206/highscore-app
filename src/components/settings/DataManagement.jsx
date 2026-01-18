@@ -1,5 +1,6 @@
 import React from 'react';
-import { Download, Upload, Trash, RefreshCw, AlertCircle } from 'lucide-react';
+import { Download, Upload, Trash, RefreshCw } from 'lucide-react';
+import StatusAlert from '../common/StatusAlert';
 
 /**
  * Data Management Component
@@ -22,14 +23,9 @@ export default function DataManagement({
       </div>
 
       {exportStatus && (
-        <div className={`p-3 rounded-xl border flex items-center gap-2 text-sm ${
-          exportStatus.type === 'success'
-            ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500'
-            : 'bg-rose-500/10 border-rose-500/20 text-rose-500'
-        }`}>
-          <AlertCircle size={14} />
+        <StatusAlert type={exportStatus.type}>
           {exportStatus.msg}
-        </div>
+        </StatusAlert>
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">

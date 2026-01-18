@@ -1,17 +1,16 @@
 import React from 'react';
 import { AlertCircle } from 'lucide-react';
+import StatusAlert from '../common/StatusAlert';
 
 /**
  * Corrupt Hits Cleanup Component (Admin only)
  * Find and remove hits with unrealistic timestamps
+ * Note: Parent component (SettingsView) should gate rendering based on adminMode
  */
 export default function CorruptHitsCleanup({
-  adminMode,
   corruptHitsStatus,
   onFindAndRemoveCorruptHits
 }) {
-  if (!adminMode) return null;
-
   return (
     <div className="bg-gradient-to-br from-rose-900/20 to-zinc-900 border border-rose-500/30 rounded-2xl p-6 space-y-4">
       <div className="flex items-center gap-2">
@@ -20,14 +19,9 @@ export default function CorruptHitsCleanup({
       </div>
 
       {corruptHitsStatus && (
-        <div className={`p-3 rounded-xl border flex items-center gap-2 text-sm ${
-          corruptHitsStatus.type === 'success'
-            ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500'
-            : 'bg-rose-500/10 border-rose-500/20 text-rose-500'
-        }`}>
-          <AlertCircle size={14} />
+        <StatusAlert type={corruptHitsStatus.type}>
           {corruptHitsStatus.msg}
-        </div>
+        </StatusAlert>
       )}
 
       <div className="space-y-3">
