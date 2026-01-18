@@ -70,7 +70,7 @@ function SettingsView({
       setCorruptHitsStatus({ type: 'success', msg: `✓ ${corruptHits.length} corrupt Hit(s) gelöscht!` });
       setTimeout(() => setCorruptHitsStatus(null), 3000);
     }
-  }, [sessionHits, setSessionHits]);
+  }, [sessionHits, setSessionHits, setCorruptHitsStatus]);
 
   // Export data
   const exportData = useCallback(() => {
@@ -98,7 +98,7 @@ function SettingsView({
       setExportStatus({ type: 'error', msg: 'Export fehlgeschlagen: ' + e.message });
       setTimeout(() => setExportStatus(null), 3000);
     }
-  }, [settings, historyData, sessionHits, goals]);
+  }, [settings, historyData, sessionHits, goals, setExportStatus]);
 
   // Import data
   const importData = useCallback((event) => {
@@ -130,7 +130,7 @@ function SettingsView({
     };
     reader.readAsText(file);
     event.target.value = '';
-  }, [setSettings, setHistoryData, setSessionHits, setGoals]);
+  }, [setSettings, setHistoryData, setSessionHits, setGoals, setExportStatus]);
 
   // Add test data
   const addTestData = useCallback((days = 30) => {
@@ -149,7 +149,7 @@ function SettingsView({
       setTestDataStatus({ type: 'error', msg: 'Fehler beim Generieren: ' + e.message });
       setTimeout(() => setTestDataStatus(null), 3000);
     }
-  }, [settings, sessionHits, historyData, setSessionHits]);
+  }, [settings, sessionHits, historyData, setSessionHits, setTestDataStatus]);
 
   // Clear test data
   const clearTestData = useCallback(() => {
@@ -165,7 +165,7 @@ function SettingsView({
       setTestDataStatus({ type: 'error', msg: 'Fehler beim Löschen: ' + e.message });
       setTimeout(() => setTestDataStatus(null), 3000);
     }
-  }, [sessionHits, setSessionHits]);
+  }, [sessionHits, setSessionHits, setTestDataStatus]);
 
   // Reset all data except strains
   const resetAllDataExceptStrains = useCallback(() => {
@@ -202,7 +202,7 @@ function SettingsView({
       setExportStatus({ type: 'error', msg: 'Fehler beim Zurücksetzen: ' + e.message });
       setTimeout(() => setExportStatus(null), 4000);
     }
-  }, [settings.strains, setSessionHits, setHistoryData, setGoals, setSettings]);
+  }, [settings.strains, setSessionHits, setHistoryData, setGoals, setSettings, setExportStatus]);
 
   return (
     <div className="space-y-8 animate-in slide-in-from-right-4 pb-20">
