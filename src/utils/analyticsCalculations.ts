@@ -4,18 +4,77 @@
  * Alle Berechnungen nutzen historyData als einzige Quelle der Wahrheit.
  */
 
+import { HistoryDataEntry } from './historyDataHelpers';
+import { LucideIcon } from 'lucide-react';
+
+// Type Definitions
+export interface PredictionResult {
+  trend: 'insufficient_data' | 'increasing' | 'decreasing' | 'stable';
+  slope?: string;
+  prediction7d: number;
+  prediction30d: number;
+  confidence: number | string;
+  avgDaily?: string;
+}
+
+export interface Anomaly {
+  type: 'spike' | 't_break';
+  severity: 'high' | 'medium' | 'low';
+  date?: string;
+  value: number;
+  message: string;
+}
+
+export interface ToleranceIndex {
+  index: number;
+  level: 'Niedrig' | 'Mittel' | 'Hoch';
+  colorKey: 'low' | 'medium' | 'high';
+  activeDays: number;
+  avgDaily: string;
+}
+
+export interface WeekdayAnalysis {
+  weekday: number;
+  weekend: number;
+  weekdayPercent: string;
+  weekendPercent: string;
+}
+
+export interface HabitScore {
+  score: number;
+  rating: 'Sporadisch' | 'Ausgewogen' | 'Intensiv';
+  emoji: string;
+  activeDays: number;
+  currentStreak: number;
+  longestStreak: number;
+}
+
+export interface Recommendation {
+  category: 'pattern' | 'health' | 'tolerance';
+  icon?: LucideIcon;
+  title: string;
+  description: string;
+  confidence: number;
+}
+
+export interface IconSet {
+  Calendar?: LucideIcon;
+  Lightbulb?: LucideIcon;
+  Activity?: LucideIcon;
+}
+
 /**
  * Lineare Regression für Trend-Analyse und Vorhersagen
- * @param {Array} historyData - Array of {date, count, strainId, note}
- * @returns {Object} Predictions mit trend, slope, predictions, confidence
+ * @param historyData - Array of history entries
+ * @returns Predictions mit trend, slope, predictions, confidence
  */
-export function calculatePredictions(historyData) {
+export function calculatePredictions(historyData: HistoryDataEntry[]): PredictionResult {
   if (historyData.length < 7) {
     return { trend: 'insufficient_data', prediction7d: 0, prediction30d: 0, confidence: 0 };
   }
 
   // Lineare Regression für Trend-Analyse
-  const sortedData = [...historyData].sort((a, b) => new Date(a.date) - new Date(b.date));
+  const sortedData = [...historyData].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   const recentData = sortedData.slice(-30); // Letzte 30 Tage
 
   // Berechne durchschnittliche tägliche Hits
@@ -44,7 +103,7 @@ export function calculatePredictions(historyData) {
   const confidence = Math.max(0, Math.min(100, r2 * 100));
 
   // Trend-Bestimmung
-  let trend = 'stable';
+  let trend: PredictionResult['trend'] = 'stable';
   if (slope > 0.5) trend = 'increasing';
   else if (slope < -0.5) trend = 'decreasing';
 
@@ -60,15 +119,15 @@ export function calculatePredictions(historyData) {
 
 /**
  * Anomalie-Erkennung für ungewöhnliche Muster
- * @param {Array} historyData - Array of {date, count, strainId, note}
- * @returns {Array} Detected anomalies mit type, severity, message
+ * @param historyData - Array of history entries
+ * @returns Detected anomalies mit type, severity, message
  */
-export function detectAnomalies(historyData) {
+export function detectAnomalies(historyData: HistoryDataEntry[]): Anomaly[] {
   if (historyData.length < 10) {
     return [];
   }
 
-  const detectedAnomalies = [];
+  const detectedAnomalies: Anomaly[] = [];
 
   // Berechne Statistiken für normale Nutzung
   const hitCounts = historyData.map(d => d.count);
@@ -91,12 +150,12 @@ export function detectAnomalies(historyData) {
   });
 
   // 2. Lange Pausen (T-Breaks) - aus historyData berechnen
-  const sortedDays = [...historyData].filter(d => d.count > 0).sort((a, b) => new Date(a.date) - new Date(b.date));
+  const sortedDays = [...historyData].filter(d => d.count > 0).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   let maxBreak = 0;
   for (let i = 1; i < sortedDays.length; i++) {
     const prevDate = new Date(sortedDays[i - 1].date);
     const currDate = new Date(sortedDays[i].date);
-    const breakDays = Math.floor((currDate - prevDate) / (1000 * 60 * 60 * 24)) - 1;
+    const breakDays = Math.floor((currDate.getTime() - prevDate.getTime()) / (1000 * 60 * 60 * 24)) - 1;
     if (breakDays > maxBreak) maxBreak = breakDays;
   }
 
@@ -114,10 +173,10 @@ export function detectAnomalies(historyData) {
 
 /**
  * Toleranz-Index Berechnung (0-100)
- * @param {Array} historyData - Array of {date, count, strainId, note}
- * @returns {Object|null} Tolerance index mit level, colorKey, scores
+ * @param historyData - Array of history entries
+ * @returns Tolerance index mit level, colorKey, scores
  */
-export function calculateToleranceIndex(historyData) {
+export function calculateToleranceIndex(historyData: HistoryDataEntry[]): ToleranceIndex | null {
   if (historyData.length < 7) return null;
 
   // Berechne Faktoren für Toleranz-Index
@@ -133,8 +192,8 @@ export function calculateToleranceIndex(historyData) {
 
   const index = Math.round((frequencyScore * 0.4) + (volumeScore * 0.4) + (pauseScore * 0.2));
 
-  let level = 'Niedrig';
-  let colorKey = 'low';
+  let level: ToleranceIndex['level'] = 'Niedrig';
+  let colorKey: ToleranceIndex['colorKey'] = 'low';
   if (index > 70) {
     level = 'Hoch';
     colorKey = 'high';
@@ -154,10 +213,10 @@ export function calculateToleranceIndex(historyData) {
 
 /**
  * Wochenende vs Werktag Analyse
- * @param {Array} historyData - Array of {date, count, strainId, note}
- * @returns {Object} Weekday vs weekend statistics
+ * @param historyData - Array of history entries
+ * @returns Weekday vs weekend statistics
  */
-export function analyzeWeekdayPattern(historyData) {
+export function analyzeWeekdayPattern(historyData: HistoryDataEntry[]): WeekdayAnalysis {
   let weekdayHits = 0;
   let weekendHits = 0;
 
@@ -177,17 +236,17 @@ export function analyzeWeekdayPattern(historyData) {
   return {
     weekday: weekdayHits,
     weekend: weekendHits,
-    weekdayPercent: total > 0 ? ((weekdayHits / total) * 100).toFixed(0) : 0,
-    weekendPercent: total > 0 ? ((weekendHits / total) * 100).toFixed(0) : 0
+    weekdayPercent: total > 0 ? ((weekdayHits / total) * 100).toFixed(0) : '0',
+    weekendPercent: total > 0 ? ((weekendHits / total) * 100).toFixed(0) : '0'
   };
 }
 
 /**
  * Habit Score Berechnung (0-100)
- * @param {Array} historyData - Array of {date, count, strainId, note}
- * @returns {Object|null} Habit score mit rating, emoji, streaks
+ * @param historyData - Array of history entries
+ * @returns Habit score mit rating, emoji, streaks
  */
-export function calculateHabitScore(historyData) {
+export function calculateHabitScore(historyData: HistoryDataEntry[]): HabitScore | null {
   if (historyData.length < 14) return null;
 
   const last14Days = historyData.slice(-14);
@@ -215,7 +274,7 @@ export function calculateHabitScore(historyData) {
 
   const score = Math.round((consistencyScore * 0.3) + (frequencyScore * 0.3) + (moderationScore * 0.4));
 
-  let rating = 'Ausgewogen';
+  let rating: HabitScore['rating'] = 'Ausgewogen';
   let emoji = '✅';
   if (score < 40) {
     rating = 'Sporadisch';
@@ -237,12 +296,12 @@ export function calculateHabitScore(historyData) {
 
 /**
  * Empfehlungssystem basierend auf Nutzungsmustern
- * @param {Array} historyData - Array of {date, count, strainId, note}
- * @param {Array} icons - Icon components (Calendar, Lightbulb, etc.)
- * @returns {Array} Recommendations mit category, icon, title, description
+ * @param historyData - Array of history entries
+ * @param icons - Icon components (Calendar, Lightbulb, etc.)
+ * @returns Recommendations mit category, icon, title, description
  */
-export function generateRecommendations(historyData, icons) {
-  const recs = [];
+export function generateRecommendations(historyData: HistoryDataEntry[], icons?: IconSet): Recommendation[] {
+  const recs: Recommendation[] = [];
   const { Calendar, Lightbulb, Activity } = icons || {};
 
   // Empfehlung basierend auf Konsistenzmuster

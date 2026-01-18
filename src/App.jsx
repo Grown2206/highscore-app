@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { DEFAULT_SETTINGS, STORAGE_KEYS } from './utils/constants';
-import { useAutoBackup } from './hooks/useAutoBackup';
-import { useLocalStorage } from './hooks/useLocalStorage';
-import { useESP32Polling } from './hooks/useESP32Polling';
-import { useHitManagement } from './hooks/useHitManagement';
+import { useAutoBackup } from './hooks/useAutoBackup.ts';
+import { useLocalStorage } from './hooks/useLocalStorage.ts';
+import { useESP32Polling } from './hooks/useESP32Polling.ts';
+import { useHitManagement } from './hooks/useHitManagement.ts';
 import AppLayout from './components/AppLayout';
 
 // --- MAIN APP COMPONENT ---

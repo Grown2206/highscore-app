@@ -1,8 +1,110 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { RefreshCw } from 'lucide-react';
+import { HistoryDataEntry } from '../utils/historyDataHelpers';
+import { Hit } from './useHitSelection';
+import { Settings, Notification } from './useHitManagement';
+
+// Type Definitions
+export interface LiveData {
+  flame: boolean;
+  today: number;
+  total: number;
+  batteryVoltage: number | null;
+  batteryPercent: number | null;
+  minSessionDuration: number | null;
+  maxSessionDuration: number | null;
+  timeSync: boolean;
+}
+
+export interface ConnectionLogEntry {
+  type: 'success' | 'error' | 'info';
+  message: string;
+  timestamp: string;
+}
+
+export interface FlameHistoryEntry {
+  time: number;
+  flame: boolean;
+  inhaling: boolean;
+}
+
+export interface ESP32PollingParams {
+  isSimulating: boolean;
+  ip: string;
+  manualOffset: number;
+  isManuallyHolding: boolean;
+  errorCount: number;
+  settings: Settings;
+  currentStrainId: number;
+  rebuildHistoryFromSessions: (hits: Hit[]) => HistoryDataEntry[];
+  setSessionHits: React.Dispatch<React.SetStateAction<Hit[]>>;
+  setHistoryData: React.Dispatch<React.SetStateAction<HistoryDataEntry[]>>;
+  setNotification: React.Dispatch<React.SetStateAction<Notification | null>>;
+  registerHitCallback: (isManual: boolean, duration?: number) => void;
+}
+
+export interface ESP32PollingReturn {
+  connected: boolean;
+  setConnected: React.Dispatch<React.SetStateAction<boolean>>;
+  liveData: LiveData;
+  lastError: string | null;
+  isSensorInhaling: boolean;
+  connectionLog: ConnectionLogEntry[];
+  flameHistory: FlameHistoryEntry[];
+  errorCount: number;
+}
+
+interface SimulationRef {
+  flame: boolean;
+  lastTrigger: number;
+  counts: { today: number; total: number };
+  sessionActive: boolean;
+  sessionStartTime: number;
+}
+
+interface CapacitorHttpResponse {
+  status: number;
+  data: any;
+}
+
+interface CapacitorType {
+  isNativePlatform: () => boolean;
+  Plugins?: {
+    CapacitorHttp?: {
+      get: (options: { url: string }) => Promise<CapacitorHttpResponse>;
+      post: (options: { url: string }) => Promise<CapacitorHttpResponse>;
+    };
+  };
+}
+
+interface ESP32PendingHit {
+  id?: string;
+  timestamp: number;
+  duration?: number;
+}
+
+interface ESP32SyncResponse {
+  pendingHits?: ESP32PendingHit[];
+  pendingCount?: number;
+  espUptime?: number;
+  timeSync?: boolean;
+}
+
+interface ESP32DataResponse {
+  flame?: boolean;
+  isInhaling?: boolean;
+  today: number;
+  total: number;
+  lastDuration?: number;
+  batteryVoltage?: number;
+  batteryPercent?: number;
+  minSessionDuration?: number;
+  maxSessionDuration?: number;
+  timeSync?: boolean;
+}
 
 // IP Normalisierungs-Helper
-const normalizeIp = (ip) => {
+const normalizeIp = (ip: string): string => {
   if (!ip || typeof ip !== 'string') return '';
   return ip
     .trim()
@@ -15,10 +117,10 @@ const normalizeIp = (ip) => {
  * This avoids order-dependent index-based IDs and is stable across imports
  * as long as the underlying hit properties remain the same.
  *
- * @param {any} value - Value to fingerprint (typically an object with timestamp and hit data)
- * @returns {string} A short, deterministic hash in base-36 format
+ * @param value - Value to fingerprint (typically an object with timestamp and hit data)
+ * @returns A short, deterministic hash in base-36 format
  */
-const createHitFingerprint = (value) => {
+const createHitFingerprint = (value: any): string => {
   const json = JSON.stringify(value);
   let hash = 0;
 
@@ -33,17 +135,17 @@ const createHitFingerprint = (value) => {
 };
 
 // Native Capacitor Detection
-const NativeCapacitor = (typeof window !== 'undefined' && window.Capacitor)
-  ? window.Capacitor
+const NativeCapacitor: CapacitorType = (typeof window !== 'undefined' && (window as any).Capacitor)
+  ? (window as any).Capacitor
   : { isNativePlatform: () => false };
 
 // Native HTTP Helper (versucht CapacitorHttp zu nutzen, falls vorhanden)
-const nativeHttp = async (url, method = 'GET') => {
-  if (typeof window !== 'undefined' && window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.CapacitorHttp) {
+const nativeHttp = async (url: string, method: 'GET' | 'POST' = 'GET'): Promise<CapacitorHttpResponse> => {
+  if (typeof window !== 'undefined' && (window as any).Capacitor && (window as any).Capacitor.Plugins && (window as any).Capacitor.Plugins.CapacitorHttp) {
     if (method === 'POST') {
-      return await window.Capacitor.Plugins.CapacitorHttp.post({ url });
+      return await (window as any).Capacitor.Plugins.CapacitorHttp.post({ url });
     }
-    return await window.Capacitor.Plugins.CapacitorHttp.get({ url });
+    return await (window as any).Capacitor.Plugins.CapacitorHttp.get({ url });
   }
   throw new Error("Native HTTP plugin not found");
 };
@@ -71,9 +173,9 @@ export function useESP32Polling({
   setHistoryData,
   setNotification,
   registerHitCallback
-}) {
+}: ESP32PollingParams): ESP32PollingReturn {
   const [connected, setConnected] = useState(false);
-  const [liveData, setLiveData] = useState({
+  const [liveData, setLiveData] = useState<LiveData>({
     flame: false,
     today: 0,
     total: 0,
@@ -83,16 +185,16 @@ export function useESP32Polling({
     maxSessionDuration: null,
     timeSync: false
   });
-  const [lastError, setLastError] = useState(null);
+  const [lastError, setLastError] = useState<string | null>(null);
   const [isSensorInhaling, setIsSensorInhaling] = useState(false);
-  const [connectionLog, setConnectionLog] = useState([]);
-  const [flameHistory, setFlameHistory] = useState([]);
+  const [connectionLog, setConnectionLog] = useState<ConnectionLogEntry[]>([]);
+  const [flameHistory, setFlameHistory] = useState<FlameHistoryEntry[]>([]);
   const [currentErrorCount, setCurrentErrorCount] = useState(0);
 
   const prevApiTotalRef = useRef(0);
   const hasSyncedRef = useRef(false);
   const isSyncingRef = useRef(false);
-  const simRef = useRef({
+  const simRef = useRef<SimulationRef>({
     flame: false,
     lastTrigger: 0,
     counts: { today: 0, total: 0 },
@@ -121,7 +223,7 @@ export function useESP32Polling({
     try {
       const url = `http://${cleanIp}/api/sync`;
 
-      let json;
+      let json: ESP32SyncResponse;
       if (NativeCapacitor.isNativePlatform()) {
         const response = await nativeHttp(url);
         if (response.status !== 200) throw new Error(`HTTP ${response.status}`);
@@ -140,12 +242,12 @@ export function useESP32Polling({
       if (pendingCount > 0 && pendingHits.length > 0) {
         console.log(`🔄 Auto-Sync: ${pendingCount} pending hits gefunden (timeSync: ${timeSync})`);
 
-        const strain = settings.strains.find(s => s.id == currentStrainId) || settings.strains[0] || { name: '?', price: 0 };
+        const strain = settings.strains.find(s => s.id == currentStrainId) || settings.strains[0] || { id: 0, name: '?', price: 0 };
         const now = Date.now();
 
         // Konvertiere ESP32 Hits in App-Format mit allen Details
-        const importedHits = pendingHits.map((hit) => {
-          let realTimestamp;
+        const importedHits: Hit[] = pendingHits.map((hit) => {
+          let realTimestamp: number;
 
           // **FIX v8.8**: Nutze expliziten timeSync-Flag statt Auto-Detection
           if (timeSync) {
@@ -220,7 +322,7 @@ export function useESP32Polling({
       }
 
       hasSyncedRef.current = true;
-    } catch (e) {
+    } catch (e: any) {
       console.error('❌ Auto-Sync Fehler:', e.message);
     } finally {
       isSyncingRef.current = false;
@@ -247,14 +349,14 @@ export function useESP32Polling({
       }
 
       console.log('✅ Sync-Complete an ESP32 gesendet');
-    } catch (e) {
+    } catch (e: any) {
       console.error('⚠️ Sync-Complete Fehler:', e.message);
     }
   };
 
   // Flame Sensor Detection Logic (B05 Sensor)
   // Der ESP32 verwaltet die gesamte Logik, wir empfangen nur den Status
-  const processFlameDetection = (flameDetected, isInhaling) => {
+  const processFlameDetection = (flameDetected: boolean, isInhaling: boolean): boolean => {
     // Setze Status direkt vom ESP32
     setIsSensorInhaling(isInhaling);
 
@@ -272,7 +374,7 @@ export function useESP32Polling({
   useEffect(() => {
     let isRunning = false;
 
-    const addLog = (type, message) => {
+    const addLog = (type: ConnectionLogEntry['type'], message: string) => {
       const timestamp = new Date().toLocaleTimeString();
       setConnectionLog(prev => [{ type, message, timestamp }, ...prev].slice(0, 100)); // Max 100 Einträge
     };
@@ -308,7 +410,7 @@ export function useESP32Polling({
           if (!cleanIp) throw new Error("Keine IP");
 
           const startTime = Date.now();
-          let json;
+          let json: ESP32DataResponse;
           const url = `http://${cleanIp}/api/data`;
 
           if (NativeCapacitor.isNativePlatform()) {
@@ -361,7 +463,7 @@ export function useESP32Polling({
           if (wasDisconnected && !hasSyncedRef.current) {
             setTimeout(() => syncPendingHits(), 1000); // 1s Delay für stabilere Verbindung
           }
-        } catch (e) {
+        } catch (e: any) {
           setCurrentErrorCount(prev => prev + 1);
           const wasConnected = connected;
           setConnected(false);

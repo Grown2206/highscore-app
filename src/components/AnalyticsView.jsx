@@ -7,7 +7,7 @@ import {
   analyzeWeekdayPattern,
   calculateHabitScore,
   generateRecommendations
-} from '../utils/analyticsCalculations';
+} from '../utils/analyticsCalculations.ts';
 
 // **FIX v8.8**: Entferne sessionHits - verwende nur historyData als einzige Quelle der Wahrheit
 export default function AnalyticsView({ historyData, settings }) {

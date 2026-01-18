@@ -5,7 +5,7 @@ import {
   getAvgHitsPerDay,
   getHitsForDate,
   getLastNDays
-} from './historyDataHelpers';
+} from './historyDataHelpers.ts';
 
 describe('historyDataHelpers', () => {
   describe('formatLocalDate', () => {

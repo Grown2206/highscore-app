@@ -1,5 +1,39 @@
 import { useCallback, useRef } from 'react';
-import { Bell, Trash2 } from 'lucide-react';
+import { Bell, Trash2, LucideIcon } from 'lucide-react';
+import { HistoryDataEntry } from '../utils/historyDataHelpers';
+import { Hit } from './useHitSelection';
+import { Settings, Goals } from './useAutoBackup';
+
+export interface Notification {
+  type: 'success' | 'warning' | 'error' | 'info';
+  message: string;
+  icon?: LucideIcon;
+}
+
+export interface HitManagementParams {
+  isGuestMode: boolean;
+  setGuestHits: React.Dispatch<React.SetStateAction<number>>;
+  currentStrainId: number;
+  settings: Settings;
+  sessionHits: Hit[];
+  setSessionHits: React.Dispatch<React.SetStateAction<Hit[]>>;
+  rebuildHistoryFromSessions: (hits: Hit[]) => HistoryDataEntry[];
+  setHistoryData: React.Dispatch<React.SetStateAction<HistoryDataEntry[]>>;
+  setManualOffset: React.Dispatch<React.SetStateAction<number>>;
+  setSessionHitsCount: React.Dispatch<React.SetStateAction<number>>;
+  setLastHitTime: React.Dispatch<React.SetStateAction<number>>;
+  goals: Goals;
+  setNotification: React.Dispatch<React.SetStateAction<Notification | null>>;
+}
+
+export interface HitManagementReturn {
+  registerHit: (isManual: boolean, duration?: number) => void;
+  resetGuestHits: () => void;
+  deleteHit: (hitId: number | string) => void;
+  deleteHits: (hitIds: (number | string)[]) => void;
+  cooldownUntilRef: React.MutableRefObject<number>;
+  hasTriggeredRef: React.MutableRefObject<boolean>;
+}
 
 /**
  * Custom Hook für Hit Management
@@ -25,12 +59,12 @@ export function useHitManagement({
   setLastHitTime,
   goals,
   setNotification
-}) {
+}: HitManagementParams): HitManagementReturn {
   const cooldownUntilRef = useRef(0);
   const hasTriggeredRef = useRef(false);
 
   // **FIX v8.9**: registerHit - sessionHits als Primärquelle, historyData wird auto-synchronisiert
-  const registerHit = useCallback((isManual, duration) => {
+  const registerHit = useCallback((isManual: boolean, duration?: number) => {
     const now = Date.now();
     setLastHitTime(now);
 
@@ -45,10 +79,10 @@ export function useHitManagement({
       return;
     }
 
-    const strain = settings.strains.find(s => s.id == currentStrainId) || settings.strains[0] || { name: '?', price: 0 };
+    const strain = settings.strains.find(s => s.id == currentStrainId) || settings.strains[0] || { id: 0, name: '?', price: 0 };
 
     // Erstelle Hit-Objekt mit allen Details (inkl. Settings für historische Genauigkeit)
-    const newHit = {
+    const newHit: Hit = {
       id: now,
       timestamp: now,
       type: isManual ? 'Manuell' : 'Sensor',
@@ -95,7 +129,7 @@ export function useHitManagement({
   }, [setGuestHits]);
 
   // **FIX v8.9**: DELETE HIT - Lösche aus sessionHits, historyData wird auto-synchronisiert
-  const deleteHit = useCallback((hitId) => {
+  const deleteHit = useCallback((hitId: number | string) => {
     if (!window.confirm('Diesen Hit wirklich löschen?')) return;
 
     // Lösche aus sessionHits
@@ -116,7 +150,7 @@ export function useHitManagement({
   }, [sessionHits, setSessionHits, rebuildHistoryFromSessions, setHistoryData, setNotification]);
 
   // **NEW v8.8**: DELETE MULTIPLE HITS - Batch delete without per-hit confirmation
-  const deleteHits = useCallback((hitIds) => {
+  const deleteHits = useCallback((hitIds: (number | string)[]) => {
     // Lösche alle Hits in einem Batch
     const hitIdSet = new Set(hitIds);
     const updatedSessionHits = sessionHits.filter(h => !hitIdSet.has(h.id));

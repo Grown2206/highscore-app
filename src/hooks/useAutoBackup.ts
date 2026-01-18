@@ -5,10 +5,36 @@
 
 import { useEffect, useRef } from 'react';
 import { createAutoBackup, cleanupOldBackups } from '../utils/autoBackup';
+import { HistoryDataEntry } from '../utils/historyDataHelpers';
+import { Hit } from './useHitSelection';
 
-export function useAutoBackup(settings, historyData, sessionHits, goals) {
+export interface Settings {
+  strains: Strain[];
+  bowlSize: number;
+  weedRatio: number;
+  [key: string]: any;
+}
+
+export interface Strain {
+  id: number;
+  name: string;
+  price: number;
+  [key: string]: any;
+}
+
+export interface Goals {
+  dailyLimit: number;
+  [key: string]: any;
+}
+
+export function useAutoBackup(
+  settings: Settings,
+  historyData: HistoryDataEntry[],
+  sessionHits: Hit[],
+  goals: Goals
+): void {
   const lastBackupRef = useRef(0);
-  const backupTimeoutRef = useRef(null);
+  const backupTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     // Debounced Backup: Warte 5 Sekunden nach letzter Änderung

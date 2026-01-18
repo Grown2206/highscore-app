@@ -6,7 +6,7 @@ import {
   analyzeWeekdayPattern,
   calculateHabitScore,
   generateRecommendations
-} from './analyticsCalculations';
+} from './analyticsCalculations.ts';
 
 describe('analyticsCalculations', () => {
   describe('calculatePredictions', () => {
@@ -237,8 +237,8 @@ describe('analyticsCalculations', () => {
 
       expect(result.weekday).toBe(0);
       expect(result.weekend).toBe(0);
-      expect(result.weekdayPercent).toBe(0);
-      expect(result.weekendPercent).toBe(0);
+      expect(result.weekdayPercent).toBe('0');
+      expect(result.weekendPercent).toBe('0');
     });
 
     it('should correctly categorize weekday vs weekend', () => {

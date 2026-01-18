@@ -1,19 +1,40 @@
 import { useState } from 'react';
 
+export interface Hit {
+  id: number | string;
+  timestamp: number;
+  type: string;
+  strainName: string;
+  strainPrice: number;
+  strainId: number;
+  duration?: number;
+  bowlSize?: number;
+  weedRatio?: number;
+}
+
+export interface HitSelectionState {
+  selectMode: boolean;
+  selectedHits: Set<number | string>;
+  toggleSelectMode: () => void;
+  toggleHitSelection: (hitId: number | string) => void;
+  selectAllHits: (hits: Hit[]) => void;
+  clearSelection: () => void;
+}
+
 /**
  * Custom hook for managing multi-select state in hit lists
  * Reduces duplication between DashboardView and CalendarView
  */
-export function useHitSelection() {
+export function useHitSelection(): HitSelectionState {
   const [selectMode, setSelectMode] = useState(false);
-  const [selectedHits, setSelectedHits] = useState(new Set());
+  const [selectedHits, setSelectedHits] = useState<Set<number | string>>(new Set());
 
   const toggleSelectMode = () => {
     setSelectMode(prev => !prev); // Functional update to avoid stale closures
     setSelectedHits(new Set()); // Clear selection when toggling mode
   };
 
-  const toggleHitSelection = (hitId) => {
+  const toggleHitSelection = (hitId: number | string) => {
     setSelectedHits(prev => {
       const newSet = new Set(prev);
       if (newSet.has(hitId)) {
@@ -25,7 +46,7 @@ export function useHitSelection() {
     });
   };
 
-  const selectAllHits = (hits) => {
+  const selectAllHits = (hits: Hit[]) => {
     setSelectedHits(new Set(hits.map(h => h.id)));
   };
 
