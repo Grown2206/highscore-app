@@ -166,7 +166,13 @@ struct PendingHit {
 };
 
 PendingHit pendingHits[MAX_PENDING_HITS];
-int pendingHitsCount = 0;
+
+// **FIX v8.9**: Circular buffer with head/tail pointers (reduces NVS writes)
+// - head: Index of oldest hit (read position)
+// - tail: Index where next hit will be written (write position)
+// - count = (tail - head + MAX_PENDING_HITS) % MAX_PENDING_HITS
+int pendingHitsHead = 0;
+int pendingHitsTail = 0;
 
 // **NEU v8.0**: Persistent Hit Counter & Boot Counter für Unique IDs
 unsigned long hitCounter = 0;
@@ -347,19 +353,35 @@ void setup() {
   Serial.println("ms");
   #endif
 
-  // **NEU v7.0: Pending Hits aus Preferences laden**
-  pendingHitsCount = prefs.getInt("pendingCount", 0);
-  Serial.print("Lade ");
-  Serial.print(pendingHitsCount);
-  Serial.println(" pending hits aus Speicher...");
+  // **FIX v8.9**: Load circular buffer metadata
+  pendingHitsHead = prefs.getInt("pHitsHead", 0);
+  pendingHitsTail = prefs.getInt("pHitsTail", 0);
 
-  for (int i = 0; i < pendingHitsCount && i < MAX_PENDING_HITS; i++) {
-    String key = "pHit_" + String(i);
-    String idStr = prefs.getString((key + "_id").c_str(), "");
-    strncpy(pendingHits[i].id, idStr.c_str(), sizeof(pendingHits[i].id) - 1);
-    pendingHits[i].id[sizeof(pendingHits[i].id) - 1] = '\0'; // Null-terminate
-    pendingHits[i].timestamp = prefs.getULong((key + "_ts").c_str(), 0);
-    pendingHits[i].duration = prefs.getULong((key + "_dur").c_str(), 0);
+  int count = (pendingHitsTail - pendingHitsHead + MAX_PENDING_HITS) % MAX_PENDING_HITS;
+  Serial.print("Loading ");
+  Serial.print(count);
+  Serial.print(" pending hits from storage (head=");
+  Serial.print(pendingHitsHead);
+  Serial.print(", tail=");
+  Serial.print(pendingHitsTail);
+  Serial.println(")...");
+
+  // **FIX v8.9**: Load only the hits in the circular buffer range
+  char keyBuffer[20];  // Static buffer to avoid String heap fragmentation
+  for (int i = 0; i < count; i++) {
+    int idx = (pendingHitsHead + i) % MAX_PENDING_HITS;
+
+    // Use snprintf instead of String concatenation
+    snprintf(keyBuffer, sizeof(keyBuffer), "pHit_%d_id", idx);
+    String idStr = prefs.getString(keyBuffer, "");
+    strncpy(pendingHits[idx].id, idStr.c_str(), sizeof(pendingHits[idx].id) - 1);
+    pendingHits[idx].id[sizeof(pendingHits[idx].id) - 1] = '\0';
+
+    snprintf(keyBuffer, sizeof(keyBuffer), "pHit_%d_ts", idx);
+    pendingHits[idx].timestamp = prefs.getULong(keyBuffer, 0);
+
+    snprintf(keyBuffer, sizeof(keyBuffer), "pHit_%d_dur", idx);
+    pendingHits[idx].duration = prefs.getULong(keyBuffer, 0);
   }
 
   // WiFi AP
@@ -754,20 +776,24 @@ void setupServer() {
     server.send(204);
   });
 
-  // **NEU v7.0: Sync Endpoint - Pending Hits abrufen**
+  // **FIX v8.9**: Sync Endpoint - Uses circular buffer
   server.on("/api/sync", HTTP_GET, []() {
+    int count = (pendingHitsTail - pendingHitsHead + MAX_PENDING_HITS) % MAX_PENDING_HITS;
+
     JsonDocument doc;
-    doc["pendingCount"] = pendingHitsCount;
+    doc["pendingCount"] = count;
     doc["espUptime"] = millis();
-    doc["timeSync"] = timeSync;  // **FIX v8.8**: NTP-Status explizit senden
+    doc["timeSync"] = timeSync;
 
     JsonArray hitsArray = doc["pendingHits"].to<JsonArray>();
 
-    for (int i = 0; i < pendingHitsCount; i++) {
+    // Iterate through circular buffer from head to tail
+    for (int i = 0; i < count; i++) {
+      int idx = (pendingHitsHead + i) % MAX_PENDING_HITS;
       JsonObject hit = hitsArray.add<JsonObject>();
-      hit["id"] = pendingHits[i].id;  // **NEU v8.0**: Unique Hit ID
-      hit["timestamp"] = pendingHits[i].timestamp;
-      hit["duration"] = pendingHits[i].duration;
+      hit["id"] = pendingHits[idx].id;
+      hit["timestamp"] = pendingHits[idx].timestamp;
+      hit["duration"] = pendingHits[idx].duration;
     }
 
     String output;
@@ -777,32 +803,30 @@ void setupServer() {
     server.send(200, "application/json", output);
 
     Serial.print("Sync Request: ");
-    Serial.print(pendingHitsCount);
-    Serial.println(" pending hits gesendet");
+    Serial.print(count);
+    Serial.println(" pending hits sent");
   });
 
-  // **NEU v7.0: Sync Complete - Pending Hits löschen**
+  // **FIX v8.9**: Sync Complete - Reset circular buffer (no NVS deletions needed)
   server.on("/api/sync-complete", HTTP_POST, []() {
-    // Pending Hits löschen
-    Serial.print("Sync Complete: Lösche ");
-    Serial.print(pendingHitsCount);
+    int count = (pendingHitsTail - pendingHitsHead + MAX_PENDING_HITS) % MAX_PENDING_HITS;
+    Serial.print("Sync Complete: Clearing ");
+    Serial.print(count);
     Serial.println(" pending hits...");
 
-    // Aus Speicher löschen
-    for (int i = 0; i < pendingHitsCount; i++) {
-      String key = "pHit_" + String(i);
-      prefs.remove((key + "_ts").c_str());
-      prefs.remove((key + "_dur").c_str());
-    }
+    // Reset circular buffer to empty state
+    pendingHitsHead = 0;
+    pendingHitsTail = 0;
 
-    pendingHitsCount = 0;
-    prefs.putInt("pendingCount", 0);
+    // Persist metadata only (no need to delete individual hits from NVS)
+    prefs.putInt("pHitsHead", 0);
+    prefs.putInt("pHitsTail", 0);
 
     server.sendHeader("Access-Control-Allow-Origin", "*");
     server.send(200, "text/plain", "Sync complete - pending hits cleared");
 
     playTone(1800, 100);
-    Serial.println("Sync erfolgreich abgeschlossen!");
+    Serial.println("Sync successful!");
   });
 
   // **FIX v8.3**: Zentralisierte CORS Headers Helper
@@ -971,95 +995,85 @@ void detectSession() {
   }
 }
 
-// ===== ZEIT-HELPER: Unix Timestamp in Millisekunden =====
+// ===== TIME HELPER: Unix Timestamp in Milliseconds =====
 unsigned long getCurrentTimestamp() {
   if (!timeSync) {
-    // Fallback: millis() wenn keine Zeit-Sync
+    // Fallback: use millis() if no time sync available
     return millis();
   }
 
   struct tm timeinfo;
   if (!getLocalTime(&timeinfo)) {
-    return millis(); // Fallback bei Fehler
+    return millis(); // Fallback on error
   }
 
   time_t now_sec = mktime(&timeinfo);
-  return (unsigned long)now_sec * 1000; // Sekunden → Millisekunden
+  return (unsigned long)now_sec * 1000; // Convert seconds to milliseconds
 }
 
-// ===== HIT REGISTRIEREN =====
+// ===== REGISTER HIT =====
 void registerHit(unsigned long duration) {
   todayHits++;
   totalHits++;
   lastHitTime = millis();
   lastSessionDuration = duration;
 
-  // Zeit
+  // Format session time
   unsigned long sec = millis() / 1000;
   int h = (sec / 3600) % 24;
   int m = (sec / 60) % 60;
   lastSessionTime = String(h) + ":" + (m < 10 ? "0" : "") + String(m);
 
-  // Streak
+  // Update streak
   updateStreak();
 
-  // Speichern
+  // Persist stats
   prefs.putInt("totalHits", totalHits);
   prefs.putInt("streak", currentStreak);
   prefs.putInt("longestStreak", longestStreak);
 
-  // **NEU v7.0: Pending Hit für Offline-Sync speichern**
-  // FIX v7.1: Nutze echten Unix Timestamp statt millis()
+  // **FIX v8.9**: Circular buffer - save pending hit for offline sync
   unsigned long currentTimestamp = getCurrentTimestamp();
+  int count = (pendingHitsTail - pendingHitsHead + MAX_PENDING_HITS) % MAX_PENDING_HITS;
 
-  if (pendingHitsCount < MAX_PENDING_HITS) {
-    // **NEU v8.0**: Generiere eindeutige Hit ID
-    String hitID = generateHitID();
-    strncpy(pendingHits[pendingHitsCount].id, hitID.c_str(), sizeof(pendingHits[pendingHitsCount].id) - 1);
-    pendingHits[pendingHitsCount].id[sizeof(pendingHits[pendingHitsCount].id) - 1] = '\0';
-
-    pendingHits[pendingHitsCount].timestamp = currentTimestamp;
-    pendingHits[pendingHitsCount].duration = duration;
-    pendingHitsCount++;
-
-    // Pending Hits Count in Preferences speichern
-    prefs.putInt("pendingCount", pendingHitsCount);
-
-    // Jeden Hit einzeln speichern (für Persistenz nach Neustart)
-    String key = "pHit_" + String(pendingHitsCount - 1);
-    prefs.putString((key + "_id").c_str(), hitID);  // **NEU v8.0**: ID speichern
-    prefs.putULong((key + "_ts").c_str(), currentTimestamp);
-    prefs.putULong((key + "_dur").c_str(), duration);
-
-    Serial.print("Pending Hit gespeichert (");
-    Serial.print(pendingHitsCount);
-    Serial.println(" unsynced)");
-  } else {
-    Serial.println("WARNUNG: Pending Hits Buffer voll! Ältester Hit wird überschrieben.");
-    // Ring-Buffer: Ältesten überschreiben
-    for (int i = 0; i < MAX_PENDING_HITS - 1; i++) {
-      pendingHits[i] = pendingHits[i + 1];
-    }
-
-    // **NEU v8.0**: Generiere eindeutige Hit ID für neuen Hit
-    String hitID = generateHitID();
-    strncpy(pendingHits[MAX_PENDING_HITS - 1].id, hitID.c_str(), sizeof(pendingHits[MAX_PENDING_HITS - 1].id) - 1);
-    pendingHits[MAX_PENDING_HITS - 1].id[sizeof(pendingHits[MAX_PENDING_HITS - 1].id) - 1] = '\0';
-
-    pendingHits[MAX_PENDING_HITS - 1].timestamp = currentTimestamp;
-    pendingHits[MAX_PENDING_HITS - 1].duration = duration;
-
-    // FIX: Preferences aktualisieren um RAM/Flash Sync zu halten
-    // WARNUNG: Dies verursacht Flash Wear bei vollem Buffer!
-    // TODO: Auf Circular Buffer mit head/tail Pointern umstellen für bessere Flash-Lebensdauer
-    for (int i = 0; i < MAX_PENDING_HITS; i++) {
-      String key = "pHit_" + String(i);
-      prefs.putString((key + "_id").c_str(), String(pendingHits[i].id));
-      prefs.putULong((key + "_ts").c_str(), pendingHits[i].timestamp);
-      prefs.putULong((key + "_dur").c_str(), pendingHits[i].duration);
-    }
-    Serial.println("Ring-Buffer rotiert und alle Preferences aktualisiert");
+  // Check if buffer is full
+  if (count >= MAX_PENDING_HITS - 1) {
+    Serial.println("WARNING: Pending hits buffer full! Overwriting oldest hit.");
+    // Advance head pointer (discard oldest hit)
+    pendingHitsHead = (pendingHitsHead + 1) % MAX_PENDING_HITS;
+    prefs.putInt("pHitsHead", pendingHitsHead);
   }
+
+  // Generate unique hit ID
+  String hitID = generateHitID();
+
+  // Write new hit at tail position
+  int writeIdx = pendingHitsTail;
+  strncpy(pendingHits[writeIdx].id, hitID.c_str(), sizeof(pendingHits[writeIdx].id) - 1);
+  pendingHits[writeIdx].id[sizeof(pendingHits[writeIdx].id) - 1] = '\0';
+  pendingHits[writeIdx].timestamp = currentTimestamp;
+  pendingHits[writeIdx].duration = duration;
+
+  // **FIX v8.9**: Use snprintf to avoid String heap fragmentation
+  char keyBuffer[20];
+  snprintf(keyBuffer, sizeof(keyBuffer), "pHit_%d_id", writeIdx);
+  prefs.putString(keyBuffer, hitID);
+
+  snprintf(keyBuffer, sizeof(keyBuffer), "pHit_%d_ts", writeIdx);
+  prefs.putULong(keyBuffer, currentTimestamp);
+
+  snprintf(keyBuffer, sizeof(keyBuffer), "pHit_%d_dur", writeIdx);
+  prefs.putULong(keyBuffer, duration);
+
+  // Advance tail pointer
+  pendingHitsTail = (pendingHitsTail + 1) % MAX_PENDING_HITS;
+  prefs.putInt("pHitsTail", pendingHitsTail);
+
+  // Calculate new count
+  count = (pendingHitsTail - pendingHitsHead + MAX_PENDING_HITS) % MAX_PENDING_HITS;
+  Serial.print("Pending hit saved (");
+  Serial.print(count);
+  Serial.println(" unsynced)");
 
   // Feedback
   playTone(1500, 50);
