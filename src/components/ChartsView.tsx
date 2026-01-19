@@ -1,6 +1,8 @@
 import React, { useMemo } from 'react';
 import { BarChart3 } from 'lucide-react';
-import { getTotalHits, getAvgHitsPerDay, getLastNDays } from '../utils/historyDataHelpers.ts';
+import { getTotalHits, getAvgHitsPerDay, getLastNDays, HistoryDataEntry } from '../utils/historyDataHelpers.ts';
+import { Hit } from '../hooks/useHitSelection.ts';
+import { Settings } from '../hooks/useHitManagement.ts';
 
 // Chart Components
 import OverviewStats from './charts/OverviewStats';
@@ -14,11 +16,17 @@ import StrainDistributionChart from './charts/StrainDistributionChart';
 import ActivityHeatmap from './charts/ActivityHeatmap';
 import CostTimelineChart from './charts/CostTimelineChart';
 
+interface ChartsViewProps {
+  historyData: HistoryDataEntry[];
+  settings: Settings;
+  sessionHits: Hit[];
+}
+
 /**
  * **REFACTORED v8.1**: Charts View - Separated into sub-components
  * Main orchestrator component that calculates data and passes to chart components
  */
-export default function ChartsView({ historyData, settings, sessionHits }) {
+export default function ChartsView({ historyData, settings, sessionHits }: ChartsViewProps) {
   // Weekday Stats
   const weekStats = useMemo(() => {
      const days = ['So','Mo','Di','Mi','Do','Fr','Sa'];

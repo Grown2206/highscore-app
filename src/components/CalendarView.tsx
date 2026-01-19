@@ -1,13 +1,23 @@
 import React, { useState, useEffect, useMemo, memo } from 'react';
 import { Save, Wind, Scale, Coins, Clock, Tag, TrendingUp, TrendingDown, Minus, Calendar, ChevronLeft, ChevronRight, CheckSquare, Square, Trash2, X } from 'lucide-react';
 import SwipeableHitRow from './SwipeableHitRow';
-import { formatLocalDate, getTotalHits, getAvgHitsPerDay } from '../utils/historyDataHelpers.ts';
-import { useHitSelection } from '../hooks/useHitSelection.ts';
+import { formatLocalDate, getTotalHits, getAvgHitsPerDay, HistoryDataEntry } from '../utils/historyDataHelpers.ts';
+import { useHitSelection, Hit } from '../hooks/useHitSelection.ts';
+import { Settings } from '../hooks/useHitManagement.ts';
+
+interface CalendarViewProps {
+  historyData: HistoryDataEntry[];
+  setHistoryData: React.Dispatch<React.SetStateAction<HistoryDataEntry[]>>;
+  settings: Settings;
+  deleteHit: (hitId: string) => void;
+  deleteHits: (hitIds: string[]) => void;
+  sessionHits: Hit[];
+}
 
 // **FIX v8.9**: sessionHits wiederhergestellt - Timeline und Hit-Liste funktionieren wieder
 // **NEW v8.8**: Multi-select delete functionality with custom hook
 // Verwende historyDataHelpers für Aggregationen
-function CalendarView({ historyData, setHistoryData, settings, deleteHit, deleteHits, sessionHits }) {
+function CalendarView({ historyData, setHistoryData, settings, deleteHit, deleteHits, sessionHits }: CalendarViewProps) {
     const [sel, setSel] = useState(formatLocalDate(new Date())); // FIX: Lokales Datum
     const [note, setNote] = useState("");
     const [viewDate, setViewDate] = useState(new Date()); // NEU: Aktuell angezeigte Monat

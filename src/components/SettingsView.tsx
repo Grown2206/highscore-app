@@ -1,6 +1,10 @@
 import React, { useState, useRef, memo, useCallback } from 'react';
 import { generateTestData, mergeTestData, removeTestData } from '../utils/testDataGenerator';
 import { DEFAULT_SETTINGS, STORAGE_KEYS, LEGACY_KEYS, TIMESTAMP_VALIDATION } from '../utils/constants';
+import { HistoryDataEntry } from '../utils/historyDataHelpers.ts';
+import { Hit } from '../hooks/useHitSelection.ts';
+import { Settings, Goals } from '../hooks/useHitManagement.ts';
+import { AlertType } from './common/StatusAlert.tsx';
 
 // Settings Components
 import BaseCalculationSettings from './settings/BaseCalculationSettings';
@@ -8,6 +12,26 @@ import GoalsSettings from './settings/GoalsSettings';
 import TestDataControls from './settings/TestDataControls';
 import CorruptHitsCleanup from './settings/CorruptHitsCleanup';
 import DataManagement from './settings/DataManagement';
+
+interface StatusMessage {
+  type: AlertType;
+  msg: string;
+}
+
+interface SettingsViewProps {
+  settings: Settings;
+  setSettings: React.Dispatch<React.SetStateAction<Settings>>;
+  historyData: HistoryDataEntry[];
+  setHistoryData: React.Dispatch<React.SetStateAction<HistoryDataEntry[]>>;
+  sessionHits: Hit[];
+  setSessionHits: React.Dispatch<React.SetStateAction<Hit[]>>;
+  goals: Goals;
+  setGoals: React.Dispatch<React.SetStateAction<Goals>>;
+  showRecovery: boolean;
+  setShowRecovery: (show: boolean) => void;
+  isSimulating: boolean;
+  setIsSimulating: (sim: boolean) => void;
+}
 
 /**
  * **REFACTORED v8.1**: Settings View - Separated into sub-components
@@ -26,13 +50,13 @@ function SettingsView({
   setShowRecovery,
   isSimulating,
   setIsSimulating
-}) {
-  const [exportStatus, setExportStatus] = useState(null);
-  const [testDataStatus, setTestDataStatus] = useState(null);
-  const [corruptHitsStatus, setCorruptHitsStatus] = useState(null);
-  const fileInputRef = useRef(null);
+}: SettingsViewProps) {
+  const [exportStatus, setExportStatus] = useState<StatusMessage | null>(null);
+  const [testDataStatus, setTestDataStatus] = useState<StatusMessage | null>(null);
+  const [corruptHitsStatus, setCorruptHitsStatus] = useState<StatusMessage | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const updateSetting = useCallback((key, value) => {
+  const updateSetting = useCallback((key: keyof Settings, value: any) => {
     setSettings(p => ({ ...p, [key]: value }));
   }, [setSettings]);
 
