@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Brain, TrendingUp, AlertTriangle, Lightbulb, Activity, Clock, Tag, Calendar, ArrowUp, ArrowDown, Minus } from 'lucide-react';
+import { Brain, TrendingUp, AlertTriangle, Lightbulb, Activity, Clock, Tag, Calendar, ArrowUp, ArrowDown, Minus, LucideIcon } from 'lucide-react';
 import {
   calculatePredictions,
   detectAnomalies,
@@ -8,9 +8,16 @@ import {
   calculateHabitScore,
   generateRecommendations
 } from '../utils/analyticsCalculations.ts';
+import { HistoryDataEntry } from '../utils/historyDataHelpers.ts';
+import { Settings } from '../hooks/useHitManagement.ts';
+
+interface AnalyticsViewProps {
+  historyData: HistoryDataEntry[];
+  settings: Settings;
+}
 
 // **FIX v8.8**: Entferne sessionHits - verwende nur historyData als einzige Quelle der Wahrheit
-export default function AnalyticsView({ historyData, settings }) {
+export default function AnalyticsView({ historyData, settings }: AnalyticsViewProps) {
 
   // --- 1. ML-BASIERTE PROGNOSEN ---
   const predictions = useMemo(() => calculatePredictions(historyData), [historyData]);
@@ -34,13 +41,13 @@ export default function AnalyticsView({ historyData, settings }) {
   );
 
   // Render Helpers
-  const TrendIcon = ({ trend }) => {
+  const TrendIcon = ({ trend }: { trend: 'increasing' | 'decreasing' | 'stable' }) => {
     if (trend === 'increasing') return <ArrowUp className="text-rose-500" size={20} />;
     if (trend === 'decreasing') return <ArrowDown className="text-emerald-500" size={20} />;
     return <Minus className="text-zinc-500" size={20} />;
   };
 
-  const SeverityBadge = ({ severity }) => {
+  const SeverityBadge = ({ severity }: { severity: 'high' | 'medium' | 'low' }) => {
     const colors = {
       high: 'bg-rose-500/10 text-rose-500 border-rose-500/20',
       medium: 'bg-amber-500/10 text-amber-500 border-amber-500/20',
