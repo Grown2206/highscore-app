@@ -252,6 +252,63 @@ void readBatteryVoltage() {
   Serial.println("%)");
 }
 
+// ===== CIRCULAR BUFFER HELPER FUNCTIONS =====
+
+/**
+ * **FIX v8.10**: Get current count of pending hits in circular buffer
+ * Extracted to avoid logic duplication and ensure consistency
+ *
+ * @return Number of pending hits (0 to MAX_PENDING_HITS-1)
+ */
+int getPendingHitsCount() {
+  return (pendingHitsTail - pendingHitsHead + MAX_PENDING_HITS) % MAX_PENDING_HITS;
+}
+
+/**
+ * **FIX v8.10**: Check if pending hits buffer is full
+ *
+ * @return true if buffer cannot accept more hits without overwriting
+ */
+bool isPendingBufferFull() {
+  return getPendingHitsCount() >= MAX_PENDING_HITS - 1;
+}
+
+/**
+ * **FIX v8.10**: Validate and sanitize circular buffer metadata
+ * Protects against corrupted NVS data causing out-of-bounds access
+ *
+ * Validates that head and tail are within [0, MAX_PENDING_HITS)
+ * Resets both to 0 if corruption detected
+ */
+void validateCircularBufferMetadata() {
+  bool isCorrupt = false;
+
+  // Check if head is out of bounds
+  if (pendingHitsHead < 0 || pendingHitsHead >= MAX_PENDING_HITS) {
+    Serial.print("WARNING: Corrupt pHitsHead (");
+    Serial.print(pendingHitsHead);
+    Serial.println("), resetting buffer!");
+    isCorrupt = true;
+  }
+
+  // Check if tail is out of bounds
+  if (pendingHitsTail < 0 || pendingHitsTail >= MAX_PENDING_HITS) {
+    Serial.print("WARNING: Corrupt pHitsTail (");
+    Serial.print(pendingHitsTail);
+    Serial.println("), resetting buffer!");
+    isCorrupt = true;
+  }
+
+  // Reset to safe state if corrupted
+  if (isCorrupt) {
+    pendingHitsHead = 0;
+    pendingHitsTail = 0;
+    prefs.putInt("pHitsHead", 0);
+    prefs.putInt("pHitsTail", 0);
+    Serial.println("Circular buffer metadata reset to safe state");
+  }
+}
+
 // ===== API HELPER FUNCTIONS =====
 /**
  * **FIX v8.6 + v8.7**: Helper für Range-Error-Messages (reusable + testable)
@@ -357,7 +414,10 @@ void setup() {
   pendingHitsHead = prefs.getInt("pHitsHead", 0);
   pendingHitsTail = prefs.getInt("pHitsTail", 0);
 
-  int count = (pendingHitsTail - pendingHitsHead + MAX_PENDING_HITS) % MAX_PENDING_HITS;
+  // **FIX v8.10**: Validate metadata to prevent out-of-bounds access
+  validateCircularBufferMetadata();
+
+  int count = getPendingHitsCount();
   Serial.print("Loading ");
   Serial.print(count);
   Serial.print(" pending hits from storage (head=");
@@ -778,7 +838,7 @@ void setupServer() {
 
   // **FIX v8.9**: Sync Endpoint - Uses circular buffer
   server.on("/api/sync", HTTP_GET, []() {
-    int count = (pendingHitsTail - pendingHitsHead + MAX_PENDING_HITS) % MAX_PENDING_HITS;
+    int count = getPendingHitsCount();
 
     JsonDocument doc;
     doc["pendingCount"] = count;
@@ -809,7 +869,7 @@ void setupServer() {
 
   // **FIX v8.9**: Sync Complete - Reset circular buffer (no NVS deletions needed)
   server.on("/api/sync-complete", HTTP_POST, []() {
-    int count = (pendingHitsTail - pendingHitsHead + MAX_PENDING_HITS) % MAX_PENDING_HITS;
+    int count = getPendingHitsCount();
     Serial.print("Sync Complete: Clearing ");
     Serial.print(count);
     Serial.println(" pending hits...");
@@ -1034,10 +1094,9 @@ void registerHit(unsigned long duration) {
 
   // **FIX v8.9**: Circular buffer - save pending hit for offline sync
   unsigned long currentTimestamp = getCurrentTimestamp();
-  int count = (pendingHitsTail - pendingHitsHead + MAX_PENDING_HITS) % MAX_PENDING_HITS;
 
-  // Check if buffer is full
-  if (count >= MAX_PENDING_HITS - 1) {
+  // **FIX v8.10**: Use helper function for buffer full check
+  if (isPendingBufferFull()) {
     Serial.println("WARNING: Pending hits buffer full! Overwriting oldest hit.");
     // Advance head pointer (discard oldest hit)
     pendingHitsHead = (pendingHitsHead + 1) % MAX_PENDING_HITS;
@@ -1069,10 +1128,9 @@ void registerHit(unsigned long duration) {
   pendingHitsTail = (pendingHitsTail + 1) % MAX_PENDING_HITS;
   prefs.putInt("pHitsTail", pendingHitsTail);
 
-  // Calculate new count
-  count = (pendingHitsTail - pendingHitsHead + MAX_PENDING_HITS) % MAX_PENDING_HITS;
+  // **FIX v8.10**: Use helper function for count calculation
   Serial.print("Pending hit saved (");
-  Serial.print(count);
+  Serial.print(getPendingHitsCount());
   Serial.println(" unsynced)");
 
   // Feedback
