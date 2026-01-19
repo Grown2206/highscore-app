@@ -1,5 +1,5 @@
 /*
- * HIGH SCORE PRO - ESP32 SENSOR FIRMWARE v6.3
+ * HIGH SCORE PRO - ESP32 SENSOR FIRMWARE v7.0
  * =============================================
  *
  * Advanced Cannabis Session Tracker with OLED Display
@@ -10,6 +10,7 @@
  * - DHT22 Temperatur/Luftfeuchtigkeit Sensor
  * - Button (für Display-Wechsel)
  * - Optional: Buzzer für akustisches Feedback
+ * - Optional: Batterie mit Spannungsteiler (für Akkubetrieb)
  *
  * Pinbelegung:
  * - SDA -> GPIO 21
@@ -17,15 +18,27 @@
  * - DHT22 -> GPIO 4
  * - Button -> GPIO 5 (Pull-up)
  * - Buzzer -> GPIO 18 (optional)
+ * - Battery ADC -> GPIO 34 (optional, über Spannungsteiler)
  *
  * Features:
  * - Multi-Screen OLED Display
  * - WiFi Access Point & HTTP Server
  * - Automatische Session-Erkennung
- * - Lokale Statistiken
- * - Streak-Tracking
- * - Visuelle Inhalations-Animation
- * - **NEU in v6.3**: Offline Hit-Zwischenspeicherung & Sync
+ * - Flammen-Detektion
+ * - Min/Max Session-Dauer Tracking
+ * - Batterie-Monitoring (optional)
+ * - Offline Hit-Zwischenspeicherung & Sync
+ * - Vollständige API-Kompatibilität mit Web-App
+ *
+ * Changelog v7.0:
+ * - API-Kompatibilität mit TypeScript Interfaces verbessert
+ * - Flame detection hinzugefügt
+ * - Battery monitoring hinzugefügt
+ * - Min/Max session duration tracking
+ * - Vereinfachte Pending Hits Struktur
+ * - Time sync status
+ * - Verbesserte Fehlerbehandlung
+ * - Code-Qualität Verbesserungen
  */
 
 #include <WiFi.h>
@@ -47,6 +60,7 @@ const char* password = "highscore2024";
 #define DHT_PIN 4
 #define BUTTON_PIN 5
 #define BUZZER_PIN 18
+#define BATTERY_PIN 34  // ADC Pin für Batteriemessung (optional)
 
 // Display Konfiguration
 #define SCREEN_WIDTH 128
@@ -56,12 +70,19 @@ const char* password = "highscore2024";
 
 // Sensor Einstellungen
 #define DHT_TYPE DHT22
-#define TEMP_THRESHOLD 50.0
+#define TEMP_THRESHOLD 50.0      // Temperatur für Flammen-Detektion
+#define FLAME_THRESHOLD 45.0     // Niedrigere Schwelle für flame flag
 #define SESSION_TIMEOUT 5000
 #define COOLDOWN_TEMP 35.0
 
+// Batterie Einstellungen (optional)
+#define BATTERY_ENABLED false     // Auf true setzen wenn Batterie verwendet wird
+#define BATTERY_MIN_VOLTAGE 3.3   // Minimale Batterie-Spannung
+#define BATTERY_MAX_VOLTAGE 4.2   // Maximale Batterie-Spannung
+#define VOLTAGE_DIVIDER_RATIO 2.0 // Spannungsteiler-Verhältnis (R1+R2)/R2
+
 // Offline Sync Einstellungen
-#define MAX_PENDING_HITS 50  // Maximale Anzahl gespeicherter unsynced hits
+#define MAX_PENDING_HITS 100      // Maximale Anzahl gespeicherter unsynced hits
 
 // Display Screens
 #define NUM_SCREENS 4
@@ -85,15 +106,25 @@ int totalHits = 0;
 float currentTemp = 0.0;
 float currentHumidity = 0.0;
 bool isInhaling = false;
+bool flameDetected = false;
 unsigned long sessionStartTime = 0;
 unsigned long lastHitTime = 0;
+unsigned long lastSessionDuration = 0;
+
+// Session Duration Tracking
+unsigned long minSessionDuration = 0;
+unsigned long maxSessionDuration = 0;
+
+// Battery Monitoring
+float batteryVoltage = 0.0;
+int batteryPercent = 0;
 
 // Display Management
 int currentScreen = SCREEN_LIVE;
 unsigned long lastScreenChange = 0;
 unsigned long lastButtonPress = 0;
 bool lastButtonState = HIGH;
-const unsigned long SCREEN_ROTATION_INTERVAL = 5000; // Auto-rotation nach 5s
+const unsigned long SCREEN_ROTATION_INTERVAL = 5000;
 
 // Streak Tracking
 int currentStreak = 0;
@@ -101,7 +132,6 @@ int longestStreak = 0;
 String lastSessionDate = "";
 
 // Letzte Session Info
-unsigned long lastSessionDuration = 0;
 float lastSessionTemp = 0.0;
 String lastSessionTime = "";
 
@@ -113,11 +143,13 @@ int clientsConnected = 0;
 int animFrame = 0;
 unsigned long lastAnimUpdate = 0;
 
-// Offline Sync - Pending Hits Speicherung
+// Time Sync Status
+bool timeSync = false;
+
+// Offline Sync - Vereinfachte Pending Hits Struktur
 struct PendingHit {
-  unsigned long timestamp;  // Zeitstempel (millis seit ESP32 Start)
-  float temperature;        // Max Temperatur
-  unsigned long duration;   // Session-Dauer in ms
+  unsigned long timestamp;   // Zeitstempel (millis seit ESP32 Start)
+  unsigned long duration;    // Session-Dauer in ms
 };
 
 PendingHit pendingHits[MAX_PENDING_HITS];
@@ -127,11 +159,15 @@ int pendingHitsCount = 0;
 
 void setup() {
   Serial.begin(115200);
-  Serial.println("\n\n=== HIGH SCORE PRO ESP32 v6.2 ===");
+  Serial.println("\n\n=== HIGH SCORE PRO ESP32 v7.0 ===");
 
   // Pins initialisieren
   pinMode(BUTTON_PIN, INPUT_PULLUP);
   pinMode(BUZZER_PIN, OUTPUT);
+
+  if (BATTERY_ENABLED) {
+    pinMode(BATTERY_PIN, INPUT);
+  }
 
   // Display initialisieren
   if(!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS)) {
@@ -149,23 +185,7 @@ void setup() {
 
   // Preferences laden
   prefs.begin("highscore", false);
-  totalHits = prefs.getInt("totalHits", 0);
-  currentStreak = prefs.getInt("streak", 0);
-  longestStreak = prefs.getInt("longestStreak", 0);
-  lastSessionDate = prefs.getString("lastDate", "");
-
-  // **NEU v6.3: Pending Hits aus Preferences laden**
-  pendingHitsCount = prefs.getInt("pendingCount", 0);
-  Serial.print("Lade ");
-  Serial.print(pendingHitsCount);
-  Serial.println(" pending hits aus Speicher...");
-
-  for (int i = 0; i < pendingHitsCount && i < MAX_PENDING_HITS; i++) {
-    String key = "pHit_" + String(i);
-    pendingHits[i].timestamp = prefs.getULong((key + "_ts").c_str(), 0);
-    pendingHits[i].temperature = prefs.getFloat((key + "_temp").c_str(), 0.0);
-    pendingHits[i].duration = prefs.getULong((key + "_dur").c_str(), 0);
-  }
+  loadPreferences();
 
   // WiFi AP starten
   setupWiFi();
@@ -179,6 +199,40 @@ void setup() {
   playTone(1500, 100);
 
   Serial.println("Setup abgeschlossen!");
+  Serial.print("Geladene Daten - Total Hits: ");
+  Serial.print(totalHits);
+  Serial.print(", Pending Hits: ");
+  Serial.println(pendingHitsCount);
+}
+
+// ===== PREFERENCES LADEN =====
+
+void loadPreferences() {
+  totalHits = prefs.getInt("totalHits", 0);
+  currentStreak = prefs.getInt("streak", 0);
+  longestStreak = prefs.getInt("longestStreak", 0);
+  lastSessionDate = prefs.getString("lastDate", "");
+  minSessionDuration = prefs.getULong("minDuration", 0);
+  maxSessionDuration = prefs.getULong("maxDuration", 0);
+
+  // Pending Hits laden
+  pendingHitsCount = prefs.getInt("pendingCount", 0);
+
+  if (pendingHitsCount > MAX_PENDING_HITS) {
+    Serial.println("WARNUNG: Pending count überschreitet Maximum, wird zurückgesetzt");
+    pendingHitsCount = 0;
+    prefs.putInt("pendingCount", 0);
+  }
+
+  Serial.print("Lade ");
+  Serial.print(pendingHitsCount);
+  Serial.println(" pending hits aus Speicher...");
+
+  for (int i = 0; i < pendingHitsCount; i++) {
+    String key = "pH_" + String(i);
+    pendingHits[i].timestamp = prefs.getULong((key + "_t").c_str(), 0);
+    pendingHits[i].duration = prefs.getULong((key + "_d").c_str(), 0);
+  }
 }
 
 // ===== MAIN LOOP =====
@@ -189,14 +243,20 @@ void loop() {
   // Sensor auslesen
   readSensor();
 
+  // Battery monitoring (falls aktiviert)
+  if (BATTERY_ENABLED) {
+    readBattery();
+  }
+
   // Session Detection
   detectSession();
 
   // Button handling
   handleButton();
 
-  // Auto Screen Rotation (wenn nicht manuell gewechselt)
-  if (millis() - lastScreenChange > SCREEN_ROTATION_INTERVAL && millis() - lastButtonPress > 10000) {
+  // Auto Screen Rotation
+  if (millis() - lastScreenChange > SCREEN_ROTATION_INTERVAL &&
+      millis() - lastButtonPress > 10000) {
     currentScreen = (currentScreen + 1) % NUM_SCREENS;
     lastScreenChange = millis();
   }
@@ -219,118 +279,220 @@ void setupWiFi() {
   Serial.println("Starte WiFi Access Point...");
 
   WiFi.mode(WIFI_AP);
-  WiFi.softAP(ssid, password);
+  bool apStarted = WiFi.softAP(ssid, password);
 
-  IPAddress IP = WiFi.softAPIP();
-  Serial.print("AP IP Adresse: ");
-  Serial.println(IP);
-
-  wifiConnected = true;
+  if (apStarted) {
+    IPAddress IP = WiFi.softAPIP();
+    Serial.print("AP IP Adresse: ");
+    Serial.println(IP);
+    wifiConnected = true;
+  } else {
+    Serial.println("FEHLER: WiFi AP konnte nicht gestartet werden!");
+    wifiConnected = false;
+  }
 }
 
 // ===== HTTP SERVER SETUP =====
 
 void setupServer() {
-  // API Endpoint für Live-Daten
-  server.on("/api/data", HTTP_GET, []() {
-    StaticJsonDocument<256> doc;
+  // CORS Headers für alle Responses
+  server.enableCORS(true);
 
-    doc["temp"] = currentTemp;
-    doc["humidity"] = currentHumidity;
-    doc["today"] = todayHits;
-    doc["total"] = totalHits;
-    doc["inhaling"] = isInhaling;
-    doc["streak"] = currentStreak;
-    doc["longestStreak"] = longestStreak;
-    doc["lastSession"] = lastSessionTime;
+  // API Endpoint für Live-Daten (kompatibel mit ESP32DataResponse)
+  server.on("/api/data", HTTP_GET, handleApiData);
 
-    String output;
-    serializeJson(doc, output);
+  // Statistics Endpoint (erweitert)
+  server.on("/api/stats", HTTP_GET, handleApiStats);
 
-    server.sendHeader("Access-Control-Allow-Origin", "*");
-    server.send(200, "application/json", output);
-  });
+  // Sync Endpoint - Pending Hits abrufen
+  server.on("/api/sync", HTTP_GET, handleApiSync);
 
-  // Statistics Endpoint
-  server.on("/api/stats", HTTP_GET, []() {
-    StaticJsonDocument<512> doc;
+  // Sync Complete - Pending Hits löschen
+  server.on("/api/sync-complete", HTTP_POST, handleSyncComplete);
 
-    doc["totalHits"] = totalHits;
-    doc["todayHits"] = todayHits;
-    doc["currentStreak"] = currentStreak;
-    doc["longestStreak"] = longestStreak;
-    doc["lastSessionDuration"] = lastSessionDuration;
-    doc["lastSessionTemp"] = lastSessionTemp;
-    doc["lastSessionTime"] = lastSessionTime;
-    doc["uptime"] = millis() / 1000;
+  // Reset Endpoints
+  server.on("/api/reset-today", HTTP_POST, handleResetToday);
+  server.on("/api/reset-all", HTTP_POST, handleResetAll);
 
-    String output;
-    serializeJson(doc, output);
-
-    server.sendHeader("Access-Control-Allow-Origin", "*");
-    server.send(200, "application/json", output);
-  });
-
-  // Reset Endpoint (nur für heute)
-  server.on("/api/reset-today", HTTP_POST, []() {
-    todayHits = 0;
-    server.send(200, "text/plain", "Today counter reset");
-    playTone(800, 200);
-  });
-
-  // **NEU v6.3: Sync Endpoint - Pending Hits abrufen**
-  server.on("/api/sync", HTTP_GET, []() {
-    StaticJsonDocument<2048> doc;
-    doc["pendingCount"] = pendingHitsCount;
-    doc["espUptime"] = millis();
-
-    JsonArray hitsArray = doc.createNestedArray("pendingHits");
-
-    for (int i = 0; i < pendingHitsCount; i++) {
-      JsonObject hit = hitsArray.createNestedObject();
-      hit["timestamp"] = pendingHits[i].timestamp;
-      hit["temperature"] = pendingHits[i].temperature;
-      hit["duration"] = pendingHits[i].duration;
-    }
-
-    String output;
-    serializeJson(doc, output);
-
-    server.sendHeader("Access-Control-Allow-Origin", "*");
-    server.send(200, "application/json", output);
-
-    Serial.print("Sync Request: ");
-    Serial.print(pendingHitsCount);
-    Serial.println(" pending hits gesendet");
-  });
-
-  // **NEU v6.3: Sync Complete - Pending Hits löschen**
-  server.on("/api/sync-complete", HTTP_POST, []() {
-    // Pending Hits löschen
-    Serial.print("Sync Complete: Lösche ");
-    Serial.print(pendingHitsCount);
-    Serial.println(" pending hits...");
-
-    // Aus Speicher löschen
-    for (int i = 0; i < pendingHitsCount; i++) {
-      String key = "pHit_" + String(i);
-      prefs.remove((key + "_ts").c_str());
-      prefs.remove((key + "_temp").c_str());
-      prefs.remove((key + "_dur").c_str());
-    }
-
-    pendingHitsCount = 0;
-    prefs.putInt("pendingCount", 0);
-
-    server.sendHeader("Access-Control-Allow-Origin", "*");
-    server.send(200, "text/plain", "Sync complete - pending hits cleared");
-
-    playTone(1800, 100);
-    Serial.println("Sync erfolgreich abgeschlossen!");
+  // Health Check
+  server.on("/api/health", HTTP_GET, []() {
+    server.send(200, "text/plain", "OK");
   });
 
   server.begin();
   Serial.println("HTTP Server gestartet!");
+}
+
+// ===== API HANDLER: /api/data =====
+
+void handleApiData() {
+  StaticJsonDocument<512> doc;
+
+  // Kompatibel mit ESP32DataResponse Interface
+  doc["flame"] = flameDetected;
+  doc["isInhaling"] = isInhaling;
+  doc["today"] = todayHits;
+  doc["total"] = totalHits;
+  doc["lastDuration"] = lastSessionDuration;
+
+  // Battery Daten (null wenn nicht aktiviert)
+  if (BATTERY_ENABLED) {
+    doc["batteryVoltage"] = batteryVoltage;
+    doc["batteryPercent"] = batteryPercent;
+  } else {
+    doc["batteryVoltage"] = nullptr;
+    doc["batteryPercent"] = nullptr;
+  }
+
+  // Session Duration Stats
+  if (minSessionDuration > 0) {
+    doc["minSessionDuration"] = minSessionDuration;
+  } else {
+    doc["minSessionDuration"] = nullptr;
+  }
+
+  if (maxSessionDuration > 0) {
+    doc["maxSessionDuration"] = maxSessionDuration;
+  } else {
+    doc["maxSessionDuration"] = nullptr;
+  }
+
+  doc["timeSync"] = timeSync;
+
+  String output;
+  serializeJson(doc, output);
+
+  server.sendHeader("Access-Control-Allow-Origin", "*");
+  server.send(200, "application/json", output);
+}
+
+// ===== API HANDLER: /api/stats =====
+
+void handleApiStats() {
+  StaticJsonDocument<1024> doc;
+
+  doc["totalHits"] = totalHits;
+  doc["todayHits"] = todayHits;
+  doc["currentStreak"] = currentStreak;
+  doc["longestStreak"] = longestStreak;
+  doc["lastSessionDuration"] = lastSessionDuration;
+  doc["lastSessionTemp"] = lastSessionTemp;
+  doc["lastSessionTime"] = lastSessionTime;
+  doc["minSessionDuration"] = minSessionDuration;
+  doc["maxSessionDuration"] = maxSessionDuration;
+  doc["uptime"] = millis() / 1000;
+  doc["currentTemp"] = currentTemp;
+  doc["currentHumidity"] = currentHumidity;
+  doc["pendingHitsCount"] = pendingHitsCount;
+  doc["freeHeap"] = ESP.getFreeHeap();
+
+  if (BATTERY_ENABLED) {
+    doc["batteryVoltage"] = batteryVoltage;
+    doc["batteryPercent"] = batteryPercent;
+  }
+
+  String output;
+  serializeJson(doc, output);
+
+  server.sendHeader("Access-Control-Allow-Origin", "*");
+  server.send(200, "application/json", output);
+}
+
+// ===== API HANDLER: /api/sync =====
+
+void handleApiSync() {
+  DynamicJsonDocument doc(4096);
+
+  doc["pendingCount"] = pendingHitsCount;
+  doc["espUptime"] = millis();
+  doc["timeSync"] = timeSync;
+
+  JsonArray hitsArray = doc.createNestedArray("pendingHits");
+
+  for (int i = 0; i < pendingHitsCount; i++) {
+    JsonObject hit = hitsArray.createNestedObject();
+    hit["timestamp"] = pendingHits[i].timestamp;
+    hit["duration"] = pendingHits[i].duration;
+  }
+
+  String output;
+  serializeJson(doc, output);
+
+  server.sendHeader("Access-Control-Allow-Origin", "*");
+  server.send(200, "application/json", output);
+
+  Serial.print("Sync Request: ");
+  Serial.print(pendingHitsCount);
+  Serial.println(" pending hits gesendet");
+}
+
+// ===== API HANDLER: /api/sync-complete =====
+
+void handleSyncComplete() {
+  Serial.print("Sync Complete: Lösche ");
+  Serial.print(pendingHitsCount);
+  Serial.println(" pending hits...");
+
+  // Aus Speicher löschen
+  clearPendingHits();
+
+  server.sendHeader("Access-Control-Allow-Origin", "*");
+  server.send(200, "text/plain", "Sync complete");
+
+  playTone(1800, 100);
+  Serial.println("Sync erfolgreich abgeschlossen!");
+
+  // Time sync als erfolgreich markieren
+  timeSync = true;
+}
+
+// ===== API HANDLER: Reset Today =====
+
+void handleResetToday() {
+  todayHits = 0;
+  server.sendHeader("Access-Control-Allow-Origin", "*");
+  server.send(200, "text/plain", "Today counter reset");
+  playTone(800, 200);
+  Serial.println("Today counter zurückgesetzt");
+}
+
+// ===== API HANDLER: Reset All =====
+
+void handleResetAll() {
+  todayHits = 0;
+  totalHits = 0;
+  currentStreak = 0;
+  longestStreak = 0;
+  minSessionDuration = 0;
+  maxSessionDuration = 0;
+  lastSessionDate = "";
+
+  prefs.putInt("totalHits", 0);
+  prefs.putInt("streak", 0);
+  prefs.putInt("longestStreak", 0);
+  prefs.putString("lastDate", "");
+  prefs.putULong("minDuration", 0);
+  prefs.putULong("maxDuration", 0);
+
+  clearPendingHits();
+
+  server.sendHeader("Access-Control-Allow-Origin", "*");
+  server.send(200, "text/plain", "All data reset");
+  playTone(400, 300);
+  Serial.println("Alle Daten zurückgesetzt!");
+}
+
+// ===== PENDING HITS LÖSCHEN =====
+
+void clearPendingHits() {
+  for (int i = 0; i < pendingHitsCount; i++) {
+    String key = "pH_" + String(i);
+    prefs.remove((key + "_t").c_str());
+    prefs.remove((key + "_d").c_str());
+  }
+
+  pendingHitsCount = 0;
+  prefs.putInt("pendingCount", 0);
 }
 
 // ===== SENSOR AUSLESEN =====
@@ -342,7 +504,29 @@ void readSensor() {
   if (!isnan(temp) && !isnan(hum)) {
     currentTemp = temp;
     currentHumidity = hum;
+
+    // Flame detection basierend auf Temperatur
+    flameDetected = (currentTemp >= FLAME_THRESHOLD);
+  } else {
+    Serial.println("DHT Lesefehler!");
   }
+}
+
+// ===== BATTERY AUSLESEN =====
+
+void readBattery() {
+  // ADC Wert lesen (0-4095 für 12-bit ADC)
+  int adcValue = analogRead(BATTERY_PIN);
+
+  // In Spannung umrechnen (3.3V Referenz, durch Spannungsteiler)
+  batteryVoltage = (adcValue / 4095.0) * 3.3 * VOLTAGE_DIVIDER_RATIO;
+
+  // Prozent berechnen
+  batteryPercent = map(batteryVoltage * 100,
+                       BATTERY_MIN_VOLTAGE * 100,
+                       BATTERY_MAX_VOLTAGE * 100,
+                       0, 100);
+  batteryPercent = constrain(batteryPercent, 0, 100);
 }
 
 // ===== SESSION DETECTION =====
@@ -382,6 +566,17 @@ void registerHit(unsigned long duration) {
   lastSessionDuration = duration;
   lastSessionTemp = currentTemp;
 
+  // Min/Max Session Duration tracken
+  if (minSessionDuration == 0 || duration < minSessionDuration) {
+    minSessionDuration = duration;
+    prefs.putULong("minDuration", minSessionDuration);
+  }
+
+  if (duration > maxSessionDuration) {
+    maxSessionDuration = duration;
+    prefs.putULong("maxDuration", maxSessionDuration);
+  }
+
   // Zeit formatieren
   unsigned long totalSeconds = millis() / 1000;
   int hours = (totalSeconds / 3600) % 24;
@@ -396,35 +591,8 @@ void registerHit(unsigned long duration) {
   prefs.putInt("streak", currentStreak);
   prefs.putInt("longestStreak", longestStreak);
 
-  // **NEU v6.3: Pending Hit für Offline-Sync speichern**
-  if (pendingHitsCount < MAX_PENDING_HITS) {
-    pendingHits[pendingHitsCount].timestamp = millis();
-    pendingHits[pendingHitsCount].temperature = lastSessionTemp;
-    pendingHits[pendingHitsCount].duration = duration;
-    pendingHitsCount++;
-
-    // Pending Hits Count in Preferences speichern
-    prefs.putInt("pendingCount", pendingHitsCount);
-
-    // Jeden Hit einzeln speichern (für Persistenz nach Neustart)
-    String key = "pHit_" + String(pendingHitsCount - 1);
-    prefs.putULong((key + "_ts").c_str(), millis());
-    prefs.putFloat((key + "_temp").c_str(), lastSessionTemp);
-    prefs.putULong((key + "_dur").c_str(), duration);
-
-    Serial.print("Pending Hit gespeichert (");
-    Serial.print(pendingHitsCount);
-    Serial.println(" unsynced)");
-  } else {
-    Serial.println("WARNUNG: Pending Hits Buffer voll! Ältester Hit wird überschrieben.");
-    // Ring-Buffer: Ältesten überschreiben
-    for (int i = 0; i < MAX_PENDING_HITS - 1; i++) {
-      pendingHits[i] = pendingHits[i + 1];
-    }
-    pendingHits[MAX_PENDING_HITS - 1].timestamp = millis();
-    pendingHits[MAX_PENDING_HITS - 1].temperature = lastSessionTemp;
-    pendingHits[MAX_PENDING_HITS - 1].duration = duration;
-  }
+  // Pending Hit speichern
+  savePendingHit(duration);
 
   // Feedback
   playTone(1500, 50);
@@ -435,14 +603,44 @@ void registerHit(unsigned long duration) {
   Serial.print(totalHits);
   Serial.print(" (");
   Serial.print(duration / 1000.0, 1);
-  Serial.println("s)");
+  Serial.print("s, ");
+  Serial.print(currentTemp, 1);
+  Serial.println("°C)");
+}
+
+// ===== PENDING HIT SPEICHERN =====
+
+void savePendingHit(unsigned long duration) {
+  if (pendingHitsCount < MAX_PENDING_HITS) {
+    pendingHits[pendingHitsCount].timestamp = millis();
+    pendingHits[pendingHitsCount].duration = duration;
+
+    // In Preferences speichern
+    String key = "pH_" + String(pendingHitsCount);
+    prefs.putULong((key + "_t").c_str(), millis());
+    prefs.putULong((key + "_d").c_str(), duration);
+
+    pendingHitsCount++;
+    prefs.putInt("pendingCount", pendingHitsCount);
+
+    Serial.print("Pending Hit gespeichert (");
+    Serial.print(pendingHitsCount);
+    Serial.println(" unsynced)");
+  } else {
+    Serial.println("WARNUNG: Pending Hits Buffer voll!");
+    // Ring-Buffer: Ältesten überschreiben
+    for (int i = 0; i < MAX_PENDING_HITS - 1; i++) {
+      pendingHits[i] = pendingHits[i + 1];
+    }
+    pendingHits[MAX_PENDING_HITS - 1].timestamp = millis();
+    pendingHits[MAX_PENDING_HITS - 1].duration = duration;
+  }
 }
 
 // ===== STREAK UPDATE =====
 
 void updateStreak() {
-  // Einfache Streak-Logik (kann erweitert werden)
-  String today = String(millis() / 86400000); // Tage seit Start
+  String today = String(millis() / 86400000);
 
   if (today != lastSessionDate) {
     currentStreak++;
@@ -459,8 +657,8 @@ void updateStreak() {
 void handleButton() {
   bool buttonState = digitalRead(BUTTON_PIN);
 
-  // Button gedrückt (LOW wegen Pull-up)
-  if (buttonState == LOW && lastButtonState == HIGH && millis() - lastButtonPress > 300) {
+  if (buttonState == LOW && lastButtonState == HIGH &&
+      millis() - lastButtonPress > 300) {
     currentScreen = (currentScreen + 1) % NUM_SCREENS;
     lastButtonPress = millis();
     lastScreenChange = millis();
@@ -501,7 +699,7 @@ void drawLiveScreen() {
   // Header
   display.setTextSize(1);
   display.setCursor(0, 0);
-  display.print("HIGH SCORE PRO");
+  display.print("HIGH SCORE v7.0");
 
   // WiFi Icon
   if (wifiConnected) {
@@ -518,6 +716,20 @@ void drawLiveScreen() {
   display.setTextSize(1);
   display.print("C");
 
+  // Flame Indicator
+  if (flameDetected) {
+    display.setCursor(90, 18);
+    display.setTextSize(1);
+    display.print("FLAME");
+    // Flammen-Symbol
+    int fx = 115;
+    int fy = 25;
+    for (int i = 0; i < 3; i++) {
+      int offset = (animFrame + i) % 4 - 2;
+      display.drawLine(fx + offset, fy + i*2, fx + offset, fy + i*2 + 1, SSD1306_WHITE);
+    }
+  }
+
   // Inhalations-Animation
   if (isInhaling) {
     int barHeight = map(currentTemp, TEMP_THRESHOLD, 100, 0, 30);
@@ -525,7 +737,6 @@ void drawLiveScreen() {
     display.fillRect(100, 46 - barHeight, 25, barHeight, SSD1306_WHITE);
     display.drawRect(99, 15, 27, 32, SSD1306_WHITE);
 
-    // Pulsierender Text
     if (animFrame % 2 == 0) {
       display.setCursor(85, 52);
       display.print("INHALE");
@@ -541,10 +752,17 @@ void drawLiveScreen() {
   // Bottom Info
   display.drawLine(0, 50, 128, 50, SSD1306_WHITE);
   display.setCursor(0, 54);
-  display.print("Today: ");
+  display.print("Today:");
   display.print(todayHits);
-  display.print(" | Total: ");
+  display.print(" Tot:");
   display.print(totalHits);
+
+  // Pending Hits Indikator
+  if (pendingHitsCount > 0) {
+    display.setCursor(100, 54);
+    display.print("P:");
+    display.print(pendingHitsCount);
+  }
 }
 
 // ===== SCREEN 2: STATISTIKEN =====
@@ -555,14 +773,12 @@ void drawStatsScreen() {
   display.print("STATISTIKEN");
   display.drawLine(0, 10, 128, 10, SSD1306_WHITE);
 
-  // Heute
   display.setCursor(0, 15);
   display.print("Heute:");
   display.setTextSize(2);
   display.setCursor(70, 13);
   display.print(todayHits);
 
-  // Gesamt
   display.setTextSize(1);
   display.setCursor(0, 32);
   display.print("Gesamt:");
@@ -570,7 +786,6 @@ void drawStatsScreen() {
   display.setCursor(70, 30);
   display.print(totalHits);
 
-  // Humidity
   display.setTextSize(1);
   display.setCursor(0, 49);
   display.print("Luftf:");
@@ -578,48 +793,68 @@ void drawStatsScreen() {
   display.print(currentHumidity, 0);
   display.print("%");
 
-  // Uptime
   display.setCursor(0, 57);
-  display.print("Up: ");
-  unsigned long upMinutes = millis() / 60000;
-  display.print(upMinutes);
-  display.print("min");
+  display.print("Unsync:");
+  display.setCursor(70, 57);
+  display.print(pendingHitsCount);
 }
 
-// ===== SCREEN 3: STREAKS =====
+// ===== SCREEN 3: STREAKS & DURATION =====
 
 void drawStreaksScreen() {
   display.setTextSize(1);
   display.setCursor(0, 0);
-  display.print("STREAKS");
+  display.print("STREAKS & DAUER");
   display.drawLine(0, 10, 128, 10, SSD1306_WHITE);
 
   // Aktuelle Streak
   display.setCursor(0, 15);
-  display.print("Aktuell:");
-  display.setTextSize(3);
-  display.setCursor(15, 25);
+  display.print("Streak:");
+  display.setTextSize(2);
+  display.setCursor(70, 13);
   display.print(currentStreak);
-  display.setTextSize(1);
-  display.setCursor(60, 35);
-  display.print("Tage");
 
   // Rekord
-  display.setCursor(0, 50);
-  display.print("Rekord: ");
+  display.setTextSize(1);
+  display.setCursor(0, 32);
+  display.print("Best:");
   display.setTextSize(2);
-  display.setCursor(70, 48);
+  display.setCursor(70, 30);
   display.print(longestStreak);
 
-  // Fire Icon
-  if (currentStreak > 0) {
-    // Flamme zeichnen
-    int flameX = 100;
-    int flameY = 25;
-    for (int i = 0; i < 3; i++) {
-      int offset = (animFrame + i) % 4 - 2;
-      display.drawLine(flameX + offset, flameY + i*3, flameX + offset, flameY + i*3 + 2, SSD1306_WHITE);
-    }
+  // Min/Max Duration
+  display.setTextSize(1);
+  display.setCursor(0, 49);
+  display.print("Min:");
+  display.setCursor(30, 49);
+  if (minSessionDuration > 0) {
+    display.print(minSessionDuration / 1000.0, 1);
+    display.print("s");
+  } else {
+    display.print("--");
+  }
+
+  display.setCursor(0, 57);
+  display.print("Max:");
+  display.setCursor(30, 57);
+  if (maxSessionDuration > 0) {
+    display.print(maxSessionDuration / 1000.0, 1);
+    display.print("s");
+  } else {
+    display.print("--");
+  }
+
+  // Battery status (falls aktiviert)
+  if (BATTERY_ENABLED) {
+    display.setCursor(70, 49);
+    display.print("Bat:");
+    display.setCursor(95, 49);
+    display.print(batteryPercent);
+    display.print("%");
+
+    display.setCursor(70, 57);
+    display.print(batteryVoltage, 2);
+    display.print("V");
   }
 }
 
@@ -632,14 +867,12 @@ void drawLastSessionScreen() {
   display.drawLine(0, 10, 128, 10, SSD1306_WHITE);
 
   if (lastSessionTime.length() > 0) {
-    // Zeit
     display.setCursor(0, 15);
     display.print("Zeit:");
     display.setTextSize(2);
     display.setCursor(50, 13);
     display.print(lastSessionTime);
 
-    // Dauer
     display.setTextSize(1);
     display.setCursor(0, 32);
     display.print("Dauer:");
@@ -647,14 +880,12 @@ void drawLastSessionScreen() {
     display.print(lastSessionDuration / 1000.0, 1);
     display.print("s");
 
-    // Temperatur
     display.setCursor(0, 44);
     display.print("Temp:");
     display.setCursor(50, 44);
     display.print(lastSessionTemp, 1);
     display.print("C");
 
-    // Zeit seit letztem Hit
     if (lastHitTime > 0) {
       unsigned long timeSince = (millis() - lastHitTime) / 1000;
       display.setCursor(0, 56);
@@ -662,9 +893,12 @@ void drawLastSessionScreen() {
       if (timeSince < 60) {
         display.print(timeSince);
         display.print("s");
-      } else {
+      } else if (timeSince < 3600) {
         display.print(timeSince / 60);
         display.print("min");
+      } else {
+        display.print(timeSince / 3600);
+        display.print("h");
       }
     }
   } else {
@@ -687,7 +921,7 @@ void showBootScreen() {
   display.print("SCORE");
   display.setTextSize(1);
   display.setCursor(30, 50);
-  display.print("PRO v6.2");
+  display.print("PRO v7.0");
   display.display();
   delay(2000);
 }
