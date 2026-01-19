@@ -1,8 +1,14 @@
 import React, { useState, useMemo, memo } from 'react';
 import { Plus, Edit2, Trash2, Tag, DollarSign, Leaf, TrendingUp, Star, Save, X, Search, ChevronDown, ChevronUp } from 'lucide-react';
+import { Settings } from '../hooks/useHitManagement.ts';
+
+interface StrainManagementViewProps {
+  settings: Settings;
+  setSettings: React.Dispatch<React.SetStateAction<Settings>>;
+}
 
 // **FIX v8.8**: Entferne sessionHits - Stats entfernt, nur noch CRUD
-function StrainManagementView({ settings, setSettings }) {
+function StrainManagementView({ settings, setSettings }: StrainManagementViewProps) {
   const [form, setForm] = useState({ name: '', price: '10', thc: '15', type: 'hybrid', notes: '' });
   const [editId, setEditId] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');

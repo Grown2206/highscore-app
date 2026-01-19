@@ -1,5 +1,14 @@
 import React, { useMemo } from 'react';
 import { Trophy, Star, Flame, Target, Calendar, TrendingUp, Award, Lock } from 'lucide-react';
+import { Hit } from '../hooks/useHitSelection.ts';
+import { HistoryDataEntry } from '../utils/historyDataHelpers.ts';
+import { Settings } from '../hooks/useHitManagement.ts';
+
+interface AchievementsViewProps {
+  sessionHits: Hit[];
+  historyData: HistoryDataEntry[];
+  settings: Settings;
+}
 
 // **PERFORMANCE FIX**: Achievement Definitionen außerhalb der Component
 // Verhindert Re-Creation bei jedem Render
@@ -96,7 +105,7 @@ const achievementDefs = [
   }
 ];
 
-export default function AchievementsView({ sessionHits, historyData, settings }) {
+export default function AchievementsView({ sessionHits, historyData, settings }: AchievementsViewProps) {
   // **PERFORMANCE FIX**: achievementDefs nicht mehr in dependencies
   // Berechne Achievement-Status
   const achievements = useMemo(() => {

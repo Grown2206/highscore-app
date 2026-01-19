@@ -1,9 +1,23 @@
 import React, { useMemo, memo } from 'react';
 import { Trophy, Award, Star, Lock, Clock, AlertTriangle } from 'lucide-react';
 import { calculateBadges, calculateUserStats } from '../utils/badges';
+import { HistoryDataEntry } from '../utils/historyDataHelpers.ts';
+import { Settings } from '../hooks/useHitManagement.ts';
+
+interface BadgeHistoryEntry {
+  badgeId: string;
+  level: number;
+  unlockedAt: number;
+}
+
+interface BadgesViewProps {
+  historyData: HistoryDataEntry[];
+  settings: Settings;
+  badgeHistory?: BadgeHistoryEntry[];
+}
 
 // **FIX v8.8**: Entferne sessionHits - verwende nur historyData
-function BadgesView({ historyData, settings, badgeHistory = [] }) {
+function BadgesView({ historyData, settings, badgeHistory = [] }: BadgesViewProps) {
   // Berechne User-Stats und Badges mit Error-Handling
   const stats = useMemo(() => {
     try {

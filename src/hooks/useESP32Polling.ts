@@ -199,6 +199,8 @@ export function useESP32Polling({
   const prevApiTotalRef = useRef(0);
   const hasSyncedRef = useRef(false);
   const isSyncingRef = useRef(false);
+  const notificationTimeoutRef = useRef<number | undefined>(undefined);
+  const visibilityTimeoutRef = useRef<number | undefined>(undefined);
   const simRef = useRef<SimulationRef>({
     flame: false,
     lastTrigger: 0,
@@ -211,6 +213,14 @@ export function useESP32Polling({
   useEffect(() => {
     hasSyncedRef.current = false;
   }, [ip]);
+
+  // Helper: Schedule notification clear with timeout cleanup
+  const scheduleNotificationClear = useCallback((delayMs: number) => {
+    if (notificationTimeoutRef.current !== undefined) {
+      window.clearTimeout(notificationTimeoutRef.current);
+    }
+    notificationTimeoutRef.current = window.setTimeout(() => setNotification(null), delayMs);
+  }, [setNotification]);
 
   // CORE SYNC LOGIC: Pending Hits vom ESP32 abrufen und importieren
   const performSync = useCallback(async (source: string = 'auto') => {
@@ -323,7 +333,7 @@ export function useESP32Polling({
             message: `✅ ${actuallyImportedCount} Offline-Hits importiert!`,
             icon: RefreshCw
           });
-          setTimeout(() => setNotification(null), 4000);
+          scheduleNotificationClear(4000);
 
           console.log(`✅ Auto-Sync erfolgreich: ${actuallyImportedCount} hits importiert (${pendingCount - actuallyImportedCount} Duplikate übersprungen)`);
         } else {
@@ -345,12 +355,12 @@ export function useESP32Polling({
         message: `Sync fehlgeschlagen: ${e.message}`,
         icon: RefreshCw
       });
-      setTimeout(() => setNotification(null), 3000);
+      scheduleNotificationClear(3000);
     } finally {
       isSyncingRef.current = false;
       setIsSyncing(false);
     }
-  }, [isSimulating, ip, currentStrainId, settings.strains, settings.bowlSize, settings.weedRatio, setSessionHits, setHistoryData, setNotification, rebuildHistoryFromSessions]);
+  }, [isSimulating, ip, currentStrainId, settings.strains, settings.bowlSize, settings.weedRatio, setSessionHits, setHistoryData, setNotification, rebuildHistoryFromSessions, scheduleNotificationClear]);
 
   // AUTO-SYNC: Wird nur beim ersten Reconnect aufgerufen
   const syncPendingHits = useCallback(async () => {
@@ -538,15 +548,34 @@ export function useESP32Polling({
 
   // VISIBILITY API: Auto-Sync beim Tab-Fokus / App-Rückkehr
   useEffect(() => {
+    // Guard for SSR/non-browser environments
+    if (typeof document === 'undefined') return;
+
     const handleVisibilityChange = () => {
       if (!document.hidden && connected && !isSimulating) {
         console.log('👁️ Tab fokussiert - Auto-Sync wird ausgeführt...');
-        setTimeout(() => forceSyncPendingHits(), 500); // Kurzer Delay für stabilere Verbindung
+
+        // Clear previous timeout to avoid duplicate syncs
+        if (visibilityTimeoutRef.current !== undefined) {
+          window.clearTimeout(visibilityTimeoutRef.current);
+        }
+
+        // Kurzer Delay für stabilere Verbindung
+        visibilityTimeoutRef.current = window.setTimeout(() => {
+          forceSyncPendingHits();
+        }, 500);
       }
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      // Clean up pending timeout on unmount
+      if (visibilityTimeoutRef.current !== undefined) {
+        window.clearTimeout(visibilityTimeoutRef.current);
+      }
+    };
   }, [connected, isSimulating, forceSyncPendingHits]);
 
   // APP MOUNT: Initial Sync beim ersten App-Start
@@ -556,6 +585,15 @@ export function useESP32Polling({
       setTimeout(() => syncPendingHits(), 1000);
     }
   }, [connected, isSimulating, syncPendingHits]);
+
+  // Cleanup: Clear notification timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (notificationTimeoutRef.current !== undefined) {
+        window.clearTimeout(notificationTimeoutRef.current);
+      }
+    };
+  }, []);
 
   return {
     connected,

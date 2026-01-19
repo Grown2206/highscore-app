@@ -3,7 +3,29 @@ import { User, Users, Tag, Wind, Scale, Coins, List, Clock, Shield, Radio, Flame
 import HoldButton from './HoldButton';
 import { MetricCard, AdminMetric } from './UIComponents';
 import SwipeableHitRow from './SwipeableHitRow';
-import { useHitSelection } from '../hooks/useHitSelection.ts';
+import { useHitSelection, Hit } from '../hooks/useHitSelection.ts';
+import { LiveData } from '../hooks/useESP32Polling.ts';
+import { Settings, Strain } from '../hooks/useHitManagement.ts';
+
+interface DashboardViewProps {
+  liveData: LiveData;
+  lastHitTime: number | null;
+  settings: Settings;
+  isGuestMode: boolean;
+  setIsGuestMode: (isGuestMode: boolean) => void;
+  guestHits: Hit[];
+  resetGuestHits: () => void;
+  deleteHit: (hitId: string) => void;
+  deleteHits: (hitIds: string[]) => void;
+  onManualTrigger: (duration: number) => void;
+  onHoldStart: () => void;
+  onHoldEnd: () => void;
+  currentStrainId: number;
+  setCurrentStrainId: (id: number) => void;
+  isSensorInhaling: boolean;
+  sessionHits: Hit[];
+  sessionHitsCount: number;
+}
 
 // **FIX v8.8**: Pure utility function for getting today's date key
 // Defined outside component to ensure stable reference (no props/context dependencies)
@@ -15,7 +37,25 @@ const getTodayKey = () => {
 // **FIX v8.9.2**: sessionHits wiederhergestellt - Timeline mit Hit-Liste funktioniert wieder
 // **NEW**: sessionHitsCount für Session-System
 // **NEW v8.8**: Multi-select delete functionality with custom hook
-export default function DashboardView({ liveData, lastHitTime, settings, isGuestMode, setIsGuestMode, guestHits, resetGuestHits, deleteHit, deleteHits, onManualTrigger, onHoldStart, onHoldEnd, currentStrainId, setCurrentStrainId, isSensorInhaling, sessionHits, sessionHitsCount }) {
+export default function DashboardView({
+  liveData,
+  lastHitTime,
+  settings,
+  isGuestMode,
+  setIsGuestMode,
+  guestHits,
+  resetGuestHits,
+  deleteHit,
+  deleteHits,
+  onManualTrigger,
+  onHoldStart,
+  onHoldEnd,
+  currentStrainId,
+  setCurrentStrainId,
+  isSensorInhaling,
+  sessionHits,
+  sessionHitsCount
+}: DashboardViewProps) {
   const [timeSince, setTimeSince] = useState("00:00:00");
 
   // **FIX v8.8**: Track current date to force todayHits recalculation at midnight

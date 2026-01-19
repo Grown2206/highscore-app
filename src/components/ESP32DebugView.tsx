@@ -1,8 +1,44 @@
 import React, { useState, memo, useEffect } from 'react';
 import { Wifi, WifiOff, Smartphone, RefreshCw, AlertCircle, CheckCircle, Radio, Activity, Clock, Flame, TrendingUp, Zap, Settings as SettingsIcon, Edit3, Save, X } from 'lucide-react';
 import { MIN_SESSION_DURATION_MS, MAX_SESSION_DURATION_MS, DEFAULT_MIN_SESSION_DURATION_MS, DEFAULT_MAX_SESSION_DURATION_MS, MIN_DURATION_SLIDER_MAX, MAX_DURATION_SLIDER_MIN } from '../config/sessionDuration';
+import { LiveData, ConnectionLogEntry, FlameHistoryEntry } from '../hooks/useESP32Polling.ts';
+import { Settings } from '../hooks/useHitManagement.ts';
 
-function ESP32DebugView({ ip, setIp, connected, isSimulating, setIsSimulating, lastError, connectionLog, flameHistory, liveData, errorCount, settings, setSettings, forceSyncPendingHits, isSyncing, lastSyncTime }) {
+interface ESP32DebugViewProps {
+  ip: string;
+  setIp: (ip: string) => void;
+  connected: boolean;
+  isSimulating: boolean;
+  setIsSimulating: (isSimulating: boolean) => void;
+  lastError: string | null;
+  connectionLog: ConnectionLogEntry[];
+  flameHistory: FlameHistoryEntry[];
+  liveData: LiveData;
+  errorCount: number;
+  settings: Settings;
+  setSettings: React.Dispatch<React.SetStateAction<Settings>>;
+  forceSyncPendingHits: () => Promise<void>;
+  isSyncing: boolean;
+  lastSyncTime: number | null;
+}
+
+function ESP32DebugView({
+  ip,
+  setIp,
+  connected,
+  isSimulating,
+  setIsSimulating,
+  lastError,
+  connectionLog,
+  flameHistory,
+  liveData,
+  errorCount,
+  settings,
+  setSettings,
+  forceSyncPendingHits,
+  isSyncing,
+  lastSyncTime
+}: ESP32DebugViewProps) {
   const [testing, setTesting] = useState(false);
   const [editingTrigger, setEditingTrigger] = useState(false);
   const [minDuration, setMinDuration] = useState(DEFAULT_MIN_SESSION_DURATION_MS);
