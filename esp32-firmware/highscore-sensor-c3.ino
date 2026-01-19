@@ -256,7 +256,6 @@ void checkWiFiConnection() {
       delay(100);
       WiFi.begin(savedSSID.c_str(), savedPassword.c_str());
 
-      unsigned long startTime = millis();
       int retries = 0;
       while (WiFi.status() != WL_CONNECTED && retries < 20) {  // 10 seconds max
         delay(500);
