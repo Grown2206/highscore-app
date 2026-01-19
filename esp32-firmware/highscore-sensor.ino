@@ -401,7 +401,10 @@ void handleApiStats() {
 // ===== API HANDLER: /api/sync =====
 
 void handleApiSync() {
-  DynamicJsonDocument doc(4096);
+  // FIX: Dynamische Größenberechnung basierend auf pendingHitsCount
+  // Basis: 256 Bytes für Metadaten + 64 Bytes pro Hit (mit Sicherheitspuffer)
+  size_t docSize = 256 + (pendingHitsCount * 64);
+  DynamicJsonDocument doc(docSize);
 
   doc["pendingCount"] = pendingHitsCount;
   doc["espUptime"] = millis();
@@ -423,7 +426,11 @@ void handleApiSync() {
 
   Serial.print("Sync Request: ");
   Serial.print(pendingHitsCount);
-  Serial.println(" pending hits gesendet");
+  Serial.print(" pending hits gesendet (JSON size: ");
+  Serial.print(output.length());
+  Serial.print(" bytes, allocated: ");
+  Serial.print(docSize);
+  Serial.println(" bytes)");
 }
 
 // ===== API HANDLER: /api/sync-complete =====
@@ -467,12 +474,23 @@ void handleResetAll() {
   maxSessionDuration = 0;
   lastSessionDate = "";
 
+  // Clear last-session metrics (in-memory)
+  lastSessionDuration = 0;
+  lastSessionTemp = 0.0;
+  lastSessionTime = "";
+  lastHitTime = 0;
+
   prefs.putInt("totalHits", 0);
   prefs.putInt("streak", 0);
   prefs.putInt("longestStreak", 0);
   prefs.putString("lastDate", "");
   prefs.putULong("minDuration", 0);
   prefs.putULong("maxDuration", 0);
+
+  // Persist cleared last-session metrics
+  prefs.putULong("lastDuration", 0);
+  prefs.putFloat("lastTemp", 0.0);
+  prefs.putString("lastTime", "");
 
   clearPendingHits();
 
@@ -628,12 +646,21 @@ void savePendingHit(unsigned long duration) {
     Serial.println(" unsynced)");
   } else {
     Serial.println("WARNUNG: Pending Hits Buffer voll!");
-    // Ring-Buffer: Ältesten überschreiben
+    // Ring-Buffer: Ältesten überschreiben und alle Preferences neu schreiben
     for (int i = 0; i < MAX_PENDING_HITS - 1; i++) {
       pendingHits[i] = pendingHits[i + 1];
     }
     pendingHits[MAX_PENDING_HITS - 1].timestamp = millis();
     pendingHits[MAX_PENDING_HITS - 1].duration = duration;
+
+    // Alle Preferences neu schreiben um Konsistenz zu gewährleisten
+    for (int i = 0; i < MAX_PENDING_HITS; i++) {
+      String key = "pH_" + String(i);
+      prefs.putULong((key + "_t").c_str(), pendingHits[i].timestamp);
+      prefs.putULong((key + "_d").c_str(), pendingHits[i].duration);
+    }
+
+    Serial.println("Ring-Buffer rotiert und Preferences aktualisiert");
   }
 }
 

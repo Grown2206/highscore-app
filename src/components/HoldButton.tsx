@@ -25,6 +25,13 @@ export default function HoldButton({ onTrigger, onHoldStart, onHoldEnd, lastHit,
     else if (!active && !holding) { setProg(0); cancelAnimationFrame(reqRef.current); }
   }, [active]);
 
+  // FIX: Cleanup RAF on unmount to prevent memory leaks
+  useEffect(() => {
+    return () => {
+      cancelAnimationFrame(reqRef.current);
+    };
+  }, []);
+
   const startAnim = () => {
     startRef.current = Date.now();
     const loop = () => {
@@ -43,6 +50,9 @@ export default function HoldButton({ onTrigger, onHoldStart, onHoldEnd, lastHit,
   };
 
   const end = () => {
+    // FIX: Guard to prevent unintended triggers when not holding
+    if (!holding) return;
+
     setHolding(false);
     cancelAnimationFrame(reqRef.current);
     const d = Date.now() - startRef.current;
