@@ -94,6 +94,11 @@
 // Offline Sync Einstellungen
 #define MAX_PENDING_HITS 50    // Maximale Anzahl gespeicherter unsynced hits
 
+// Ring buffer capacity convention:
+// We must leave one slot empty to distinguish full vs. empty states.
+// This means the usable capacity is always MAX_PENDING_HITS - 1.
+#define MAX_PENDING_HITS_CAPACITY (MAX_PENDING_HITS - 1)
+
 // Hit ID Persistence (NEU v8.0)
 // Counter wird alle N Hits gespeichert um Flash-Wear zu reduzieren
 // Bei ungeplanten Reboots können bis zu N-1 Hits "verloren" gehen (Counter zurückgesetzt)
@@ -167,12 +172,13 @@ struct PendingHit {
 
 PendingHit pendingHits[MAX_PENDING_HITS];
 
-// **FIX v8.9**: Circular buffer with head/tail pointers (reduces NVS writes)
+// Circular buffer with head/tail pointers (reduces NVS writes)
 // - head: Index of oldest hit (read position)
 // - tail: Index where next hit will be written (write position)
 // - count = (tail - head + MAX_PENDING_HITS) % MAX_PENDING_HITS
-int pendingHitsHead = 0;
-int pendingHitsTail = 0;
+// Using unsigned type since indices are always non-negative
+uint16_t pendingHitsHead = 0;
+uint16_t pendingHitsTail = 0;
 
 // **NEU v8.0**: Persistent Hit Counter & Boot Counter für Unique IDs
 unsigned long hitCounter = 0;
@@ -250,6 +256,81 @@ void readBatteryVoltage() {
   Serial.print("V (");
   Serial.print(batteryPercent);
   Serial.println("%)");
+}
+
+// ===== CIRCULAR BUFFER HELPER FUNCTIONS =====
+
+/**
+ * Get current count of pending hits in circular buffer.
+ * Extracted to avoid logic duplication and ensure consistency.
+ *
+ * @return Number of pending hits (0 to MAX_PENDING_HITS_CAPACITY)
+ */
+uint16_t getPendingHitsCount() {
+  return (pendingHitsTail - pendingHitsHead + MAX_PENDING_HITS) % MAX_PENDING_HITS;
+}
+
+/**
+ * Check if pending hits buffer is at capacity.
+ *
+ * @return true if buffer cannot accept more hits without overwriting
+ */
+bool isPendingBufferFull() {
+  return getPendingHitsCount() >= MAX_PENDING_HITS_CAPACITY;
+}
+
+/**
+ * Validate and sanitize circular buffer metadata loaded from NVS.
+ * Protects against corrupted storage data causing out-of-bounds access.
+ *
+ * Checks:
+ * - Head and tail indices are within [0, MAX_PENDING_HITS)
+ * - Implied count is within valid range [0, MAX_PENDING_HITS_CAPACITY]
+ *
+ * Resets to empty buffer state (0, 0) if any corruption detected.
+ */
+void validateCircularBufferMetadata() {
+  bool isCorrupt = false;
+
+  // Check if head is out of bounds
+  if (pendingHitsHead >= MAX_PENDING_HITS) {
+    Serial.print("WARNING: Corrupt pHitsHead (");
+    Serial.print(pendingHitsHead);
+    Serial.println("), resetting buffer!");
+    isCorrupt = true;
+  }
+
+  // Check if tail is out of bounds
+  if (pendingHitsTail >= MAX_PENDING_HITS) {
+    Serial.print("WARNING: Corrupt pHitsTail (");
+    Serial.print(pendingHitsTail);
+    Serial.println("), resetting buffer!");
+    isCorrupt = true;
+  }
+
+  // Check if implied count is valid (logical relationship)
+  if (!isCorrupt) {
+    uint16_t count = getPendingHitsCount();
+    if (count > MAX_PENDING_HITS_CAPACITY) {
+      Serial.print("WARNING: Invalid buffer count (");
+      Serial.print(count);
+      Serial.print(") from head=");
+      Serial.print(pendingHitsHead);
+      Serial.print(", tail=");
+      Serial.print(pendingHitsTail);
+      Serial.println(", resetting buffer!");
+      isCorrupt = true;
+    }
+  }
+
+  // Reset to safe state if corrupted
+  if (isCorrupt) {
+    pendingHitsHead = 0;
+    pendingHitsTail = 0;
+    prefs.putInt("pHitsHead", 0);
+    prefs.putInt("pHitsTail", 0);
+    Serial.println("Circular buffer metadata reset to safe state");
+  }
 }
 
 // ===== API HELPER FUNCTIONS =====
@@ -353,11 +434,14 @@ void setup() {
   Serial.println("ms");
   #endif
 
-  // **FIX v8.9**: Load circular buffer metadata
-  pendingHitsHead = prefs.getInt("pHitsHead", 0);
-  pendingHitsTail = prefs.getInt("pHitsTail", 0);
+  // Load circular buffer metadata from NVS
+  pendingHitsHead = (uint16_t)prefs.getInt("pHitsHead", 0);
+  pendingHitsTail = (uint16_t)prefs.getInt("pHitsTail", 0);
 
-  int count = (pendingHitsTail - pendingHitsHead + MAX_PENDING_HITS) % MAX_PENDING_HITS;
+  // Validate metadata to prevent out-of-bounds access from corrupted NVS
+  validateCircularBufferMetadata();
+
+  uint16_t count = getPendingHitsCount();
   Serial.print("Loading ");
   Serial.print(count);
   Serial.print(" pending hits from storage (head=");
@@ -366,21 +450,21 @@ void setup() {
   Serial.print(pendingHitsTail);
   Serial.println(")...");
 
-  // **FIX v8.9**: Load only the hits in the circular buffer range
+  // Load only the hits in the circular buffer range
   char keyBuffer[20];  // Static buffer to avoid String heap fragmentation
-  for (int i = 0; i < count; i++) {
-    int idx = (pendingHitsHead + i) % MAX_PENDING_HITS;
+  for (uint16_t i = 0; i < count; i++) {
+    uint16_t idx = (pendingHitsHead + i) % MAX_PENDING_HITS;
 
-    // Use snprintf instead of String concatenation
-    snprintf(keyBuffer, sizeof(keyBuffer), "pHit_%d_id", idx);
+    // Use snprintf with static buffer instead of String concatenation
+    snprintf(keyBuffer, sizeof(keyBuffer), "pHit_%u_id", idx);
     String idStr = prefs.getString(keyBuffer, "");
     strncpy(pendingHits[idx].id, idStr.c_str(), sizeof(pendingHits[idx].id) - 1);
     pendingHits[idx].id[sizeof(pendingHits[idx].id) - 1] = '\0';
 
-    snprintf(keyBuffer, sizeof(keyBuffer), "pHit_%d_ts", idx);
+    snprintf(keyBuffer, sizeof(keyBuffer), "pHit_%u_ts", idx);
     pendingHits[idx].timestamp = prefs.getULong(keyBuffer, 0);
 
-    snprintf(keyBuffer, sizeof(keyBuffer), "pHit_%d_dur", idx);
+    snprintf(keyBuffer, sizeof(keyBuffer), "pHit_%u_dur", idx);
     pendingHits[idx].duration = prefs.getULong(keyBuffer, 0);
   }
 
@@ -776,9 +860,9 @@ void setupServer() {
     server.send(204);
   });
 
-  // **FIX v8.9**: Sync Endpoint - Uses circular buffer
+  // Sync Endpoint - Returns all pending hits from circular buffer
   server.on("/api/sync", HTTP_GET, []() {
-    int count = (pendingHitsTail - pendingHitsHead + MAX_PENDING_HITS) % MAX_PENDING_HITS;
+    uint16_t count = getPendingHitsCount();
 
     JsonDocument doc;
     doc["pendingCount"] = count;
@@ -788,8 +872,8 @@ void setupServer() {
     JsonArray hitsArray = doc["pendingHits"].to<JsonArray>();
 
     // Iterate through circular buffer from head to tail
-    for (int i = 0; i < count; i++) {
-      int idx = (pendingHitsHead + i) % MAX_PENDING_HITS;
+    for (uint16_t i = 0; i < count; i++) {
+      uint16_t idx = (pendingHitsHead + i) % MAX_PENDING_HITS;
       JsonObject hit = hitsArray.add<JsonObject>();
       hit["id"] = pendingHits[idx].id;
       hit["timestamp"] = pendingHits[idx].timestamp;
@@ -807,18 +891,18 @@ void setupServer() {
     Serial.println(" pending hits sent");
   });
 
-  // **FIX v8.9**: Sync Complete - Reset circular buffer (no NVS deletions needed)
+  // Sync Complete - Reset circular buffer to empty state
   server.on("/api/sync-complete", HTTP_POST, []() {
-    int count = (pendingHitsTail - pendingHitsHead + MAX_PENDING_HITS) % MAX_PENDING_HITS;
+    uint16_t count = getPendingHitsCount();
     Serial.print("Sync Complete: Clearing ");
     Serial.print(count);
     Serial.println(" pending hits...");
 
-    // Reset circular buffer to empty state
+    // Reset circular buffer to empty state (no need to delete individual hits from NVS)
     pendingHitsHead = 0;
     pendingHitsTail = 0;
 
-    // Persist metadata only (no need to delete individual hits from NVS)
+    // Persist metadata
     prefs.putInt("pHitsHead", 0);
     prefs.putInt("pHitsTail", 0);
 
@@ -1032,12 +1116,11 @@ void registerHit(unsigned long duration) {
   prefs.putInt("streak", currentStreak);
   prefs.putInt("longestStreak", longestStreak);
 
-  // **FIX v8.9**: Circular buffer - save pending hit for offline sync
+  // Save pending hit for offline sync using circular buffer
   unsigned long currentTimestamp = getCurrentTimestamp();
-  int count = (pendingHitsTail - pendingHitsHead + MAX_PENDING_HITS) % MAX_PENDING_HITS;
 
-  // Check if buffer is full
-  if (count >= MAX_PENDING_HITS - 1) {
+  // Check if buffer is full and advance head if needed
+  if (isPendingBufferFull()) {
     Serial.println("WARNING: Pending hits buffer full! Overwriting oldest hit.");
     // Advance head pointer (discard oldest hit)
     pendingHitsHead = (pendingHitsHead + 1) % MAX_PENDING_HITS;
@@ -1048,31 +1131,29 @@ void registerHit(unsigned long duration) {
   String hitID = generateHitID();
 
   // Write new hit at tail position
-  int writeIdx = pendingHitsTail;
+  uint16_t writeIdx = pendingHitsTail;
   strncpy(pendingHits[writeIdx].id, hitID.c_str(), sizeof(pendingHits[writeIdx].id) - 1);
   pendingHits[writeIdx].id[sizeof(pendingHits[writeIdx].id) - 1] = '\0';
   pendingHits[writeIdx].timestamp = currentTimestamp;
   pendingHits[writeIdx].duration = duration;
 
-  // **FIX v8.9**: Use snprintf to avoid String heap fragmentation
+  // Persist hit to NVS using static buffer to avoid heap fragmentation
   char keyBuffer[20];
-  snprintf(keyBuffer, sizeof(keyBuffer), "pHit_%d_id", writeIdx);
+  snprintf(keyBuffer, sizeof(keyBuffer), "pHit_%u_id", writeIdx);
   prefs.putString(keyBuffer, hitID);
 
-  snprintf(keyBuffer, sizeof(keyBuffer), "pHit_%d_ts", writeIdx);
+  snprintf(keyBuffer, sizeof(keyBuffer), "pHit_%u_ts", writeIdx);
   prefs.putULong(keyBuffer, currentTimestamp);
 
-  snprintf(keyBuffer, sizeof(keyBuffer), "pHit_%d_dur", writeIdx);
+  snprintf(keyBuffer, sizeof(keyBuffer), "pHit_%u_dur", writeIdx);
   prefs.putULong(keyBuffer, duration);
 
   // Advance tail pointer
   pendingHitsTail = (pendingHitsTail + 1) % MAX_PENDING_HITS;
   prefs.putInt("pHitsTail", pendingHitsTail);
 
-  // Calculate new count
-  count = (pendingHitsTail - pendingHitsHead + MAX_PENDING_HITS) % MAX_PENDING_HITS;
   Serial.print("Pending hit saved (");
-  Serial.print(count);
+  Serial.print(getPendingHitsCount());
   Serial.println(" unsynced)");
 
   // Feedback
