@@ -8,9 +8,35 @@ const Z_INDEX = {
   CONTENT: 3,
 };
 
-// Swipeable Hit Row Component - used in DashboardView and CalendarView
-// **NEW v8.8**: Added selectMode and selection callbacks for multi-delete
-export default function SwipeableHitRow({ hit, hitNumber, onDelete, selectMode = false, isSelected = false, onToggleSelect }) {
+interface Hit {
+  id: string | number;
+  timestamp: number;
+  strainName: string;
+  type?: string;
+  duration?: number;
+}
+
+interface SwipeableHitRowProps {
+  hit: Hit;
+  hitNumber: number;
+  onDelete: (hitId: string | number) => void;
+  selectMode?: boolean;
+  isSelected?: boolean;
+  onToggleSelect?: (hitId: string | number) => void;
+}
+
+/**
+ * Enhanced Swipeable Hit Row Component
+ * Used in DashboardView and CalendarView with swipe-to-delete and multi-select support
+ */
+export default function SwipeableHitRow({
+  hit,
+  hitNumber,
+  onDelete,
+  selectMode = false,
+  isSelected = false,
+  onToggleSelect
+}: SwipeableHitRowProps) {
   const [swipeX, setSwipeX] = useState(0);
   const [isSwiping, setIsSwiping] = useState(false);
   const [showDeleteBtn, setShowDeleteBtn] = useState(false); // Desktop hover state
@@ -71,7 +97,7 @@ export default function SwipeableHitRow({ hit, hitNumber, onDelete, selectMode =
   const handleBlur = () => setShowDeleteBtn(false);
 
   // Keyboard handler (Delete, Backspace, Enter, or Space key)
-  const handleKeyDown = (e) => {
+  const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Delete' || e.key === 'Backspace' || e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
       handleDelete();
@@ -91,7 +117,7 @@ export default function SwipeableHitRow({ hit, hitNumber, onDelete, selectMode =
         <div className="relative overflow-hidden">
           {/* Info background (right swipe) - always mounted, revealed by swipe */}
           <div
-            className="absolute inset-0 bg-blue-600 flex items-center justify-start pl-4 pointer-events-none"
+            className="absolute inset-0 bg-gradient-to-r from-blue-600 to-blue-500 flex items-center justify-start pl-4 pointer-events-none"
             style={{ zIndex: swipeX > 0 ? Z_INDEX.BACKGROUND_ACTIVE : Z_INDEX.BACKGROUND_INACTIVE }}
           >
             <div className="flex items-center gap-2 text-white font-bold text-xs">
@@ -116,7 +142,7 @@ export default function SwipeableHitRow({ hit, hitNumber, onDelete, selectMode =
 
           {/* Delete button background (left swipe) - always mounted, revealed by swipe */}
           <div
-            className="absolute inset-0 bg-red-600 flex items-center justify-end pr-4 pointer-events-none"
+            className="absolute inset-0 bg-gradient-to-l from-red-600 to-red-500 flex items-center justify-end pr-4 pointer-events-none"
             style={{ zIndex: swipeX < 0 ? Z_INDEX.BACKGROUND_ACTIVE : Z_INDEX.BACKGROUND_INACTIVE }}
           >
             <button
