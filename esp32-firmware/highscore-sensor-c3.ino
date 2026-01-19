@@ -1048,6 +1048,17 @@ void registerHit(unsigned long duration) {
 
     pendingHits[MAX_PENDING_HITS - 1].timestamp = currentTimestamp;
     pendingHits[MAX_PENDING_HITS - 1].duration = duration;
+
+    // FIX: Preferences aktualisieren um RAM/Flash Sync zu halten
+    // WARNUNG: Dies verursacht Flash Wear bei vollem Buffer!
+    // TODO: Auf Circular Buffer mit head/tail Pointern umstellen für bessere Flash-Lebensdauer
+    for (int i = 0; i < MAX_PENDING_HITS; i++) {
+      String key = "pHit_" + String(i);
+      prefs.putString((key + "_id").c_str(), String(pendingHits[i].id));
+      prefs.putULong((key + "_ts").c_str(), pendingHits[i].timestamp);
+      prefs.putULong((key + "_dur").c_str(), pendingHits[i].duration);
+    }
+    Serial.println("Ring-Buffer rotiert und alle Preferences aktualisiert");
   }
 
   // Feedback
