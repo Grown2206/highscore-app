@@ -214,6 +214,14 @@ export function useESP32Polling({
     hasSyncedRef.current = false;
   }, [ip]);
 
+  // Helper: Schedule notification clear with timeout cleanup
+  const scheduleNotificationClear = useCallback((delayMs: number) => {
+    if (notificationTimeoutRef.current !== undefined) {
+      window.clearTimeout(notificationTimeoutRef.current);
+    }
+    notificationTimeoutRef.current = window.setTimeout(() => setNotification(null), delayMs);
+  }, [setNotification]);
+
   // CORE SYNC LOGIC: Pending Hits vom ESP32 abrufen und importieren
   const performSync = useCallback(async (source: string = 'auto') => {
     // IP-Validierung
@@ -325,11 +333,7 @@ export function useESP32Polling({
             message: `✅ ${actuallyImportedCount} Offline-Hits importiert!`,
             icon: RefreshCw
           });
-          // Clear previous notification timeout
-          if (notificationTimeoutRef.current !== undefined) {
-            window.clearTimeout(notificationTimeoutRef.current);
-          }
-          notificationTimeoutRef.current = window.setTimeout(() => setNotification(null), 4000);
+          scheduleNotificationClear(4000);
 
           console.log(`✅ Auto-Sync erfolgreich: ${actuallyImportedCount} hits importiert (${pendingCount - actuallyImportedCount} Duplikate übersprungen)`);
         } else {
@@ -351,16 +355,12 @@ export function useESP32Polling({
         message: `Sync fehlgeschlagen: ${e.message}`,
         icon: RefreshCw
       });
-      // Clear previous notification timeout
-      if (notificationTimeoutRef.current !== undefined) {
-        window.clearTimeout(notificationTimeoutRef.current);
-      }
-      notificationTimeoutRef.current = window.setTimeout(() => setNotification(null), 3000);
+      scheduleNotificationClear(3000);
     } finally {
       isSyncingRef.current = false;
       setIsSyncing(false);
     }
-  }, [isSimulating, ip, currentStrainId, settings.strains, settings.bowlSize, settings.weedRatio, setSessionHits, setHistoryData, setNotification, rebuildHistoryFromSessions]);
+  }, [isSimulating, ip, currentStrainId, settings.strains, settings.bowlSize, settings.weedRatio, setSessionHits, setHistoryData, setNotification, rebuildHistoryFromSessions, scheduleNotificationClear]);
 
   // AUTO-SYNC: Wird nur beim ersten Reconnect aufgerufen
   const syncPendingHits = useCallback(async () => {

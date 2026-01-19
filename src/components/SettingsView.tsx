@@ -56,7 +56,7 @@ function SettingsView({
   const [corruptHitsStatus, setCorruptHitsStatus] = useState<StatusMessage | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const updateSetting = useCallback((key: keyof Settings, value: any) => {
+  const updateSetting = useCallback(<K extends keyof Settings>(key: K, value: Settings[K]) => {
     setSettings(p => ({ ...p, [key]: value }));
   }, [setSettings]);
 
