@@ -27,14 +27,16 @@ const ThemeSwitcher: React.FC<ThemeSwitcherProps> = ({ compact = false }) => {
               w-10 h-10 rounded-lg flex items-center justify-center text-xl
               transition-all duration-200
               ${themeId === id
-                ? 'ring-2 ring-offset-2 scale-110'
+                ? 'scale-110'
                 : 'opacity-60 hover:opacity-100 hover:scale-105'
               }
             `}
             style={{
               backgroundColor: theme.colors.bg.secondary,
               color: theme.colors.text.primary,
-              ringColor: theme.colors.accent.primary,
+              boxShadow: themeId === id
+                ? `0 0 0 2px ${theme.colors.bg.primary}, 0 0 0 4px ${theme.colors.accent.primary}`
+                : 'none',
             }}
             title={theme.name}
           >
@@ -54,15 +56,16 @@ const ThemeSwitcher: React.FC<ThemeSwitcherProps> = ({ compact = false }) => {
           className={`
             relative p-4 rounded-xl transition-all duration-300
             ${themeId === id
-              ? 'ring-2 ring-offset-2 scale-105 shadow-lg'
+              ? 'scale-105'
               : 'opacity-70 hover:opacity-100 hover:scale-102'
             }
           `}
           style={{
             backgroundColor: theme.colors.bg.card,
             color: theme.colors.text.primary,
-            ringColor: theme.colors.accent.primary,
-            boxShadow: themeId === id ? theme.effects.shadow.glow : 'none',
+            boxShadow: themeId === id
+              ? `0 0 0 2px ${theme.colors.bg.primary}, 0 0 0 4px ${theme.colors.accent.primary}, ${theme.effects.shadow.glow}`
+              : 'none',
           }}
         >
           {/* Theme Preview Circle */}
