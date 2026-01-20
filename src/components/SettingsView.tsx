@@ -12,6 +12,7 @@ import GoalsSettings from './settings/GoalsSettings';
 import TestDataControls from './settings/TestDataControls';
 import CorruptHitsCleanup from './settings/CorruptHitsCleanup';
 import DataManagement from './settings/DataManagement';
+import ThemeSwitcher from './ThemeSwitcher';
 
 interface StatusMessage {
   type: AlertType;
@@ -236,6 +237,14 @@ function SettingsView({
   return (
     <div className="space-y-8 animate-in slide-in-from-right-4 pb-20">
       <h2 className="text-2xl font-bold text-white">Einstellungen</h2>
+
+      {/* Theme Switcher */}
+      <div className="bg-zinc-900/50 backdrop-blur-sm border border-zinc-800 rounded-2xl p-6">
+        <h3 className="text-lg font-semibold text-white mb-4">
+          Theme Auswahl
+        </h3>
+        <ThemeSwitcher />
+      </div>
 
       <BaseCalculationSettings
         settings={settings}
