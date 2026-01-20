@@ -676,6 +676,20 @@ void setupWiFi() {
     WiFi.mode(WIFI_STA);
     WiFi.setAutoReconnect(true);  // Enable auto-reconnect
     WiFi.persistent(true);         // Persist credentials to flash
+
+    // TELEKOM SPEEDPORT FIX: Static IP to bypass DHCP issues
+    // Comment out these 4 lines if DHCP works for you
+    IPAddress local_IP(192, 168, 1, 100);     // ESP32 IP - change last number if needed
+    IPAddress gateway(192, 168, 1, 1);        // Router IP
+    IPAddress subnet(255, 255, 255, 0);       // Subnet mask
+    IPAddress primaryDNS(8, 8, 8, 8);         // Google DNS (optional)
+
+    if (!WiFi.config(local_IP, gateway, subnet, primaryDNS)) {
+      Serial.println("Static IP Config Failed - using DHCP");
+    } else {
+      Serial.println("Static IP configured: 192.168.1.100");
+    }
+
     WiFi.begin(savedSSID.c_str(), savedPassword.c_str());
 
     Serial.println("Waiting for connection...");
@@ -699,10 +713,13 @@ void setupWiFi() {
         display.display();
       }
 
-      // Debug WiFi status
+      // Debug WiFi status and signal strength
       if (millis() - startTime > 5000 && dots == 10) {
         Serial.print("\nWiFi Status: ");
-        Serial.println(WiFi.status());
+        Serial.print(WiFi.status());
+        Serial.print(" | Signal: ");
+        Serial.print(WiFi.RSSI());
+        Serial.println(" dBm");
       }
     }
 
@@ -752,6 +769,23 @@ void setupWiFi() {
       Serial.println(WiFi.status());
       Serial.print("SSID: ");
       Serial.println(savedSSID);
+      Serial.print("Signal Strength (RSSI): ");
+      int rssi = WiFi.RSSI();
+      Serial.print(rssi);
+      Serial.println(" dBm");
+
+      // Signal quality interpretation
+      if (rssi > -50) {
+        Serial.println("Signal: EXCELLENT");
+      } else if (rssi > -60) {
+        Serial.println("Signal: GOOD");
+      } else if (rssi > -70) {
+        Serial.println("Signal: FAIR");
+      } else if (rssi > -80) {
+        Serial.println("Signal: WEAK");
+      } else {
+        Serial.println("Signal: VERY WEAK - Move ESP32 closer to router!");
+      }
 
       // Show error on display
       display.clearDisplay();
