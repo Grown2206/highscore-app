@@ -3,6 +3,8 @@
  * Creates animated particles when flame is detected
  */
 
+import type React from 'react';
+
 interface Particle {
   x: number;
   y: number;
@@ -166,8 +168,9 @@ export class ParticleSystem {
 
 /**
  * Simple particle burst for button clicks
+ * Accepts both React.MouseEvent and DOM MouseEvent
  */
-export const triggerClickBurst = (event: MouseEvent, color?: string) => {
+export const triggerClickBurst = (event: React.MouseEvent | MouseEvent, color?: string) => {
   const target = event.currentTarget as HTMLElement;
   const rect = target.getBoundingClientRect();
   const x = event.clientX - rect.left;
@@ -182,7 +185,12 @@ export const triggerClickBurst = (event: MouseEvent, color?: string) => {
   canvas.style.pointerEvents = 'none';
   canvas.style.zIndex = '100';
 
-  target.style.position = 'relative';
+  // Only set position: relative if element has static positioning
+  const computedPosition = getComputedStyle(target).position;
+  if (computedPosition === 'static' || computedPosition === '') {
+    target.style.position = 'relative';
+  }
+
   target.appendChild(canvas);
 
   canvas.width = rect.width;
