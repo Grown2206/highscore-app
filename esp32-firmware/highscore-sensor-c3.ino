@@ -112,7 +112,7 @@
 #define BOOT_COUNTER_MODULO 100  // Boot Counter Wrap-Around bei 100 (hält Format auf 2 Stellen)
 
 // WiFi Manager
-#define WIFI_TIMEOUT 30000  // 30 seconds for WiFi connection (increased from 15s)
+#define WIFI_TIMEOUT 15000
 #define AP_SSID "HighScore-Setup"
 #define AP_PASSWORD "" // Kein Passwort für Setup
 const byte DNS_PORT = 53;
@@ -199,10 +199,6 @@ int batteryPercent = 0;
 unsigned long lastBatteryRead = 0;
 #define BATTERY_READ_INTERVAL 30000  // Alle 30 Sekunden
 
-// WiFi Watchdog
-unsigned long lastWiFiCheck = 0;
-#define WIFI_CHECK_INTERVAL 60000  // Check every 60 seconds
-
 // **NEU v8.1**: Configurable False Trigger Prevention
 int minSessionDuration = MIN_SESSION_DURATION;  // Default 800ms
 int maxSessionDuration = MAX_SESSION_DURATION;  // Default 4500ms
@@ -239,39 +235,6 @@ String generateHitID() {
   snprintf(id, sizeof(id), "%s_%02lu_%04lu", espMacShort.c_str(), bootCounter % BOOT_COUNTER_MODULO, hitCounter);
 
   return String(id);
-}
-
-// ===== WIFI WATCHDOG =====
-/**
- * Check WiFi connection health and attempt reconnect if needed.
- * Called periodically from main loop.
- */
-void checkWiFiConnection() {
-  // Only check if we're supposed to be connected (not in AP mode)
-  if (!isAPMode && savedSSID.length() > 0) {
-    if (WiFi.status() != WL_CONNECTED) {
-      Serial.println("⚠️ WiFi disconnected! Attempting reconnect...");
-
-      WiFi.disconnect();
-      delay(100);
-      WiFi.begin(savedSSID.c_str(), savedPassword.c_str());
-
-      int retries = 0;
-      while (WiFi.status() != WL_CONNECTED && retries < 20) {  // 10 seconds max
-        delay(500);
-        Serial.print(".");
-        retries++;
-      }
-
-      if (WiFi.status() == WL_CONNECTED) {
-        Serial.println("\n✅ WiFi reconnected!");
-        Serial.print("IP: ");
-        Serial.println(WiFi.localIP());
-      } else {
-        Serial.println("\n❌ Reconnect failed. Will retry in 60s...");
-      }
-    }
-  }
 }
 
 // ===== BATTERY FUNCTIONS =====
@@ -522,7 +485,6 @@ void setup() {
 
   // Display Activity initialisieren
   lastActivityTime = millis();
-  lastWiFiCheck = millis();  // Initialize WiFi watchdog timer
 
   Serial.println("=== READY ===");
   Serial.println("Waiting for flame detection...");
@@ -536,12 +498,6 @@ void loop() {
   if (millis() - lastBatteryRead >= BATTERY_READ_INTERVAL) {
     readBatteryVoltage();
     lastBatteryRead = millis();
-  }
-
-  // WiFi Watchdog - Check connection health every 60s
-  if (millis() - lastWiFiCheck >= WIFI_CHECK_INTERVAL) {
-    checkWiFiConnection();
-    lastWiFiCheck = millis();
   }
 
   // DNS Server für Captive Portal (nur im AP Mode)
@@ -668,59 +624,13 @@ void setupWiFi() {
     display.println(savedSSID.substring(0, 10));
     display.display();
 
-    // CRITICAL FIX: Properly initialize WiFi after restart
-    WiFi.disconnect(true);  // Clear any previous connection
-    WiFi.mode(WIFI_OFF);    // Turn off WiFi completely
-    delay(100);             // Let WiFi stack reset
-
     WiFi.mode(WIFI_STA);
-    WiFi.setAutoReconnect(true);  // Enable auto-reconnect
-    WiFi.persistent(true);         // Persist credentials to flash
-
-    // TELEKOM SPEEDPORT FIX: Static IP to bypass DHCP issues
-    // Comment out these 4 lines if DHCP works for you
-    IPAddress local_IP(192, 168, 1, 100);     // ESP32 IP - change last number if needed
-    IPAddress gateway(192, 168, 1, 1);        // Router IP
-    IPAddress subnet(255, 255, 255, 0);       // Subnet mask
-    IPAddress primaryDNS(8, 8, 8, 8);         // Google DNS (optional)
-
-    if (!WiFi.config(local_IP, gateway, subnet, primaryDNS)) {
-      Serial.println("Static IP Config Failed - using DHCP");
-    } else {
-      Serial.println("Static IP configured: 192.168.1.100");
-    }
-
     WiFi.begin(savedSSID.c_str(), savedPassword.c_str());
 
-    Serial.println("Waiting for connection...");
     unsigned long startTime = millis();
-    int dots = 0;
-
-    // FIX: Increased timeout to 30 seconds and better status checking
-    while (WiFi.status() != WL_CONNECTED && millis() - startTime < 30000) {
+    while (WiFi.status() != WL_CONNECTED && millis() - startTime < WIFI_TIMEOUT) {
       delay(500);
       Serial.print(".");
-      dots++;
-
-      // Update display every 5 dots
-      if (dots % 5 == 0) {
-        display.clearDisplay();
-        display.setCursor(0, 0);
-        display.println("Connecting");
-        display.println(savedSSID.substring(0, 10));
-        display.print(".");
-        for (int i = 0; i < (dots / 5) % 4; i++) display.print(".");
-        display.display();
-      }
-
-      // Debug WiFi status and signal strength
-      if (millis() - startTime > 5000 && dots == 10) {
-        Serial.print("\nWiFi Status: ");
-        Serial.print(WiFi.status());
-        Serial.print(" | Signal: ");
-        Serial.print(WiFi.RSSI());
-        Serial.println(" dBm");
-      }
     }
 
     if (WiFi.status() == WL_CONNECTED) {
@@ -729,9 +639,6 @@ void setupWiFi() {
       Serial.println("\nConnected!");
       Serial.print("IP: ");
       Serial.println(localIP);
-      Serial.print("Signal: ");
-      Serial.print(WiFi.RSSI());
-      Serial.println(" dBm");
 
       // FIX: NTP Time Sync initialisieren mit deutscher Zeitzone
       Serial.print("Syncing time with NTP (Europe/Berlin)...");
@@ -763,45 +670,10 @@ void setupWiFi() {
       delay(2000);
       return;
     } else {
-      // Verbindung fehlgeschlagen - detailliertes Debugging
-      Serial.println("\n❌ Connection FAILED!");
-      Serial.print("WiFi Status: ");
-      Serial.println(WiFi.status());
-      Serial.print("SSID: ");
-      Serial.println(savedSSID);
-      Serial.print("Signal Strength (RSSI): ");
-      int rssi = WiFi.RSSI();
-      Serial.print(rssi);
-      Serial.println(" dBm");
-
-      // Signal quality interpretation
-      if (rssi > -50) {
-        Serial.println("Signal: EXCELLENT");
-      } else if (rssi > -60) {
-        Serial.println("Signal: GOOD");
-      } else if (rssi > -70) {
-        Serial.println("Signal: FAIR");
-      } else if (rssi > -80) {
-        Serial.println("Signal: WEAK");
-      } else {
-        Serial.println("Signal: VERY WEAK - Move ESP32 closer to router!");
-      }
-
-      // Show error on display
-      display.clearDisplay();
-      display.setCursor(0, 0);
-      display.println("FEHLER!");
-      display.println("WiFi timeout");
-      display.println("AP Mode...");
-      display.display();
-      delay(3000);
-
       // Verbindung fehlgeschlagen - WiFi explizit trennen
+      Serial.println("\nConnection failed - switching to AP mode");
       WiFi.disconnect(true);
-      WiFi.mode(WIFI_OFF);
       delay(1000);
-
-      Serial.println("→ Switching to AP mode");
     }
   }
 
