@@ -7,6 +7,7 @@ import { useHitManagement, Settings, Goals, Notification } from './hooks/useHitM
 import { Hit } from './hooks/useHitSelection';
 import { HistoryDataEntry } from './utils/historyDataHelpers';
 import AppLayout from './components/AppLayout';
+import { ThemeProvider } from './contexts/ThemeContext';
 
 // --- MAIN APP COMPONENT ---
 
@@ -259,5 +260,9 @@ export default function App() {
     showRecovery, setShowRecovery, handleDataRestore, registerHit
   ]);
 
-  return <AppLayout ctx={ctx} />;
+  return (
+    <ThemeProvider>
+      <AppLayout ctx={ctx} />
+    </ThemeProvider>
+  );
 }
