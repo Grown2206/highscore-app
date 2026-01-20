@@ -676,6 +676,20 @@ void setupWiFi() {
     WiFi.mode(WIFI_STA);
     WiFi.setAutoReconnect(true);  // Enable auto-reconnect
     WiFi.persistent(true);         // Persist credentials to flash
+
+    // TELEKOM SPEEDPORT FIX: Static IP to bypass DHCP issues
+    // Comment out these 4 lines if DHCP works for you
+    IPAddress local_IP(192, 168, 1, 100);     // ESP32 IP - change last number if needed
+    IPAddress gateway(192, 168, 1, 1);        // Router IP
+    IPAddress subnet(255, 255, 255, 0);       // Subnet mask
+    IPAddress primaryDNS(8, 8, 8, 8);         // Google DNS (optional)
+
+    if (!WiFi.config(local_IP, gateway, subnet, primaryDNS)) {
+      Serial.println("Static IP Config Failed - using DHCP");
+    } else {
+      Serial.println("Static IP configured: 192.168.1.100");
+    }
+
     WiFi.begin(savedSSID.c_str(), savedPassword.c_str());
 
     Serial.println("Waiting for connection...");
