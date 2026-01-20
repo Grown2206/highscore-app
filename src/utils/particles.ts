@@ -167,8 +167,9 @@ export class ParticleSystem {
 /**
  * Simple particle burst for button clicks
  */
-export const triggerClickBurst = (event: React.MouseEvent, color?: string) => {
-  const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+export const triggerClickBurst = (event: MouseEvent, color?: string) => {
+  const target = event.currentTarget as HTMLElement;
+  const rect = target.getBoundingClientRect();
   const x = event.clientX - rect.left;
   const y = event.clientY - rect.top;
 
@@ -181,9 +182,8 @@ export const triggerClickBurst = (event: React.MouseEvent, color?: string) => {
   canvas.style.pointerEvents = 'none';
   canvas.style.zIndex = '100';
 
-  const container = event.currentTarget as HTMLElement;
-  container.style.position = 'relative';
-  container.appendChild(canvas);
+  target.style.position = 'relative';
+  target.appendChild(canvas);
 
   canvas.width = rect.width;
   canvas.height = rect.height;
@@ -231,7 +231,7 @@ export const triggerClickBurst = (event: React.MouseEvent, color?: string) => {
 
     if (particles.every((p) => p.life >= p.maxLife)) {
       cancelAnimationFrame(animationFrame);
-      container.removeChild(canvas);
+      target.removeChild(canvas);
     } else {
       animationFrame = requestAnimationFrame(animate);
     }

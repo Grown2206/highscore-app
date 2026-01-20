@@ -12,6 +12,7 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [themeId, setThemeId] = useState<string>(() => {
+    if (typeof window === 'undefined') return defaultTheme;
     const saved = localStorage.getItem('highscore-theme');
     return saved && themes[saved] ? saved : defaultTheme;
   });
@@ -19,6 +20,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const currentTheme = themes[themeId];
 
   useEffect(() => {
+    if (typeof window === 'undefined') return;
     localStorage.setItem('highscore-theme', themeId);
     applyThemeVariables(currentTheme);
   }, [themeId, currentTheme]);
@@ -45,6 +47,7 @@ export const useTheme = () => {
 };
 
 function applyThemeVariables(theme: Theme) {
+  if (typeof document === 'undefined') return;
   const root = document.documentElement;
 
   // Background colors

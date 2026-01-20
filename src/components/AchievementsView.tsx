@@ -149,13 +149,20 @@ export default function AchievementsView({ sessionHits, historyData, settings }:
     );
 
     // Trigger confetti for each new unlock
+    const timeoutIds: number[] = [];
     newlyUnlocked.forEach((achievement) => {
-      setTimeout(() => {
+      const timeoutId = window.setTimeout(() => {
         triggerAchievementConfetti(achievement.rarity);
       }, 300);
+      timeoutIds.push(timeoutId);
     });
 
     prevUnlockedRef.current = currentUnlocked;
+
+    // Cleanup any pending confetti timeouts on unmount / dependency change
+    return () => {
+      timeoutIds.forEach((id) => window.clearTimeout(id));
+    };
   }, [achievements]);
 
   const unlockedCount = achievements.filter((a) => a.unlocked).length;
