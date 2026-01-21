@@ -11,7 +11,7 @@ interface HoldButtonProps {
 }
 
 /**
- * Enhanced Hold Button Component
+ * Enhanced Hold Button Component (v8.2 - Theme Support)
  * Main interaction button for manual triggering and sensor status display
  */
 export default function HoldButton({ onTrigger, onHoldStart, onHoldEnd, lastHit, active, flame }: HoldButtonProps) {
@@ -67,70 +67,125 @@ export default function HoldButton({ onTrigger, onHoldStart, onHoldEnd, lastHit,
     <div className="py-4 flex justify-center">
       <div className="w-64 h-64 relative flex items-center justify-center animate-in fade-in zoom-in-95 duration-500">
          {/* Background ring */}
-         <div className="absolute inset-0 rounded-full border-4 border-zinc-800 transition-all duration-300"></div>
+         <div
+           className="absolute inset-0 rounded-full border-4 transition-all duration-300"
+           style={{ borderColor: 'var(--border-secondary)' }}
+         />
 
          {/* Outer glow ring when active */}
          {isAct && (
-           <div className="absolute inset-0 rounded-full border-4 border-emerald-500/20 animate-pulse"></div>
+           <div
+             className="absolute inset-0 rounded-full border-4 animate-pulse"
+             style={{ borderColor: 'color-mix(in srgb, var(--accent-primary) 20%, transparent)' }}
+           />
          )}
 
          {/* Progress ring */}
          <svg className="absolute inset-0 w-full h-full -rotate-90 pointer-events-none">
-            <circle cx="128" cy="128" r="124" stroke="currentColor" strokeWidth="8" fill="transparent"
-              className={`transition-all duration-200 ${isAct ? 'text-emerald-500 opacity-100 drop-shadow-[0_0_20px_rgba(16,185,129,0.6)]' : 'text-emerald-500/20 opacity-0'}`}
+            <circle
+              cx="128"
+              cy="128"
+              r="124"
+              stroke="currentColor"
+              strokeWidth="8"
+              fill="transparent"
+              className="transition-all duration-200"
+              style={{
+                color: isAct ? 'var(--accent-primary)' : 'color-mix(in srgb, var(--accent-primary) 20%, transparent)',
+                opacity: isAct ? 1 : 0,
+                filter: isAct ? 'var(--shadow-glow)' : 'none',
+              }}
               strokeDasharray="779"
               strokeDashoffset={779 - (779 * prog) / 100}
-              strokeLinecap="round" />
+              strokeLinecap="round"
+            />
          </svg>
 
          {/* Main button */}
          <button
             onMouseDown={start} onMouseUp={end} onMouseLeave={end}
             onTouchStart={(e)=>{e.preventDefault(); start();}} onTouchEnd={(e)=>{e.preventDefault(); end();}}
-            className={`w-48 h-48 rounded-full bg-gradient-to-br from-zinc-900 to-zinc-950 border shadow-2xl flex flex-col items-center justify-center active:scale-95 transition-all z-10 relative overflow-hidden ${
-              isAct
-                ? 'border-emerald-500/50 shadow-emerald-500/20'
-                : 'border-zinc-700 hover:border-zinc-600'
-            }`}
+            className="w-48 h-48 rounded-full shadow-2xl flex flex-col items-center justify-center active:scale-95 transition-all z-10 relative overflow-hidden"
+            style={{
+              background: `linear-gradient(135deg, var(--bg-secondary), var(--bg-primary))`,
+              border: isAct
+                ? `1px solid color-mix(in srgb, var(--accent-primary) 50%, transparent)`
+                : '1px solid var(--border-primary)',
+              boxShadow: isAct ? 'var(--shadow-glow)' : 'var(--shadow-lg)',
+            }}
          >
             {/* Animated fill gradient */}
             <div
-              className={`absolute bottom-0 w-full bg-gradient-to-t from-emerald-500/30 via-emerald-500/20 to-transparent transition-all duration-75 ease-linear`}
-              style={{ height: `${prog}%` }}
-            ></div>
+              className="absolute bottom-0 w-full transition-all duration-75 ease-linear"
+              style={{
+                height: `${prog}%`,
+                background: `linear-gradient(to top, color-mix(in srgb, var(--accent-primary) 30%, transparent), color-mix(in srgb, var(--accent-primary) 20%, transparent), transparent)`,
+              }}
+            />
 
             {/* Radial glow when active */}
             {isAct && (
-              <div className="absolute inset-0 bg-gradient-radial from-emerald-500/10 via-transparent to-transparent animate-pulse"></div>
+              <div
+                className="absolute inset-0 animate-pulse"
+                style={{
+                  background: `radial-gradient(circle, color-mix(in srgb, var(--accent-primary) 10%, transparent), transparent, transparent)`,
+                }}
+              />
             )}
 
             {/* Last hit label */}
-            <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest z-10">Last Hit</span>
+            <span
+              className="text-[10px] font-bold uppercase tracking-widest z-10"
+              style={{ color: 'var(--text-tertiary)' }}
+            >
+              Last Hit
+            </span>
 
             {/* Timer display */}
-            <div className={`text-4xl font-mono font-bold z-10 tabular-nums my-1 transition-colors ${
-              isAct ? 'text-emerald-400' : 'text-white'
-            }`}>
+            <div
+              className="text-4xl font-mono font-bold z-10 tabular-nums my-1 transition-colors"
+              style={{ color: isAct ? 'var(--accent-primary)' : 'var(--text-primary)' }}
+            >
               {lastHit}
             </div>
 
             {/* Status badge */}
-            <div className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border z-10 transition-all duration-300 ${
-              isAct
-                ? 'bg-gradient-to-r from-emerald-500 to-emerald-400 text-black border-emerald-400 shadow-lg shadow-emerald-500/50'
-                : 'bg-zinc-800 text-emerald-500 border-zinc-700 hover:border-emerald-500/50'
-            }`}>
-               <Zap size={12} className={`inline mr-1 transition-all ${isAct ? "fill-black" : "fill-emerald-500"}`}/>
+            <div
+              className="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border z-10 transition-all duration-300"
+              style={{
+                background: isAct
+                  ? `linear-gradient(90deg, var(--accent-primary), var(--accent-secondary))`
+                  : 'var(--bg-tertiary)',
+                color: isAct ? 'var(--text-inverse)' : 'var(--accent-primary)',
+                borderColor: isAct ? 'var(--accent-secondary)' : 'var(--border-primary)',
+                boxShadow: isAct ? 'var(--shadow-glow)' : 'none',
+              }}
+            >
+               <Zap
+                 size={12}
+                 className="inline mr-1 transition-all"
+                 style={{ fill: isAct ? 'var(--text-inverse)' : 'var(--accent-primary)' }}
+               />
                {isAct ? "Inhaling..." : "Hold / Sensor"}
             </div>
 
             {/* Flame indicator */}
-            <div className={`absolute bottom-6 flex items-center gap-1 text-[10px] font-mono z-10 transition-all duration-300 ${
-              flame
-                ? 'text-orange-500 font-bold'
-                : 'text-zinc-600'
-            }`}>
-               <Flame size={10} className={`transition-all ${flame ? 'text-orange-500 animate-pulse drop-shadow-[0_0_8px_rgba(249,115,22,0.8)]' : ''}`}/>
+            <div
+              className="absolute bottom-6 flex items-center gap-1 text-[10px] font-mono z-10 transition-all duration-300"
+              style={{
+                color: flame ? 'var(--accent-warning)' : 'var(--text-tertiary)',
+                fontWeight: flame ? 'bold' : 'normal',
+              }}
+            >
+               <Flame
+                 size={10}
+                 className="transition-all"
+                 style={{
+                   color: flame ? 'var(--accent-warning)' : 'currentColor',
+                   animation: flame ? 'pulse 1s ease-in-out infinite' : 'none',
+                   filter: flame ? 'drop-shadow(0 0 8px var(--accent-warning))' : 'none',
+                 }}
+               />
                {flame ? 'Detected' : 'Ready'}
             </div>
          </button>
@@ -139,7 +194,12 @@ export default function HoldButton({ onTrigger, onHoldStart, onHoldEnd, lastHit,
          <div className={`absolute inset-0 rounded-full transition-opacity duration-500 ${
            isAct ? 'opacity-100' : 'opacity-0'
          }`}>
-           <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-emerald-500/10 via-transparent to-emerald-500/10 animate-spin-slow"></div>
+           <div
+             className="absolute inset-0 rounded-full animate-spin-slow"
+             style={{
+               background: `linear-gradient(to top right, color-mix(in srgb, var(--accent-primary) 10%, transparent), transparent, color-mix(in srgb, var(--accent-primary) 10%, transparent))`,
+             }}
+           />
          </div>
       </div>
     </div>

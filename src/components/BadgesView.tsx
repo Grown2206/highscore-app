@@ -16,7 +16,10 @@ interface BadgesViewProps {
   badgeHistory?: BadgeHistoryEntry[];
 }
 
-// **FIX v8.8**: Entferne sessionHits - verwende nur historyData
+/**
+ * BadgesView (v8.2 - Theme Support)
+ * Badge system with full theme integration
+ */
 function BadgesView({ historyData, settings, badgeHistory = [] }: BadgesViewProps) {
   // Berechne User-Stats und Badges mit Error-Handling
   const stats = useMemo(() => {
@@ -43,19 +46,25 @@ function BadgesView({ historyData, settings, badgeHistory = [] }: BadgesViewProp
     }
   }, [stats]);
 
-  // Error State - Zeige Fehler-UI wenn Stats nicht berechnet werden konnten
+  // Error State
   if (!stats) {
     return (
       <div className="flex flex-col items-center justify-center w-full min-h-[400px] p-6">
-        <AlertTriangle size={48} className="text-red-500 mb-4" />
-        <h2 className="text-xl font-bold text-white mb-2">Badge-System Fehler</h2>
-        <p className="text-zinc-400 text-center mb-4">
+        <AlertTriangle size={48} style={{ color: 'var(--accent-error)' }} className="mb-4" />
+        <h2 className="text-xl font-bold mb-2" style={{ color: 'var(--text-primary)' }}>
+          Badge-System Fehler
+        </h2>
+        <p className="text-center mb-4" style={{ color: 'var(--text-secondary)' }}>
           Die Badge-Statistiken konnten nicht berechnet werden.
         </p>
         {typeof window !== 'undefined' && (
           <button
             onClick={() => window.location.reload()}
-            className="bg-zinc-800 hover:bg-zinc-700 text-white px-4 py-2 rounded-lg transition-colors"
+            className="px-4 py-2 rounded-lg transition-colors"
+            style={{
+              backgroundColor: 'var(--bg-tertiary)',
+              color: 'var(--text-primary)',
+            }}
           >
             App neu laden
           </button>
@@ -64,37 +73,30 @@ function BadgesView({ historyData, settings, badgeHistory = [] }: BadgesViewProp
     );
   }
 
-  // Zähle erreichte Badges
   const unlockedCount = badges.filter(b => b.unlockedLevel).length;
   const maxLevelCount = badges.filter(b => b.maxLevel).length;
 
-  const getColorClasses = (color, unlocked) => {
-    const colors = {
-      orange: unlocked ? 'from-orange-500 to-red-500 border-orange-500/30' : 'from-zinc-700 to-zinc-800 border-zinc-700',
-      purple: unlocked ? 'from-purple-500 to-pink-500 border-purple-500/30' : 'from-zinc-700 to-zinc-800 border-zinc-700',
-      yellow: unlocked ? 'from-yellow-500 to-amber-500 border-yellow-500/30' : 'from-zinc-700 to-zinc-800 border-zinc-700',
-      green: unlocked ? 'from-green-500 to-emerald-500 border-green-500/30' : 'from-zinc-700 to-zinc-800 border-zinc-700',
-      emerald: unlocked ? 'from-emerald-500 to-teal-500 border-emerald-500/30' : 'from-zinc-700 to-zinc-800 border-zinc-700',
-      blue: unlocked ? 'from-blue-500 to-cyan-500 border-blue-500/30' : 'from-zinc-700 to-zinc-800 border-zinc-700',
-      indigo: unlocked ? 'from-indigo-500 to-purple-500 border-indigo-500/30' : 'from-zinc-700 to-zinc-800 border-zinc-700',
-      teal: unlocked ? 'from-teal-500 to-cyan-500 border-teal-500/30' : 'from-zinc-700 to-zinc-800 border-zinc-700',
-      pink: unlocked ? 'from-pink-500 to-rose-500 border-pink-500/30' : 'from-zinc-700 to-zinc-800 border-zinc-700',
-      rose: unlocked ? 'from-rose-500 to-pink-600 border-rose-500/30' : 'from-zinc-700 to-zinc-800 border-zinc-700',
-      cyan: unlocked ? 'from-cyan-500 to-blue-500 border-cyan-500/30' : 'from-zinc-700 to-zinc-800 border-zinc-700',
-      violet: unlocked ? 'from-violet-500 to-purple-500 border-violet-500/30' : 'from-zinc-700 to-zinc-800 border-zinc-700',
-      amber: unlocked ? 'from-amber-500 to-yellow-500 border-amber-500/30' : 'from-zinc-700 to-zinc-800 border-zinc-700',
+  const getColorStyle = (color: string, unlocked: boolean) => {
+    if (unlocked) {
+      return {
+        background: `linear-gradient(135deg, var(--chart-primary), var(--chart-secondary))`,
+        borderColor: 'color-mix(in srgb, var(--chart-primary) 30%, transparent)',
+      };
+    }
+    return {
+      background: `linear-gradient(135deg, var(--bg-secondary), var(--bg-tertiary))`,
+      borderColor: 'var(--border-primary)',
     };
-    return colors[color] || colors.orange;
   };
 
-  const getLevelColor = (levelId) => {
+  const getLevelColor = (levelId: string) => {
     const colors = {
-      bronze: 'text-amber-600',
-      silver: 'text-zinc-400',
-      gold: 'text-yellow-400',
-      platinum: 'text-cyan-400',
+      bronze: 'var(--accent-warning)',
+      silver: 'var(--text-secondary)',
+      gold: 'var(--chart-tertiary)',
+      platinum: 'var(--accent-info)',
     };
-    return colors[levelId] || 'text-zinc-500';
+    return colors[levelId as keyof typeof colors] || 'var(--text-tertiary)';
   };
 
   return (
@@ -102,45 +104,77 @@ function BadgesView({ historyData, settings, badgeHistory = [] }: BadgesViewProp
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-            <Trophy className="text-yellow-500" size={28} />
+          <h2 className="text-2xl font-bold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+            <Trophy size={28} style={{ color: 'var(--chart-tertiary)' }} />
             Badges
           </h2>
-          <p className="text-sm text-zinc-500 mt-1">
+          <p className="text-sm mt-1" style={{ color: 'var(--text-tertiary)' }}>
             {unlockedCount} von {badges.length} Kategorien • {maxLevelCount} Max Level erreicht
           </p>
         </div>
-        <div className="bg-gradient-to-br from-yellow-500/10 to-orange-500/10 border border-yellow-500/30 rounded-xl p-4 text-center">
-          <div className="text-3xl font-bold text-yellow-400">{unlockedCount}</div>
-          <div className="text-xs text-zinc-500 uppercase">Badges</div>
+        <div
+          className="rounded-xl p-4 text-center"
+          style={{
+            background: `linear-gradient(135deg, color-mix(in srgb, var(--chart-tertiary) 10%, transparent), color-mix(in srgb, var(--accent-warning) 10%, transparent))`,
+            border: '1px solid color-mix(in srgb, var(--chart-tertiary) 30%, transparent)',
+          }}
+        >
+          <div className="text-3xl font-bold" style={{ color: 'var(--chart-tertiary)' }}>
+            {unlockedCount}
+          </div>
+          <div className="text-xs uppercase" style={{ color: 'var(--text-tertiary)' }}>
+            Badges
+          </div>
         </div>
       </div>
 
       {/* Recently Unlocked */}
       {badgeHistory.length > 0 && (
-        <div className="bg-gradient-to-br from-yellow-500/10 to-orange-500/10 border border-yellow-500/20 rounded-2xl p-6">
-          <h3 className="text-sm font-bold text-yellow-400 uppercase mb-4 flex items-center gap-2">
+        <div
+          className="rounded-2xl p-6"
+          style={{
+            background: `linear-gradient(135deg, color-mix(in srgb, var(--chart-tertiary) 10%, transparent), color-mix(in srgb, var(--accent-warning) 10%, transparent))`,
+            border: '1px solid color-mix(in srgb, var(--chart-tertiary) 20%, transparent)',
+          }}
+        >
+          <h3
+            className="text-sm font-bold uppercase mb-4 flex items-center gap-2"
+            style={{ color: 'var(--chart-tertiary)' }}
+          >
             <Clock size={16} />
             Kürzlich freigeschaltet
           </h3>
           <div className="space-y-2">
             {badgeHistory.slice(0, 5).map((entry, i) => {
-              const timeAgo = Math.floor((Date.now() - entry.timestamp) / 1000 / 60); // Minuten
+              const timeAgo = Math.floor((Date.now() - entry.timestamp) / 1000 / 60);
               const timeStr = timeAgo < 1 ? 'Gerade eben' :
                              timeAgo < 60 ? `vor ${timeAgo}m` :
                              timeAgo < 1440 ? `vor ${Math.floor(timeAgo / 60)}h` :
                              `vor ${Math.floor(timeAgo / 1440)}d`;
 
               return (
-                <div key={i} className="bg-zinc-900/50 border border-yellow-500/10 rounded-xl p-3 flex items-center justify-between">
+                <div
+                  key={i}
+                  className="rounded-xl p-3 flex items-center justify-between"
+                  style={{
+                    backgroundColor: 'var(--bg-card)',
+                    border: '1px solid color-mix(in srgb, var(--chart-tertiary) 10%, transparent)',
+                  }}
+                >
                   <div className="flex items-center gap-3">
                     <span className="text-2xl">{entry.icon}</span>
                     <div>
-                      <div className="text-sm font-bold text-white">{entry.name}</div>
-                      <div className="text-xs text-yellow-400">{entry.levelName}</div>
+                      <div className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>
+                        {entry.name}
+                      </div>
+                      <div className="text-xs" style={{ color: 'var(--chart-tertiary)' }}>
+                        {entry.levelName}
+                      </div>
                     </div>
                   </div>
-                  <div className="text-xs text-zinc-500">{timeStr}</div>
+                  <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
+                    {timeStr}
+                  </div>
                 </div>
               );
             })}
@@ -149,27 +183,52 @@ function BadgesView({ historyData, settings, badgeHistory = [] }: BadgesViewProp
       )}
 
       {/* Stats Übersicht */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
-        <h3 className="text-sm font-bold text-zinc-400 uppercase mb-4 flex items-center gap-2">
+      <div
+        className="rounded-2xl p-6"
+        style={{
+          backgroundColor: 'var(--bg-secondary)',
+          border: '1px solid var(--border-primary)',
+        }}
+      >
+        <h3
+          className="text-sm font-bold uppercase mb-4 flex items-center gap-2"
+          style={{ color: 'var(--text-secondary)' }}
+        >
           <Star size={16} />
           Deine Stats
         </h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <div className="bg-zinc-950 rounded-xl p-3 text-center">
-            <div className="text-2xl font-bold text-orange-400">{stats.sessions}</div>
-            <div className="text-xs text-zinc-600 mt-1">Sessions</div>
+          <div className="rounded-xl p-3 text-center" style={{ backgroundColor: 'var(--bg-primary)' }}>
+            <div className="text-2xl font-bold" style={{ color: 'var(--accent-warning)' }}>
+              {stats.sessions}
+            </div>
+            <div className="text-xs mt-1" style={{ color: 'var(--text-tertiary)' }}>
+              Sessions
+            </div>
           </div>
-          <div className="bg-zinc-950 rounded-xl p-3 text-center">
-            <div className="text-2xl font-bold text-purple-400">{stats.streaks}</div>
-            <div className="text-xs text-zinc-600 mt-1">Längster Streak</div>
+          <div className="rounded-xl p-3 text-center" style={{ backgroundColor: 'var(--bg-primary)' }}>
+            <div className="text-2xl font-bold" style={{ color: 'var(--accent-secondary)' }}>
+              {stats.streaks}
+            </div>
+            <div className="text-xs mt-1" style={{ color: 'var(--text-tertiary)' }}>
+              Längster Streak
+            </div>
           </div>
-          <div className="bg-zinc-950 rounded-xl p-3 text-center">
-            <div className="text-2xl font-bold text-yellow-400">{stats.daily_record}</div>
-            <div className="text-xs text-zinc-600 mt-1">Tages-Rekord</div>
+          <div className="rounded-xl p-3 text-center" style={{ backgroundColor: 'var(--bg-primary)' }}>
+            <div className="text-2xl font-bold" style={{ color: 'var(--chart-tertiary)' }}>
+              {stats.daily_record}
+            </div>
+            <div className="text-xs mt-1" style={{ color: 'var(--text-tertiary)' }}>
+              Tages-Rekord
+            </div>
           </div>
-          <div className="bg-zinc-950 rounded-xl p-3 text-center">
-            <div className="text-2xl font-bold text-green-400">{stats.spending.toFixed(0)}€</div>
-            <div className="text-xs text-zinc-600 mt-1">Ausgaben</div>
+          <div className="rounded-xl p-3 text-center" style={{ backgroundColor: 'var(--bg-primary)' }}>
+            <div className="text-2xl font-bold" style={{ color: 'var(--accent-success)' }}>
+              {stats.spending.toFixed(0)}€
+            </div>
+            <div className="text-xs mt-1" style={{ color: 'var(--text-tertiary)' }}>
+              Ausgaben
+            </div>
           </div>
         </div>
       </div>
@@ -179,30 +238,56 @@ function BadgesView({ historyData, settings, badgeHistory = [] }: BadgesViewProp
         {badges.map((badge) => {
           const IconComponent = badge.Icon;
           const unlocked = badge.unlockedLevel !== null;
+          const colorStyle = getColorStyle(badge.color, unlocked);
 
           return (
             <div
               key={badge.category}
-              className={`bg-gradient-to-br ${getColorClasses(badge.color, unlocked)} border rounded-2xl p-6 transition-all hover:scale-[1.02]`}
+              className="border rounded-2xl p-6 transition-all hover:scale-[1.02]"
+              style={colorStyle}
             >
               {/* Header */}
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-3">
-                  <div className={`p-3 rounded-xl ${unlocked ? 'bg-white/10' : 'bg-zinc-800/50'}`}>
-                    <IconComponent size={24} className={unlocked ? 'text-white' : 'text-zinc-600'} />
+                  <div
+                    className="p-3 rounded-xl"
+                    style={{
+                      backgroundColor: unlocked
+                        ? 'rgba(255, 255, 255, 0.1)'
+                        : 'color-mix(in srgb, var(--bg-tertiary) 50%, transparent)',
+                    }}
+                  >
+                    <IconComponent
+                      size={24}
+                      style={{ color: unlocked ? 'white' : 'var(--text-tertiary)' }}
+                    />
                   </div>
                   <div>
-                    <h4 className={`font-bold ${unlocked ? 'text-white' : 'text-zinc-500'}`}>
+                    <h4
+                      className="font-bold"
+                      style={{ color: unlocked ? 'white' : 'var(--text-tertiary)' }}
+                    >
                       {badge.name}
                     </h4>
-                    <p className={`text-xs ${unlocked ? 'text-white/60' : 'text-zinc-600'}`}>
+                    <p
+                      className="text-xs"
+                      style={{ color: unlocked ? 'rgba(255, 255, 255, 0.6)' : 'var(--text-tertiary)' }}
+                    >
                       {badge.description}
                     </p>
                   </div>
                 </div>
                 {badge.maxLevel && (
-                  <div className="bg-yellow-400/20 border border-yellow-400/30 rounded-lg px-2 py-1">
-                    <span className="text-xs font-bold text-yellow-300">MAX</span>
+                  <div
+                    className="rounded-lg px-2 py-1"
+                    style={{
+                      backgroundColor: 'color-mix(in srgb, var(--chart-tertiary) 20%, transparent)',
+                      border: '1px solid color-mix(in srgb, var(--chart-tertiary) 30%, transparent)',
+                    }}
+                  >
+                    <span className="text-xs font-bold" style={{ color: 'var(--chart-tertiary)' }}>
+                      MAX
+                    </span>
                   </div>
                 )}
               </div>
@@ -212,10 +297,10 @@ function BadgesView({ historyData, settings, badgeHistory = [] }: BadgesViewProp
                 <div className="mb-3 flex items-center gap-2">
                   <span className="text-2xl">{badge.unlockedLevel.icon}</span>
                   <div>
-                    <div className={`text-sm font-bold ${getLevelColor(badge.unlockedLevel.id)}`}>
+                    <div className="text-sm font-bold" style={{ color: getLevelColor(badge.unlockedLevel.id) }}>
                       {badge.unlockedLevel.name}
                     </div>
-                    <div className="text-xs text-white/60">
+                    <div className="text-xs" style={{ color: 'rgba(255, 255, 255, 0.6)' }}>
                       {badge.currentValue} / {badge.unlockedLevel.requirement}
                     </div>
                   </div>
@@ -226,25 +311,31 @@ function BadgesView({ historyData, settings, badgeHistory = [] }: BadgesViewProp
               {badge.nextLevel && (
                 <div className="space-y-2">
                   <div className="flex items-center justify-between text-xs">
-                    <span className={unlocked ? 'text-white/80' : 'text-zinc-600'}>
+                    <span style={{ color: unlocked ? 'rgba(255, 255, 255, 0.8)' : 'var(--text-tertiary)' }}>
                       Nächstes Level: {badge.nextLevel.name}
                     </span>
-                    <span className={unlocked ? 'text-white/60' : 'text-zinc-600'}>
+                    <span style={{ color: unlocked ? 'rgba(255, 255, 255, 0.6)' : 'var(--text-tertiary)' }}>
                       {badge.progress}%
                     </span>
                   </div>
-                  <div className="h-2 bg-black/20 rounded-full overflow-hidden">
+                  <div className="h-2 rounded-full overflow-hidden" style={{ backgroundColor: 'rgba(0, 0, 0, 0.2)' }}>
                     <div
-                      className={`h-full transition-all duration-500 ease-out ${unlocked ? 'bg-white/30' : 'bg-zinc-700'}`}
-                      style={{ width: `${badge.progress}%` }}
+                      className="h-full transition-all duration-500 ease-out"
+                      style={{
+                        width: `${badge.progress}%`,
+                        backgroundColor: unlocked ? 'rgba(255, 255, 255, 0.3)' : 'var(--bg-tertiary)',
+                      }}
                     />
                   </div>
                   <div className="flex items-center justify-between text-xs">
-                    <span className={unlocked ? 'text-white/60' : 'text-zinc-600'}>
+                    <span style={{ color: unlocked ? 'rgba(255, 255, 255, 0.6)' : 'var(--text-tertiary)' }}>
                       {badge.currentValue} / {badge.nextLevel.requirement}
                     </span>
                     {badge.remaining > 0 && (
-                      <span className={`font-medium ${unlocked ? 'text-white/80' : 'text-zinc-500'}`}>
+                      <span
+                        className="font-medium"
+                        style={{ color: unlocked ? 'rgba(255, 255, 255, 0.8)' : 'var(--text-tertiary)' }}
+                      >
                         {badge.remaining} verbleibend
                       </span>
                     )}
@@ -255,8 +346,8 @@ function BadgesView({ historyData, settings, badgeHistory = [] }: BadgesViewProp
               {/* Locked State */}
               {!unlocked && (
                 <div className="flex items-center gap-2 mt-3">
-                  <Lock size={14} className="text-zinc-600" />
-                  <span className="text-xs text-zinc-600">
+                  <Lock size={14} style={{ color: 'var(--text-tertiary)' }} />
+                  <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
                     Noch {badge.remaining} fehlen
                   </span>
                 </div>
@@ -267,12 +358,18 @@ function BadgesView({ historyData, settings, badgeHistory = [] }: BadgesViewProp
       </div>
 
       {/* Info */}
-      <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-4">
+      <div
+        className="rounded-xl p-4"
+        style={{
+          backgroundColor: 'var(--bg-card)',
+          border: '1px solid var(--border-primary)',
+        }}
+      >
         <div className="flex items-start gap-3">
-          <Award size={16} className="text-yellow-500 flex-shrink-0 mt-0.5" />
+          <Award size={16} style={{ color: 'var(--chart-tertiary)' }} className="flex-shrink-0 mt-0.5" />
           <div>
-            <p className="text-xs text-zinc-400 leading-relaxed">
-              <span className="font-bold text-white">Badge-System:</span> Sammle Badges indem du
+            <p className="text-xs leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+              <span className="font-bold" style={{ color: 'var(--text-primary)' }}>Badge-System:</span> Sammle Badges indem du
               die App nutzt! Jedes Badge hat 4 Level: Bronze, Silber, Gold und Platinum. Dein
               Fortschritt wird automatisch getrackt.
             </p>
