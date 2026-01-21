@@ -171,70 +171,112 @@ function CalendarView({ historyData, setHistoryData, settings, deleteHit, delete
     }, [historyData]);
 
     const getTrendIcon = (value, avg) => {
-        if (value > avg * 1.2) return <TrendingUp className="text-rose-500" size={14} />;
-        if (value < avg * 0.8) return <TrendingDown className="text-emerald-500" size={14} />;
-        return <Minus className="text-zinc-500" size={14} />;
+        if (value > avg * 1.2) return <TrendingUp style={{ color: 'var(--accent-error)' }} size={14} />;
+        if (value < avg * 0.8) return <TrendingDown style={{ color: 'var(--accent-success)' }} size={14} />;
+        return <Minus style={{ color: 'var(--text-tertiary)' }} size={14} />;
     };
 
     return (
         <div className="space-y-4 animate-in fade-in h-full flex flex-col pb-20">
-           <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-               <Calendar className="text-emerald-500" />
+           <h2 className="text-2xl font-bold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+               <Calendar style={{ color: 'var(--accent-primary)' }} />
                Tagebuch
            </h2>
 
            {/* Kalender */}
-           <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+           <div
+               className="rounded-2xl p-4"
+               style={{
+                   backgroundColor: 'var(--bg-secondary)',
+                   border: '1px solid var(--border-primary)',
+               }}
+           >
               {/* Monats-Navigation */}
               <div className="flex items-center justify-between mb-4">
                   <button
                       onClick={prevMonth}
-                      className="p-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-white transition-colors"
+                      className="p-2 rounded-lg transition-colors"
+                      style={{
+                          backgroundColor: 'var(--bg-tertiary)',
+                          color: 'var(--text-primary)',
+                      }}
                   >
                       <ChevronLeft size={18} />
                   </button>
                   <div className="text-center">
-                      <h3 className="text-lg font-bold text-white">
+                      <h3 className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>
                           {viewDate.toLocaleDateString('de-DE', { month: 'long', year: 'numeric' })}
                       </h3>
                       <button
                           onClick={goToToday}
-                          className="text-xs text-emerald-500 hover:text-emerald-400 mt-1"
+                          className="text-xs mt-1 transition-colors"
+                          style={{ color: 'var(--accent-primary)' }}
                       >
                           Heute
                       </button>
                   </div>
                   <button
                       onClick={nextMonth}
-                      className="p-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-white transition-colors"
+                      className="p-2 rounded-lg transition-colors"
+                      style={{
+                          backgroundColor: 'var(--bg-tertiary)',
+                          color: 'var(--text-primary)',
+                      }}
                   >
                       <ChevronRight size={18} />
                   </button>
               </div>
-              <div className="grid grid-cols-7 gap-1 mb-2 text-center text-[10px] text-zinc-600 font-bold uppercase">
+              <div
+                  className="grid grid-cols-7 gap-1 mb-2 text-center text-[10px] font-bold uppercase"
+                  style={{ color: 'var(--text-tertiary)' }}
+              >
                   {['Mo','Di','Mi','Do','Fr','Sa','So'].map(d=><div key={d}>{d}</div>)}
               </div>
               <div className="grid grid-cols-7 gap-1">
                  {days.map(d=>{
                      const h = historyData.find(x=>x.date===d.iso);
                      const intensity = h?.count > 0 ? Math.min(h.count / 10, 1) : 0;
+
+                     const getDayStyle = () => {
+                         if (sel === d.iso) {
+                             return {
+                                 backgroundColor: 'var(--accent-primary)',
+                                 borderColor: 'color-mix(in srgb, var(--accent-primary) 70%, white)',
+                                 color: 'white',
+                             };
+                         }
+                         if (h?.count > 0) {
+                             return {
+                                 backgroundColor: 'color-mix(in srgb, var(--accent-primary) 10%, transparent)',
+                                 borderColor: 'color-mix(in srgb, var(--accent-primary) 30%, transparent)',
+                                 color: 'var(--accent-primary)',
+                             };
+                         }
+                         return {
+                             backgroundColor: 'var(--bg-primary)',
+                             borderColor: 'transparent',
+                             color: 'var(--text-secondary)',
+                         };
+                     };
+
                      return (
                          <button
                              key={d.iso}
                              onClick={()=>setSel(d.iso)}
-                             className={`aspect-square rounded-lg flex flex-col items-center justify-center relative border transition-all ${
-                                 sel===d.iso
-                                     ? 'bg-emerald-600 border-emerald-400 text-white'
-                                     : h?.count > 0
-                                         ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20'
-                                         : 'border-transparent bg-zinc-950 text-zinc-400 hover:bg-zinc-900'
-                             } ${!d.curr ? 'opacity-30' : ''}`}
+                             className="aspect-square rounded-lg flex flex-col items-center justify-center relative border transition-all"
+                             style={{
+                                 ...getDayStyle(),
+                                 opacity: !d.curr ? 0.3 : 1,
+                             }}
                          >
                             <span className="text-xs font-bold">{d.day}</span>
                             {h?.count > 0 && (
                                 <div
-                                    className="absolute bottom-1 w-3/4 h-0.5 rounded-full bg-emerald-400"
-                                    style={{ opacity: 0.3 + (intensity * 0.7) }}
+                                    className="absolute bottom-1 w-3/4 h-0.5 rounded-full"
+                                    style={{
+                                        backgroundColor: 'var(--accent-primary)',
+                                        opacity: 0.3 + (intensity * 0.7),
+                                    }}
                                 />
                             )}
                          </button>
@@ -244,10 +286,16 @@ function CalendarView({ historyData, setHistoryData, settings, deleteHit, delete
            </div>
 
            {/* Tages-Details */}
-           <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 space-y-4">
+           <div
+               className="rounded-2xl p-4 space-y-4"
+               style={{
+                   backgroundColor: 'var(--bg-secondary)',
+                   border: '1px solid var(--border-primary)',
+               }}
+           >
                <div className="flex items-center justify-between">
                    <div>
-                       <h3 className="text-lg font-bold text-white">
+                       <h3 className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>
                            {new Date(sel).toLocaleDateString('de-DE', {
                                weekday: 'long',
                                year: 'numeric',
@@ -256,7 +304,9 @@ function CalendarView({ historyData, setHistoryData, settings, deleteHit, delete
                            })}
                        </h3>
                        {dayStats.totalHits === 0 && (
-                           <p className="text-xs text-zinc-600 mt-1">Keine Sessions an diesem Tag</p>
+                           <p className="text-xs mt-1" style={{ color: 'var(--text-tertiary)' }}>
+                               Keine Sessions an diesem Tag
+                           </p>
                        )}
                    </div>
                </div>
@@ -264,44 +314,64 @@ function CalendarView({ historyData, setHistoryData, settings, deleteHit, delete
                {/* Statistik-Karten */}
                {dayStats.totalHits > 0 && (
                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                       <div className="bg-zinc-950 rounded-xl p-3">
-                           <div className="flex items-center gap-2 text-zinc-600 text-[10px] font-bold uppercase mb-1">
+                       <div className="rounded-xl p-3" style={{ backgroundColor: 'var(--bg-primary)' }}>
+                           <div
+                               className="flex items-center gap-2 text-[10px] font-bold uppercase mb-1"
+                               style={{ color: 'var(--text-tertiary)' }}
+                           >
                                <Wind size={12} />
                                Hits
                                {avgStats && getTrendIcon(dayStats.totalHits, avgStats.avgHitsPerDay)}
                            </div>
-                           <p className="text-2xl font-bold text-emerald-400">{dayStats.totalHits}</p>
+                           <p className="text-2xl font-bold" style={{ color: 'var(--accent-primary)' }}>
+                               {dayStats.totalHits}
+                           </p>
                            {avgStats && (
-                               <p className="text-[10px] text-zinc-600 mt-1">
+                               <p className="text-[10px] mt-1" style={{ color: 'var(--text-tertiary)' }}>
                                    Ø {avgStats.avgHitsPerDay.toFixed(1)}
                                </p>
                            )}
                        </div>
 
-                       <div className="bg-zinc-950 rounded-xl p-3">
-                           <div className="flex items-center gap-2 text-zinc-600 text-[10px] font-bold uppercase mb-1">
+                       <div className="rounded-xl p-3" style={{ backgroundColor: 'var(--bg-primary)' }}>
+                           <div
+                               className="flex items-center gap-2 text-[10px] font-bold uppercase mb-1"
+                               style={{ color: 'var(--text-tertiary)' }}
+                           >
                                <Scale size={12} />
                                Menge
                            </div>
-                           <p className="text-2xl font-bold text-lime-400">{dayStats.totalAmount.toFixed(2)}g</p>
+                           <p className="text-2xl font-bold" style={{ color: 'var(--chart-tertiary)' }}>
+                               {dayStats.totalAmount.toFixed(2)}g
+                           </p>
                        </div>
 
                        {/* **FIX v8.9**: Kosten & Duration Displays wiederhergestellt */}
-                       <div className="bg-zinc-950 rounded-xl p-3">
-                           <div className="flex items-center gap-2 text-zinc-600 text-[10px] font-bold uppercase mb-1">
+                       <div className="rounded-xl p-3" style={{ backgroundColor: 'var(--bg-primary)' }}>
+                           <div
+                               className="flex items-center gap-2 text-[10px] font-bold uppercase mb-1"
+                               style={{ color: 'var(--text-tertiary)' }}
+                           >
                                <Coins size={12} />
                                Kosten
                            </div>
-                           <p className="text-2xl font-bold text-yellow-400">{dayStats.totalCost.toFixed(2)}€</p>
+                           <p className="text-2xl font-bold" style={{ color: 'var(--accent-warning)' }}>
+                               {dayStats.totalCost.toFixed(2)}€
+                           </p>
                        </div>
 
                        {dayStats.avgDuration > 0 && (
-                           <div className="bg-zinc-950 rounded-xl p-3">
-                               <div className="flex items-center gap-2 text-zinc-600 text-[10px] font-bold uppercase mb-1">
+                           <div className="rounded-xl p-3" style={{ backgroundColor: 'var(--bg-primary)' }}>
+                               <div
+                                   className="flex items-center gap-2 text-[10px] font-bold uppercase mb-1"
+                                   style={{ color: 'var(--text-tertiary)' }}
+                               >
                                    <Clock size={12} />
                                    Ø Dauer
                                </div>
-                               <p className="text-2xl font-bold text-cyan-400">{dayStats.avgDuration.toFixed(1)}s</p>
+                               <p className="text-2xl font-bold" style={{ color: 'var(--accent-info)' }}>
+                                   {dayStats.avgDuration.toFixed(1)}s
+                               </p>
                            </div>
                        )}
                    </div>
@@ -309,17 +379,25 @@ function CalendarView({ historyData, setHistoryData, settings, deleteHit, delete
 
                {/* Zeitspanne */}
                {dayStats.timespan && (
-                   <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-3">
-                       <p className="text-xs text-zinc-600 uppercase font-bold mb-2">Aktive Zeit</p>
+                   <div
+                       className="rounded-xl p-3"
+                       style={{
+                           backgroundColor: 'var(--bg-primary)',
+                           border: '1px solid var(--border-primary)',
+                       }}
+                   >
+                       <p className="text-xs uppercase font-bold mb-2" style={{ color: 'var(--text-tertiary)' }}>
+                           Aktive Zeit
+                       </p>
                        <div className="flex items-center justify-between text-sm">
-                           <span className="text-zinc-400">
+                           <span style={{ color: 'var(--text-secondary)' }}>
                                {dayStats.timespan.first.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}
                            </span>
-                           <span className="text-zinc-600">→</span>
-                           <span className="text-zinc-400">
+                           <span style={{ color: 'var(--text-tertiary)' }}>→</span>
+                           <span style={{ color: 'var(--text-secondary)' }}>
                                {dayStats.timespan.last.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}
                            </span>
-                           <span className="text-emerald-400 font-bold">
+                           <span className="font-bold" style={{ color: 'var(--accent-primary)' }}>
                                {dayStats.timespan.duration.toFixed(1)}h
                            </span>
                        </div>
@@ -328,23 +406,38 @@ function CalendarView({ historyData, setHistoryData, settings, deleteHit, delete
 
                {/* Sorten-Übersicht */}
                {dayStats.strainUsage.length > 0 && (
-                   <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-3">
-                       <div className="flex items-center gap-2 text-xs text-zinc-600 uppercase font-bold mb-3">
+                   <div
+                       className="rounded-xl p-3"
+                       style={{
+                           backgroundColor: 'var(--bg-primary)',
+                           border: '1px solid var(--border-primary)',
+                       }}
+                   >
+                       <div
+                           className="flex items-center gap-2 text-xs uppercase font-bold mb-3"
+                           style={{ color: 'var(--text-tertiary)' }}
+                       >
                            <Tag size={12} />
                            Verwendete Sorten
                        </div>
                        <div className="space-y-2">
                            {dayStats.strainUsage.map(([name, data]) => (
                                <div key={name} className="flex items-center justify-between">
-                                   <span className="text-sm text-white">{name}</span>
+                                   <span className="text-sm" style={{ color: 'var(--text-primary)' }}>{name}</span>
                                    <div className="flex items-center gap-3">
-                                       <span className="text-xs text-emerald-400 font-bold">
+                                       <span className="text-xs font-bold" style={{ color: 'var(--accent-primary)' }}>
                                            {data.count}x
                                        </span>
-                                       <div className="w-16 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+                                       <div
+                                           className="w-16 h-1.5 rounded-full overflow-hidden"
+                                           style={{ backgroundColor: 'var(--bg-tertiary)' }}
+                                       >
                                            <div
-                                               className="h-full bg-emerald-500 rounded-full"
-                                               style={{ width: `${(data.count / dayStats.totalHits) * 100}%` }}
+                                               className="h-full rounded-full"
+                                               style={{
+                                                   backgroundColor: 'var(--accent-primary)',
+                                                   width: `${(data.count / dayStats.totalHits) * 100}%`,
+                                               }}
                                            />
                                        </div>
                                    </div>
@@ -356,17 +449,33 @@ function CalendarView({ historyData, setHistoryData, settings, deleteHit, delete
 
                {/* Session-Timeline */}
                {dayStats.sessions.length > 0 && (
-                   <div className="bg-zinc-950 border border-zinc-800 rounded-xl overflow-hidden">
-                       <div className="bg-zinc-900 px-4 py-2 border-b border-zinc-800 flex items-center gap-2">
-                           <Clock size={12} className="text-zinc-600"/>
-                           <p className="text-xs text-zinc-600 uppercase font-bold">Timeline</p>
+                   <div
+                       className="rounded-xl overflow-hidden"
+                       style={{
+                           backgroundColor: 'var(--bg-primary)',
+                           border: '1px solid var(--border-primary)',
+                       }}
+                   >
+                       <div
+                           className="px-4 py-2 flex items-center gap-2"
+                           style={{
+                               backgroundColor: 'var(--bg-secondary)',
+                               borderBottom: '1px solid var(--border-primary)',
+                           }}
+                       >
+                           <Clock size={12} style={{ color: 'var(--text-tertiary)' }} />
+                           <p className="text-xs uppercase font-bold" style={{ color: 'var(--text-tertiary)' }}>
+                               Timeline
+                           </p>
 
                            {/* Multi-Select Mode Controls */}
                            {!selectMode ? (
-                               <span className="text-[10px] text-zinc-600 ml-auto">← Wische zum Löschen</span>
+                               <span className="text-[10px] ml-auto" style={{ color: 'var(--text-tertiary)' }}>
+                                   ← Wische zum Löschen
+                               </span>
                            ) : (
                                <div className="ml-auto flex items-center gap-2">
-                                   <span className="text-[10px] text-emerald-400 font-bold">
+                                   <span className="text-[10px] font-bold" style={{ color: 'var(--accent-primary)' }}>
                                        {selectedHits.size} ausgewählt
                                    </span>
                                </div>
@@ -376,7 +485,11 @@ function CalendarView({ historyData, setHistoryData, settings, deleteHit, delete
                                {!selectMode ? (
                                    <button
                                        onClick={toggleSelectMode}
-                                       className="flex items-center gap-1 px-2 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold transition-colors"
+                                       className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold transition-colors"
+                                       style={{
+                                           backgroundColor: 'var(--accent-info)',
+                                           color: 'white',
+                                       }}
                                    >
                                        <CheckSquare size={12} />
                                        Auswählen
@@ -385,7 +498,11 @@ function CalendarView({ historyData, setHistoryData, settings, deleteHit, delete
                                    <>
                                        <button
                                            onClick={() => selectAllHits(dayStats.sessions)}
-                                           className="flex items-center gap-1 px-2 py-1 rounded-lg bg-zinc-700 hover:bg-zinc-600 text-white text-[10px] font-bold transition-colors"
+                                           className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold transition-colors"
+                                           style={{
+                                               backgroundColor: 'var(--bg-tertiary)',
+                                               color: 'var(--text-primary)',
+                                           }}
                                        >
                                            <Square size={12} />
                                            Alle
@@ -393,14 +510,22 @@ function CalendarView({ historyData, setHistoryData, settings, deleteHit, delete
                                        <button
                                            onClick={deleteSelectedHits}
                                            disabled={selectedHits.size === 0}
-                                           className="flex items-center gap-1 px-2 py-1 rounded-lg bg-red-600 hover:bg-red-700 disabled:bg-zinc-700 disabled:text-zinc-500 text-white text-[10px] font-bold transition-colors"
+                                           className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold transition-colors disabled:opacity-50"
+                                           style={{
+                                               backgroundColor: selectedHits.size > 0 ? 'var(--accent-error)' : 'var(--bg-tertiary)',
+                                               color: selectedHits.size > 0 ? 'white' : 'var(--text-tertiary)',
+                                           }}
                                        >
                                            <Trash2 size={12} />
                                            Löschen
                                        </button>
                                        <button
                                            onClick={toggleSelectMode}
-                                           className="flex items-center gap-1 px-2 py-1 rounded-lg bg-zinc-700 hover:bg-zinc-600 text-white text-[10px] font-bold transition-colors"
+                                           className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold transition-colors"
+                                           style={{
+                                               backgroundColor: 'var(--bg-tertiary)',
+                                               color: 'var(--text-primary)',
+                                           }}
                                        >
                                            <X size={12} />
                                            Abbrechen
@@ -410,8 +535,8 @@ function CalendarView({ historyData, setHistoryData, settings, deleteHit, delete
                            </div>
                        </div>
                        <div className="max-h-48 overflow-y-auto">
-                           <table className="w-full text-left text-xs text-zinc-400">
-                               <tbody className="divide-y divide-zinc-800">
+                           <table className="w-full text-left text-xs" style={{ color: 'var(--text-secondary)' }}>
+                               <tbody style={{ borderColor: 'var(--border-primary)' }} className="divide-y">
                                    {dayStats.sessions.map((session, i) => (
                                        <SwipeableHitRow
                                            key={session.id}
@@ -432,10 +557,16 @@ function CalendarView({ historyData, setHistoryData, settings, deleteHit, delete
                {/* Notizen */}
                <div className="space-y-2">
                    <div className="flex justify-between items-center">
-                       <label className="text-xs text-zinc-600 uppercase font-bold">Notizen</label>
+                       <label className="text-xs uppercase font-bold" style={{ color: 'var(--text-tertiary)' }}>
+                           Notizen
+                       </label>
                        <button
                            onClick={save}
-                           className="bg-emerald-600 hover:bg-emerald-700 p-2 rounded-lg text-white transition-colors flex items-center gap-1.5"
+                           className="p-2 rounded-lg transition-colors flex items-center gap-1.5"
+                           style={{
+                               backgroundColor: 'var(--accent-primary)',
+                               color: 'white',
+                           }}
                        >
                            <Save size={14}/>
                            <span className="text-xs font-bold">Speichern</span>
@@ -444,7 +575,18 @@ function CalendarView({ historyData, setHistoryData, settings, deleteHit, delete
                    <textarea
                        value={note}
                        onChange={e=>setNote(e.target.value)}
-                       className="w-full bg-zinc-950 p-3 rounded-xl text-sm text-zinc-300 resize-none border border-zinc-800 focus:border-emerald-500 outline-none"
+                       className="w-full p-3 rounded-xl text-sm resize-none border outline-none transition-colors"
+                       style={{
+                           backgroundColor: 'var(--bg-primary)',
+                           color: 'var(--text-secondary)',
+                           borderColor: 'var(--border-primary)',
+                       }}
+                       onFocus={(e) => {
+                           e.currentTarget.style.borderColor = 'var(--accent-primary)';
+                       }}
+                       onBlur={(e) => {
+                           e.currentTarget.style.borderColor = 'var(--border-primary)';
+                       }}
                        rows={3}
                        placeholder="Wie war der Tag? Stimmung, Wirkung, Besonderheiten..."
                    />

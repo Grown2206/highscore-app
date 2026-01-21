@@ -117,14 +117,19 @@ export default function SwipeableHitRow({
         <div className="relative overflow-hidden">
           {/* Info background (right swipe) - always mounted, revealed by swipe */}
           <div
-            className="absolute inset-0 bg-gradient-to-r from-blue-600 to-blue-500 flex items-center justify-start pl-4 pointer-events-none"
-            style={{ zIndex: swipeX > 0 ? Z_INDEX.BACKGROUND_ACTIVE : Z_INDEX.BACKGROUND_INACTIVE }}
+            className="absolute inset-0 flex items-center justify-start pl-4 pointer-events-none"
+            style={{
+              background: 'linear-gradient(to right, var(--accent-info), color-mix(in srgb, var(--accent-info) 90%, white))',
+              zIndex: swipeX > 0 ? Z_INDEX.BACKGROUND_ACTIVE : Z_INDEX.BACKGROUND_INACTIVE,
+            }}
           >
-            <div className="flex items-center gap-2 text-white font-bold text-xs">
+            <div className="flex items-center gap-2 font-bold text-xs" style={{ color: 'white' }}>
               <Info size={16} />
               <div className="flex flex-col">
-                <span className="text-[10px] text-blue-200">ID: {idLabel}</span>
-                <span className="text-[10px] text-blue-200">
+                <span className="text-[10px]" style={{ color: 'rgba(255, 255, 255, 0.8)' }}>
+                  ID: {idLabel}
+                </span>
+                <span className="text-[10px]" style={{ color: 'rgba(255, 255, 255, 0.8)' }}>
                   {new Date(hit.timestamp).toLocaleString('de-DE', {
                     year: 'numeric',
                     month: '2-digit',
@@ -133,7 +138,7 @@ export default function SwipeableHitRow({
                     minute: '2-digit'
                   })}
                 </span>
-                <span className="text-[10px] text-blue-200">
+                <span className="text-[10px]" style={{ color: 'rgba(255, 255, 255, 0.8)' }}>
                   Typ: {hit.type === 'Sensor' ? 'Offline (ESP32)' : 'Manuell'}
                 </span>
               </div>
@@ -142,12 +147,16 @@ export default function SwipeableHitRow({
 
           {/* Delete button background (left swipe) - always mounted, revealed by swipe */}
           <div
-            className="absolute inset-0 bg-gradient-to-l from-red-600 to-red-500 flex items-center justify-end pr-4 pointer-events-none"
-            style={{ zIndex: swipeX < 0 ? Z_INDEX.BACKGROUND_ACTIVE : Z_INDEX.BACKGROUND_INACTIVE }}
+            className="absolute inset-0 flex items-center justify-end pr-4 pointer-events-none"
+            style={{
+              background: 'linear-gradient(to left, var(--accent-error), color-mix(in srgb, var(--accent-error) 90%, white))',
+              zIndex: swipeX < 0 ? Z_INDEX.BACKGROUND_ACTIVE : Z_INDEX.BACKGROUND_INACTIVE,
+            }}
           >
             <button
               onClick={handleDelete}
-              className="flex items-center gap-2 text-white font-bold pointer-events-auto"
+              className="flex items-center gap-2 font-bold pointer-events-auto"
+              style={{ color: 'white' }}
             >
               <Trash2 size={16} />
               Löschen
@@ -156,8 +165,12 @@ export default function SwipeableHitRow({
 
           {/* Swipeable content */}
           <div
-            className="relative bg-zinc-900 flex items-center transition-transform duration-200"
-            style={{ transform: `translateX(${swipeX}px)`, zIndex: Z_INDEX.CONTENT }}
+            className="relative flex items-center transition-transform duration-200"
+            style={{
+              backgroundColor: 'var(--bg-secondary)',
+              transform: `translateX(${swipeX}px)`,
+              zIndex: Z_INDEX.CONTENT,
+            }}
             onTouchStart={handleTouchStart}
             onTouchMove={handleTouchMove}
             onTouchEnd={handleTouchEnd}
@@ -170,7 +183,18 @@ export default function SwipeableHitRow({
             tabIndex={0}
             aria-label={`Hit #${hitNumber} - ${hit.strainName} um ${new Date(hit.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - Links wischen zum Löschen, Rechts für Details`}
           >
-            <div className="w-full flex items-center py-3 px-4 hover:bg-zinc-800/50">
+            <div
+              className="w-full flex items-center py-3 px-4 transition-colors"
+              style={{
+                backgroundColor: 'transparent',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = 'color-mix(in srgb, var(--bg-tertiary) 50%, transparent)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent';
+              }}
+            >
               {/* **NEW v8.8**: Checkbox for multi-select mode */}
               {selectMode && (
                 <div className="flex-none mr-3">
@@ -179,19 +203,33 @@ export default function SwipeableHitRow({
                     checked={isSelected}
                     onChange={() => onToggleSelect && onToggleSelect(hit.id)}
                     onClick={(e) => e.stopPropagation()}
-                    className="w-4 h-4 rounded border-zinc-700 bg-zinc-800 text-emerald-500 focus:ring-2 focus:ring-emerald-500 cursor-pointer"
+                    className="w-4 h-4 rounded cursor-pointer"
+                    style={{
+                      borderColor: 'var(--border-primary)',
+                      backgroundColor: 'var(--bg-tertiary)',
+                      accentColor: 'var(--accent-primary)',
+                    }}
                   />
                 </div>
               )}
-              <div className="flex-none w-12 font-mono text-zinc-600 text-xs">#{hitNumber}</div>
-              <div className="flex-none w-20 text-white text-xs">
+              <div className="flex-none w-12 font-mono text-xs" style={{ color: 'var(--text-tertiary)' }}>
+                #{hitNumber}
+              </div>
+              <div className="flex-none w-20 text-xs" style={{ color: 'var(--text-primary)' }}>
                 {new Date(hit.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               </div>
-              <div className="flex-1 text-zinc-400 text-xs px-2 flex items-center gap-1">
+              <div className="flex-1 text-xs px-2 flex items-center gap-1" style={{ color: 'var(--text-secondary)' }}>
                 {hit.strainName}
                 {/* **NEW**: Offline/Sensor Hit Indicator */}
                 {hit.type === 'Sensor' && (
-                  <span className="inline-flex items-center gap-0.5 bg-blue-500/10 text-blue-400 border border-blue-500/30 px-1 py-0.5 rounded text-[9px] font-bold">
+                  <span
+                    className="inline-flex items-center gap-0.5 px-1 py-0.5 rounded text-[9px] font-bold border"
+                    style={{
+                      backgroundColor: 'color-mix(in srgb, var(--accent-info) 10%, transparent)',
+                      color: 'var(--accent-info)',
+                      borderColor: 'color-mix(in srgb, var(--accent-info) 30%, transparent)',
+                    }}
+                  >
                     <WifiOff size={9} />
                     O
                   </span>
@@ -199,7 +237,14 @@ export default function SwipeableHitRow({
               </div>
               <div className="flex-none text-right flex items-center gap-2">
                 {hit.duration > 0 && (
-                  <span className="bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 px-1.5 py-0.5 rounded">
+                  <span
+                    className="px-1.5 py-0.5 rounded border"
+                    style={{
+                      backgroundColor: 'color-mix(in srgb, var(--accent-primary) 10%, transparent)',
+                      color: 'var(--accent-primary)',
+                      borderColor: 'color-mix(in srgb, var(--accent-primary) 20%, transparent)',
+                    }}
+                  >
                     {(hit.duration / 1000).toFixed(1)}s
                   </span>
                 )}
@@ -210,7 +255,17 @@ export default function SwipeableHitRow({
                       e.stopPropagation();
                       handleDelete();
                     }}
-                    className="flex items-center gap-1 bg-red-600 hover:bg-red-700 active:bg-red-800 text-white px-2 py-1 rounded transition-colors text-[10px] font-bold"
+                    className="flex items-center gap-1 px-2 py-1 rounded transition-colors text-[10px] font-bold"
+                    style={{
+                      backgroundColor: 'var(--accent-error)',
+                      color: 'white',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = 'color-mix(in srgb, var(--accent-error) 90%, black)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = 'var(--accent-error)';
+                    }}
                     aria-label="Hit löschen"
                   >
                     <Trash2 size={12} />

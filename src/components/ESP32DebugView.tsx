@@ -116,10 +116,10 @@ function ESP32DebugView({
 
   // Verbindungsqualität berechnen
   const getConnectionQuality = () => {
-    if (!connected) return { label: 'Getrennt', color: 'text-zinc-500', bars: 0 };
-    if (errorCount > 5) return { label: 'Schlecht', color: 'text-red-500', bars: 1 };
-    if (errorCount > 2) return { label: 'Mittel', color: 'text-amber-500', bars: 2 };
-    return { label: 'Gut', color: 'text-emerald-500', bars: 3 };
+    if (!connected) return { label: 'Getrennt', color: 'var(--text-tertiary)', bars: 0 };
+    if (errorCount > 5) return { label: 'Schlecht', color: 'var(--accent-error)', bars: 1 };
+    if (errorCount > 2) return { label: 'Mittel', color: 'var(--accent-warning)', bars: 2 };
+    return { label: 'Gut', color: 'var(--accent-success)', bars: 3 };
   };
 
   const quality = getConnectionQuality();
@@ -129,27 +129,40 @@ function ESP32DebugView({
 
   return (
     <div className="space-y-6 animate-in fade-in pb-20">
-      <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-        <Radio size={24} className="text-emerald-500"/>
+      <h2 className="text-2xl font-bold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+        <Radio size={24} style={{ color: 'var(--accent-primary)' }} />
         ESP32 Diagnose
       </h2>
 
       {/* Verbindungsstatus */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 space-y-4">
+      <div
+        className="rounded-2xl p-6 space-y-4"
+        style={{
+          backgroundColor: 'var(--bg-secondary)',
+          border: '1px solid var(--border-primary)',
+        }}
+      >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             {connected ? (
-              <div className="bg-emerald-500/20 p-3 rounded-xl">
-                <Wifi size={24} className="text-emerald-500"/>
+              <div
+                className="p-3 rounded-xl"
+                style={{ backgroundColor: 'color-mix(in srgb, var(--accent-success) 20%, transparent)' }}
+              >
+                <Wifi size={24} style={{ color: 'var(--accent-success)' }} />
               </div>
             ) : (
-              <div className="bg-zinc-800 p-3 rounded-xl">
-                <WifiOff size={24} className="text-zinc-500"/>
+              <div className="p-3 rounded-xl" style={{ backgroundColor: 'var(--bg-tertiary)' }}>
+                <WifiOff size={24} style={{ color: 'var(--text-tertiary)' }} />
               </div>
             )}
             <div>
-              <h3 className="text-white font-bold">{connected ? 'Verbunden' : 'Getrennt'}</h3>
-              <p className="text-xs text-zinc-500">{isSimulating ? 'Demo Modus' : `ESP32 @ ${ip}`}</p>
+              <h3 className="font-bold" style={{ color: 'var(--text-primary)' }}>
+                {connected ? 'Verbunden' : 'Getrennt'}
+              </h3>
+              <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
+                {isSimulating ? 'Demo Modus' : `ESP32 @ ${ip}`}
+              </p>
             </div>
           </div>
 
@@ -159,26 +172,53 @@ function ESP32DebugView({
               {[1, 2, 3].map(bar => (
                 <div
                   key={bar}
-                  className={`w-1 rounded-sm ${bar <= quality.bars ? quality.color + ' bg-current' : 'bg-zinc-700'}`}
-                  style={{ height: `${bar * 6}px` }}
+                  className="w-1 rounded-sm"
+                  style={{
+                    height: `${bar * 6}px`,
+                    backgroundColor: bar <= quality.bars ? quality.color : 'var(--bg-tertiary)',
+                  }}
                 />
               ))}
             </div>
-            <span className={`text-xs font-bold ${quality.color}`}>{quality.label}</span>
+            <span className="text-xs font-bold" style={{ color: quality.color }}>
+              {quality.label}
+            </span>
           </div>
         </div>
 
         {/* Modus Toggle */}
-        <div className="flex items-center justify-between bg-zinc-950 p-3 rounded-xl border border-zinc-800">
+        <div
+          className="flex items-center justify-between p-3 rounded-xl border"
+          style={{
+            backgroundColor: 'var(--bg-primary)',
+            borderColor: 'var(--border-primary)',
+          }}
+        >
           <div className="flex items-center gap-2">
-            <Smartphone size={16} className={isSimulating ? "text-blue-500" : "text-emerald-500"}/>
+            <Smartphone
+              size={16}
+              style={{ color: isSimulating ? 'var(--accent-info)' : 'var(--accent-success)' }}
+            />
             <div>
-              <span className="text-white font-medium text-sm block">{isSimulating ? "Demo Modus" : "Sensor Modus"}</span>
-              <span className="text-[10px] text-zinc-500">{isSimulating ? "Simulierte Daten" : "Live ESP32 Daten"}</span>
+              <span className="font-medium text-sm block" style={{ color: 'var(--text-primary)' }}>
+                {isSimulating ? "Demo Modus" : "Sensor Modus"}
+              </span>
+              <span className="text-[10px]" style={{ color: 'var(--text-tertiary)' }}>
+                {isSimulating ? "Simulierte Daten" : "Live ESP32 Daten"}
+              </span>
             </div>
           </div>
-          <button onClick={() => setIsSimulating(!isSimulating)} className={`w-12 h-6 rounded-full transition-colors relative ${isSimulating ? 'bg-blue-500' : 'bg-emerald-600'}`}>
-            <div className={`w-4 h-4 bg-white rounded-full absolute top-1 transition-all ${isSimulating ? 'left-1' : 'left-7'}`}/>
+          <button
+            onClick={() => setIsSimulating(!isSimulating)}
+            className="w-12 h-6 rounded-full transition-colors relative"
+            style={{
+              backgroundColor: isSimulating ? 'var(--accent-info)' : 'var(--accent-success)',
+            }}
+          >
+            <div
+              className={`w-4 h-4 rounded-full absolute top-1 transition-all ${isSimulating ? 'left-1' : 'left-7'}`}
+              style={{ backgroundColor: 'white' }}
+            />
           </button>
         </div>
 
