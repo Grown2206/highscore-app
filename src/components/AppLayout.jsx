@@ -187,6 +187,9 @@ export default function AppLayout({ ctx }) {
               setShowRecovery={ctx.setShowRecovery}
               isSimulating={ctx.isSimulating}
               setIsSimulating={ctx.setIsSimulating}
+              esp32Connected={ctx.connected}
+              esp32Ip={ctx.ip}
+              esp32LiveData={ctx.liveData}
             />
           )}
         </div>

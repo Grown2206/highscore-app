@@ -201,6 +201,7 @@ export function useESP32Polling({
   const isSyncingRef = useRef(false);
   const notificationTimeoutRef = useRef<number | undefined>(undefined);
   const visibilityTimeoutRef = useRef<number | undefined>(undefined);
+  const recentOnlineHitsRef = useRef<number[]>([]); // Timestamps von Hits die während Online-Modus erfasst wurden
   const simRef = useRef<SimulationRef>({
     flame: false,
     lastTrigger: 0,
@@ -310,12 +311,29 @@ export function useESP32Polling({
           };
         });
 
+        // **FIX v8.10**: Filtere Duplikate - Hits die zeitlich sehr nah an Online-Hits liegen
+        const DUPLICATE_WINDOW_MS = 10000; // 10 Sekunden Toleranz
+        const filteredImportedHits = importedHits.filter(hit => {
+          // Prüfe ob dieser Hit zeitlich zu nah an einem Online-Hit liegt
+          const isDuplicate = recentOnlineHitsRef.current.some(onlineHitTs =>
+            Math.abs(hit.timestamp - onlineHitTs) < DUPLICATE_WINDOW_MS
+          );
+
+          if (isDuplicate) {
+            console.log(`🔍 Duplikat gefiltert: Offline-Hit @ ${new Date(hit.timestamp).toLocaleTimeString()} zu nah an Online-Hit`);
+          }
+
+          return !isDuplicate;
+        });
+
         // Importiere Hits in sessionHits mit Duplikatsprüfung
         let actuallyImportedCount = 0;
+        let filteredDuplicateCount = 0;
         setSessionHits(prev => {
           const existingIds = new Set(prev.map(h => h.id));
-          const newHits = importedHits.filter(h => !existingIds.has(h.id));
+          const newHits = filteredImportedHits.filter(h => !existingIds.has(h.id));
           actuallyImportedCount = newHits.length;
+          filteredDuplicateCount = importedHits.length - filteredImportedHits.length;
           const updated = newHits.length > 0 ? [...newHits, ...prev] : prev;
 
           // Auto-Sync: Rebuild historyData aus aktualisierten sessionHits
@@ -335,9 +353,14 @@ export function useESP32Polling({
           });
           scheduleNotificationClear(4000);
 
-          console.log(`✅ Auto-Sync erfolgreich: ${actuallyImportedCount} hits importiert (${pendingCount - actuallyImportedCount} Duplikate übersprungen)`);
+          const totalDuplicates = pendingCount - actuallyImportedCount;
+          const timeBasedDuplicates = filteredDuplicateCount;
+          const idBasedDuplicates = totalDuplicates - timeBasedDuplicates;
+
+          console.log(`✅ Auto-Sync erfolgreich: ${actuallyImportedCount} hits importiert (${timeBasedDuplicates} Online-Duplikate, ${idBasedDuplicates} ID-Duplikate gefiltert)`);
         } else {
-          console.log(`✓ Auto-Sync: Alle ${pendingCount} hits bereits vorhanden (Duplikate)`);
+          const timeBasedDuplicates = filteredDuplicateCount;
+          console.log(`✓ Auto-Sync: Alle ${pendingCount} hits bereits vorhanden (${timeBasedDuplicates} Online-Duplikate, ${pendingCount - timeBasedDuplicates} ID-Duplikate)`);
         }
 
         // Sync Complete aufrufen (auch bei Duplikaten!)
@@ -474,7 +497,13 @@ export function useESP32Polling({
           // Hit Detection: ESP32 zählt bereits selbst, wir müssen nur bei Änderung reagieren
           if (json.total > prevApiTotalRef.current && prevApiTotalRef.current !== 0) {
             const duration = json.lastDuration || 0;
+            const hitTimestamp = Date.now();
             registerHitCallback(false, duration);
+
+            // **FIX v8.10**: Merke Timestamp von Online-Hits für Duplikatsprüfung
+            recentOnlineHitsRef.current.push(hitTimestamp);
+            // Behalte nur Hits der letzten 60 Sekunden (für Duplikatsprüfung)
+            recentOnlineHitsRef.current = recentOnlineHitsRef.current.filter(ts => hitTimestamp - ts < 60000);
           }
           prevApiTotalRef.current = json.total;
 
