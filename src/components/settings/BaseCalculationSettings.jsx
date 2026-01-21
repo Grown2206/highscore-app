@@ -1,16 +1,93 @@
-import React from 'react';
-import { Scale, Shield, Smartphone } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Scale, Shield, Smartphone, Zap, Save, X } from 'lucide-react';
+
+const MIN_SESSION_DURATION_MS = 500;
+const MAX_SESSION_DURATION_MS = 8000;
+const MIN_DURATION_SLIDER_MAX = 3000;
+const MAX_DURATION_SLIDER_MIN = 2000;
+const DEFAULT_MIN_SESSION_DURATION_MS = 800;
+const DEFAULT_MAX_SESSION_DURATION_MS = 4500;
 
 /**
- * Base Calculation Settings Component
- * Bowl size, weed ratio, admin mode toggle, simulation mode toggle
+ * Base Calculation Settings Component (v8.10)
+ * Bowl size, weed ratio, admin mode toggle, simulation mode toggle, false trigger settings
  */
 export default function BaseCalculationSettings({
   settings,
   updateSetting,
   isSimulating,
-  setIsSimulating
+  setIsSimulating,
+  esp32Connected,
+  esp32Ip,
+  esp32LiveData
 }) {
+  const [editingTrigger, setEditingTrigger] = useState(false);
+  const [minDuration, setMinDuration] = useState(DEFAULT_MIN_SESSION_DURATION_MS);
+  const [maxDuration, setMaxDuration] = useState(DEFAULT_MAX_SESSION_DURATION_MS);
+  const [saving, setSaving] = useState(false);
+
+  // Sync False Trigger Settings vom ESP32
+  useEffect(() => {
+    if (esp32LiveData?.minSessionDuration !== undefined && esp32LiveData?.minSessionDuration !== null) {
+      setMinDuration(esp32LiveData.minSessionDuration);
+    }
+    if (esp32LiveData?.maxSessionDuration !== undefined && esp32LiveData?.maxSessionDuration !== null) {
+      setMaxDuration(esp32LiveData.maxSessionDuration);
+    }
+  }, [esp32LiveData?.minSessionDuration, esp32LiveData?.maxSessionDuration]);
+
+  // False Trigger Einstellungen an ESP32 senden
+  const saveTriggerSettings = async () => {
+    if (isSimulating) {
+      alert('Im Demo Modus nicht verfügbar');
+      return;
+    }
+
+    // Validierung
+    if (minDuration >= maxDuration) {
+      alert('Fehler: Min. Dauer muss kleiner als Max. Dauer sein!');
+      return;
+    }
+
+    if (minDuration < MIN_SESSION_DURATION_MS || minDuration > MAX_SESSION_DURATION_MS) {
+      alert(`Fehler: Min. Dauer muss zwischen ${MIN_SESSION_DURATION_MS}ms und ${MAX_SESSION_DURATION_MS}ms liegen!`);
+      return;
+    }
+
+    if (maxDuration < MIN_SESSION_DURATION_MS || maxDuration > MAX_SESSION_DURATION_MS) {
+      alert(`Fehler: Max. Dauer muss zwischen ${MIN_SESSION_DURATION_MS}ms und ${MAX_SESSION_DURATION_MS}ms liegen!`);
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const response = await fetch(`http://${esp32Ip}/api/settings`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          minSessionDuration: minDuration,
+          maxSessionDuration: maxDuration
+        })
+      });
+
+      if (response.ok) {
+        if (navigator.vibrate) navigator.vibrate([50, 50, 50]);
+        setEditingTrigger(false);
+        alert('✅ Einstellungen erfolgreich an ESP32 gesendet!');
+      } else {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        throw new Error(errorData.error || 'Speichern fehlgeschlagen');
+      }
+    } catch (error) {
+      console.error('Error saving settings:', error);
+      alert(`❌ Fehler beim Speichern: ${error.message}`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 space-y-6">
       <h3 className="text-sm font-bold text-zinc-400 uppercase flex items-center gap-2">
@@ -85,6 +162,119 @@ export default function BaseCalculationSettings({
           >
             <div className={`w-4 h-4 bg-white rounded-full absolute top-1 transition-all ${isSimulating ? 'left-7' : 'left-1'}`}></div>
           </button>
+        </div>
+      )}
+
+      {/* **NEU v8.10**: False Trigger Prevention Settings */}
+      {esp32Connected && !isSimulating && (
+        <div className="pt-4 mt-4 border-t border-zinc-800">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Zap size={16} className="text-amber-400" />
+              <h4 className="text-sm font-bold text-zinc-400 uppercase">False Trigger Prevention</h4>
+            </div>
+            {!editingTrigger ? (
+              <button
+                onClick={() => setEditingTrigger(true)}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs transition-colors"
+              >
+                <Zap size={12} />
+                Anpassen
+              </button>
+            ) : (
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    setEditingTrigger(false);
+                    setMinDuration(esp32LiveData?.minSessionDuration || DEFAULT_MIN_SESSION_DURATION_MS);
+                    setMaxDuration(esp32LiveData?.maxSessionDuration || DEFAULT_MAX_SESSION_DURATION_MS);
+                  }}
+                  className="flex items-center gap-1 px-2 py-1 rounded-lg bg-zinc-700 hover:bg-zinc-600 text-white text-xs transition-colors"
+                >
+                  <X size={12} />
+                  Abbrechen
+                </button>
+                <button
+                  onClick={saveTriggerSettings}
+                  disabled={
+                    saving ||
+                    minDuration >= maxDuration ||
+                    minDuration < MIN_SESSION_DURATION_MS || minDuration > MAX_SESSION_DURATION_MS ||
+                    maxDuration < MIN_SESSION_DURATION_MS || maxDuration > MAX_SESSION_DURATION_MS
+                  }
+                  className="flex items-center gap-1 px-2 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 disabled:bg-zinc-700 disabled:text-zinc-500 text-white text-xs transition-colors"
+                >
+                  <Save size={12} />
+                  {saving ? 'Speichern...' : 'An ESP32 senden'}
+                </button>
+              </div>
+            )}
+          </div>
+
+          <p className="text-xs text-zinc-500 mb-4">
+            Verhindert Fehlauslösungen durch zu kurze Flammen-Signale (z.B. Feuerzeug-Flackern)
+          </p>
+
+          {!editingTrigger ? (
+            <div className="grid grid-cols-2 gap-3 text-xs">
+              <div className="bg-zinc-950 rounded-lg p-3 border border-zinc-800">
+                <p className="text-[10px] text-zinc-600 uppercase mb-1">Min. Dauer</p>
+                <p className="text-lg font-bold text-emerald-400">{(minDuration / 1000).toFixed(1)}s</p>
+                <p className="text-[9px] text-zinc-600">Mindest-Session</p>
+              </div>
+
+              <div className="bg-zinc-950 rounded-lg p-3 border border-zinc-800">
+                <p className="text-[10px] text-zinc-600 uppercase mb-1">Max. Dauer</p>
+                <p className="text-lg font-bold text-amber-400">{(maxDuration / 1000).toFixed(1)}s</p>
+                <p className="text-[9px] text-zinc-600">Maximum-Session</p>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {/* Min Duration Slider */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs text-zinc-400">Min. Dauer (ms)</label>
+                  <span className="text-sm font-bold text-emerald-400">{minDuration}ms ({(minDuration / 1000).toFixed(2)}s)</span>
+                </div>
+                <input
+                  type="range"
+                  min={MIN_SESSION_DURATION_MS}
+                  max={MIN_DURATION_SLIDER_MAX}
+                  step="50"
+                  value={minDuration}
+                  onChange={(e) => setMinDuration(parseInt(e.target.value))}
+                  className="w-full h-2 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+                />
+                <p className="text-[9px] text-zinc-600">⚠️ Zu kurz → Fehlauslösungen (Flackern)</p>
+              </div>
+
+              {/* Max Duration Slider */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs text-zinc-400">Max. Dauer (ms)</label>
+                  <span className="text-sm font-bold text-amber-400">{maxDuration}ms ({(maxDuration / 1000).toFixed(2)}s)</span>
+                </div>
+                <input
+                  type="range"
+                  min={MAX_DURATION_SLIDER_MIN}
+                  max={MAX_SESSION_DURATION_MS}
+                  step="100"
+                  value={maxDuration}
+                  onChange={(e) => setMaxDuration(parseInt(e.target.value))}
+                  className="w-full h-2 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-amber-500"
+                />
+                <p className="text-[9px] text-zinc-600">⚠️ Zu lang → Sensor hängt fest</p>
+              </div>
+
+              {/* Validation Warning */}
+              {minDuration >= maxDuration && (
+                <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-2">
+                  <p className="text-xs text-red-400">⚠️ Min. Dauer muss kleiner als Max. Dauer sein!</p>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>

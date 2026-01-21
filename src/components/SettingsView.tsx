@@ -33,6 +33,9 @@ interface SettingsViewProps {
   setShowRecovery: (show: boolean) => void;
   isSimulating: boolean;
   setIsSimulating: (sim: boolean) => void;
+  esp32Connected: boolean;
+  esp32Ip: string;
+  esp32LiveData: any;
 }
 
 /**
@@ -51,7 +54,10 @@ function SettingsView({
   showRecovery,
   setShowRecovery,
   isSimulating,
-  setIsSimulating
+  setIsSimulating,
+  esp32Connected,
+  esp32Ip,
+  esp32LiveData
 }: SettingsViewProps) {
   const [exportStatus, setExportStatus] = useState<StatusMessage | null>(null);
   const [testDataStatus, setTestDataStatus] = useState<StatusMessage | null>(null);
@@ -261,6 +267,9 @@ function SettingsView({
         updateSetting={updateSetting}
         isSimulating={isSimulating}
         setIsSimulating={setIsSimulating}
+        esp32Connected={esp32Connected}
+        esp32Ip={esp32Ip}
+        esp32LiveData={esp32LiveData}
       />
 
       <GoalsSettings
