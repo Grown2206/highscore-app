@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
 import { ChevronDown, Check } from 'lucide-react';
 
@@ -29,7 +29,8 @@ const ThemeSwitcher: React.FC<ThemeSwitcherProps> = ({ compact = false }) => {
     minimal: 'Reduziertes Monochrom',
   };
 
-  const themeEntries = Object.entries(availableThemes);
+  // Memoize to avoid re-running effects on every render
+  const themeEntries = useMemo(() => Object.entries(availableThemes), [availableThemes]);
 
   // Keyboard navigation
   useEffect(() => {
@@ -209,26 +210,34 @@ const ThemeSwitcher: React.FC<ThemeSwitcherProps> = ({ compact = false }) => {
               const isFocused = focusedIndex === index;
 
               return (
-                <button
+                <div
                   key={id}
                   onClick={() => {
                     setTheme(id);
                     setIsOpen(false);
                     buttonRef.current?.focus();
                   }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      setTheme(id);
+                      setIsOpen(false);
+                      buttonRef.current?.focus();
+                    }
+                  }}
                   role="option"
                   aria-selected={isSelected}
+                  tabIndex={0}
                   className={`
-                    w-full p-4 text-left transition-all duration-200 border-b last:border-b-0
+                    w-full p-4 text-left transition-all duration-200 border-b last:border-b-0 cursor-pointer
                     ${!isSelected && 'hover:bg-[color-mix(in_srgb,var(--bg-tertiary)_50%,transparent)]'}
-                    ${isFocused && 'ring-2 ring-inset'}
+                    ${isFocused && 'ring-2 ring-inset ring-[var(--accent-primary)]'}
                   `}
                   style={{
                     backgroundColor: isSelected
                       ? 'color-mix(in srgb, var(--accent-primary) 10%, transparent)'
                       : 'transparent',
                     borderColor: 'var(--border-primary)',
-                    ...(isFocused && { ringColor: 'var(--accent-primary)' }),
                   }}
                   onMouseEnter={() => setFocusedIndex(index)}
                 >
@@ -251,7 +260,7 @@ const ThemeSwitcher: React.FC<ThemeSwitcherProps> = ({ compact = false }) => {
                           {theme.name}
                         </span>
                         {isSelected && (
-                          <Check size={16} style={{ color: 'var(--accent-success)' }} aria-label="Selected" />
+                          <Check size={16} style={{ color: 'var(--accent-success)' }} aria-hidden="true" />
                         )}
                       </div>
                       <div className="text-xs mt-0.5" style={{ color: theme.colors.text.tertiary }}>
@@ -287,7 +296,7 @@ const ThemeSwitcher: React.FC<ThemeSwitcherProps> = ({ compact = false }) => {
                       />
                     </div>
                   </div>
-                </button>
+                </div>
               );
             })}
           </div>
