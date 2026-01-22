@@ -227,8 +227,8 @@ export default function ChartsView({ historyData, settings, sessionHits }: Chart
   return (
     <div className="space-y-6 animate-in slide-in-from-right-4 pb-20">
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-          <BarChart3 className="text-emerald-500" />
+        <h2 className="text-2xl font-bold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+          <BarChart3 style={{ color: 'var(--accent-success)' }} />
           Statistik
         </h2>
       </div>

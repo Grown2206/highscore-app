@@ -4,13 +4,22 @@ import { AlertCircle } from 'lucide-react';
 /**
  * Reusable Status Alert Component
  * Displays success, error, info, or warning messages with consistent styling
+ * Theme-aware using CSS variables
  */
 
-const TYPE_CLASSES = {
-  success: 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500',
-  error: 'bg-rose-500/10 border-rose-500/20 text-rose-500',
-  info: 'bg-blue-500/10 border-blue-500/20 text-blue-500',
-  warning: 'bg-amber-500/10 border-amber-500/20 text-amber-500',
+const TYPE_STYLES = {
+  success: {
+    colorVar: '--accent-success',
+  },
+  error: {
+    colorVar: '--accent-error',
+  },
+  info: {
+    colorVar: '--accent-info',
+  },
+  warning: {
+    colorVar: '--accent-warning',
+  },
 } as const;
 
 /**
@@ -19,7 +28,7 @@ const TYPE_CLASSES = {
  * Note: The component includes a runtime guard that falls back to 'error' styling
  * for invalid type values from non-TypeScript or loosely typed call sites.
  */
-export type AlertType = keyof typeof TYPE_CLASSES;
+export type AlertType = keyof typeof TYPE_STYLES;
 
 interface StatusAlertProps {
   type: AlertType;
@@ -34,14 +43,20 @@ export default function StatusAlert({
   iconSize = 14,
   className = ''
 }: StatusAlertProps) {
-  const baseClasses = 'p-3 rounded-xl border flex items-center gap-2 text-sm';
-  const safeType = Object.hasOwn(TYPE_CLASSES, type as PropertyKey)
-    ? (type as keyof typeof TYPE_CLASSES)
+  const safeType = Object.hasOwn(TYPE_STYLES, type as PropertyKey)
+    ? (type as keyof typeof TYPE_STYLES)
     : 'error';
-  const typeClasses = TYPE_CLASSES[safeType];
+  const { colorVar } = TYPE_STYLES[safeType];
 
   return (
-    <div className={`${baseClasses} ${typeClasses} ${className}`}>
+    <div
+      className={`p-3 rounded-xl border flex items-center gap-2 text-sm ${className}`}
+      style={{
+        backgroundColor: `color-mix(in srgb, var(${colorVar}) 10%, transparent)`,
+        borderColor: `color-mix(in srgb, var(${colorVar}) 20%, transparent)`,
+        color: `var(${colorVar})`,
+      }}
+    >
       <AlertCircle size={iconSize} />
       {children}
     </div>

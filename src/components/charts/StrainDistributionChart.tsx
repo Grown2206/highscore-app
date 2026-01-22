@@ -26,37 +26,61 @@ export default function StrainDistributionChart({ strainStats, totalStrainHits }
     return Tag;
   };
 
-  const getRankColor = (index: number) => {
-    if (index === 0) return 'text-yellow-400 bg-yellow-500/20';
-    if (index === 1) return 'text-zinc-300 bg-zinc-500/20';
-    if (index === 2) return 'text-amber-600 bg-amber-500/20';
-    return 'text-purple-400 bg-purple-500/10';
+  const getRankStyles = (index: number) => {
+    if (index === 0)
+      return {
+        color: 'var(--accent-warning)',
+        bg: 'color-mix(in srgb, var(--accent-warning) 20%, transparent)',
+      };
+    if (index === 1)
+      return {
+        color: 'var(--text-secondary)',
+        bg: 'color-mix(in srgb, var(--text-secondary) 20%, transparent)',
+      };
+    if (index === 2)
+      return {
+        color: 'var(--accent-warning)',
+        bg: 'color-mix(in srgb, var(--accent-warning) 15%, transparent)',
+      };
+    return {
+      color: 'var(--accent-secondary)',
+      bg: 'color-mix(in srgb, var(--accent-secondary) 10%, transparent)',
+    };
   };
 
   const getBarGradient = (index: number) => {
-    if (index === 0) return 'from-yellow-500 via-purple-500 to-pink-500';
-    if (index === 1) return 'from-zinc-400 via-purple-500 to-pink-500';
-    if (index === 2) return 'from-amber-600 via-purple-500 to-pink-500';
-    return 'from-purple-500 to-pink-500';
+    if (index === 0) return 'linear-gradient(to right, var(--accent-warning), var(--accent-secondary), var(--accent-primary))';
+    if (index === 1) return 'linear-gradient(to right, var(--text-secondary), var(--accent-secondary), var(--accent-primary))';
+    if (index === 2) return 'linear-gradient(to right, var(--accent-warning), var(--accent-secondary), var(--accent-primary))';
+    return 'linear-gradient(to right, var(--accent-secondary), var(--accent-primary))';
   };
 
   const totalCost = strainStats.reduce((sum, s) => sum + s.cost, 0);
 
   return (
-    <div className="bg-gradient-to-br from-purple-900/10 to-zinc-900 border border-purple-500/20 rounded-2xl p-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div
+      className="rounded-2xl p-6 animate-in fade-in slide-in-from-bottom-4 duration-500 border"
+      style={{
+        background: 'linear-gradient(to bottom right, color-mix(in srgb, var(--accent-secondary) 10%, transparent), var(--bg-secondary))',
+        borderColor: 'color-mix(in srgb, var(--accent-secondary) 20%, transparent)',
+      }}
+    >
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-2">
-          <div className="bg-purple-500/20 p-2 rounded-lg">
-            <Tag size={16} className="text-purple-400"/>
+          <div
+            className="p-2 rounded-lg"
+            style={{ backgroundColor: 'color-mix(in srgb, var(--accent-secondary) 20%, transparent)' }}
+          >
+            <Tag size={16} style={{ color: 'var(--accent-secondary)' }} />
           </div>
           <div>
-            <h3 className="text-sm font-bold text-purple-300 uppercase">Sorten-Verteilung</h3>
-            <p className="text-xs text-zinc-500">Top 5 Favoriten</p>
+            <h3 className="text-sm font-bold uppercase" style={{ color: 'var(--accent-secondary)' }}>Sorten-Verteilung</h3>
+            <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>Top 5 Favoriten</p>
           </div>
         </div>
         <div className="text-right">
-          <div className="text-xl font-bold text-purple-400">{totalCost.toFixed(2)}€</div>
-          <div className="text-xs text-zinc-500">Gesamt</div>
+          <div className="text-xl font-bold" style={{ color: 'var(--accent-secondary)' }}>{totalCost.toFixed(2)}€</div>
+          <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>Gesamt</div>
         </div>
       </div>
 
@@ -64,39 +88,51 @@ export default function StrainDistributionChart({ strainStats, totalStrainHits }
         {strainStats.map((strain, i) => {
           const percentage = totalStrainHits > 0 ? (strain.count / totalStrainHits) * 100 : 0;
           const RankIcon = getRankIcon(i);
-          const rankColor = getRankColor(i);
+          const rankStyles = getRankStyles(i);
           const barGradient = getBarGradient(i);
 
           return (
             <div
               key={i}
-              className="group relative bg-zinc-900/30 border border-zinc-800 rounded-xl p-3 hover:border-purple-500/30 transition-all"
-              style={{ animationDelay: `${i * 0.1}s` }}
+              className="group relative rounded-xl p-3 transition-all border"
+              style={{
+                backgroundColor: 'color-mix(in srgb, var(--bg-secondary) 30%, transparent)',
+                borderColor: 'var(--border-primary)',
+                animationDelay: `${i * 0.1}s`,
+              }}
             >
               {/* Rank badge */}
-              <div className={`absolute -top-2 -left-2 p-1.5 rounded-lg ${rankColor}`}>
-                <RankIcon size={12} />
+              <div
+                className="absolute -top-2 -left-2 p-1.5 rounded-lg"
+                style={{
+                  backgroundColor: rankStyles.bg,
+                }}
+              >
+                <RankIcon size={12} style={{ color: rankStyles.color }} />
               </div>
 
               {/* Strain info */}
               <div className="flex justify-between items-center mb-2">
                 <div className="flex items-center gap-3">
-                  <span className="text-zinc-600 font-bold text-xs">#{i + 1}</span>
-                  <span className="text-zinc-300 font-medium text-sm">{strain.name}</span>
+                  <span className="font-bold text-xs" style={{ color: 'var(--text-disabled)' }}>#{i + 1}</span>
+                  <span className="font-medium text-sm" style={{ color: 'var(--text-primary)' }}>{strain.name}</span>
                 </div>
                 <div className="flex items-center gap-3 text-xs">
-                  <span className="text-purple-400 font-bold">{strain.count}</span>
-                  <span className="text-zinc-600">·</span>
-                  <span className="text-pink-400 font-bold">{strain.cost.toFixed(2)}€</span>
+                  <span className="font-bold" style={{ color: 'var(--accent-secondary)' }}>{strain.count}</span>
+                  <span style={{ color: 'var(--text-disabled)' }}>·</span>
+                  <span className="font-bold" style={{ color: 'var(--accent-primary)' }}>{strain.cost.toFixed(2)}€</span>
                 </div>
               </div>
 
               {/* Progress bar */}
               <div className="relative">
-                <div className="w-full bg-zinc-800 rounded-full h-3 overflow-hidden">
+                <div className="w-full rounded-full h-3 overflow-hidden" style={{ backgroundColor: 'var(--bg-tertiary)' }}>
                   <div
-                    className={`bg-gradient-to-r ${barGradient} h-full rounded-full transition-all duration-500 group-hover:opacity-90`}
-                    style={{ width: `${percentage}%` }}
+                    className="h-full rounded-full transition-all duration-500 group-hover:opacity-90"
+                    style={{
+                      width: `${percentage}%`,
+                      background: barGradient,
+                    }}
                   >
                     <div className="absolute inset-0 bg-gradient-to-t from-white/10 to-transparent"></div>
                   </div>
@@ -109,21 +145,24 @@ export default function StrainDistributionChart({ strainStats, totalStrainHits }
               </div>
 
               {/* Hover glow */}
-              <div className="absolute inset-0 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none bg-purple-500/5"></div>
+              <div
+                className="absolute inset-0 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
+                style={{ backgroundColor: 'color-mix(in srgb, var(--accent-secondary) 5%, transparent)' }}
+              ></div>
             </div>
           );
         })}
       </div>
 
       {/* Footer */}
-      <div className="mt-6 pt-4 border-t border-zinc-800 flex items-center justify-center gap-4 text-xs">
+      <div className="mt-6 pt-4 border-t flex items-center justify-center gap-4 text-xs" style={{ borderColor: 'var(--border-primary)' }}>
         <div className="flex items-center gap-2">
-          <Trophy size={12} className="text-yellow-400"/>
-          <span className="text-zinc-500">Top Strain</span>
+          <Trophy size={12} style={{ color: 'var(--accent-warning)' }} />
+          <span style={{ color: 'var(--text-tertiary)' }}>Top Strain</span>
         </div>
-        <div className="text-zinc-600">·</div>
-        <div className="text-zinc-500">
-          <span className="text-purple-400 font-medium">{totalStrainHits}</span> Gesamt Hits
+        <div style={{ color: 'var(--text-disabled)' }}>·</div>
+        <div style={{ color: 'var(--text-tertiary)' }}>
+          <span className="font-medium" style={{ color: 'var(--accent-secondary)' }}>{totalStrainHits}</span> Gesamt Hits
         </div>
       </div>
     </div>

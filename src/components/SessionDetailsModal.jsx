@@ -9,26 +9,45 @@ export default function SessionDetailsModal({ session, onClose }) {
 
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 animate-in fade-in duration-200" onClick={onClose}>
-      <div className="absolute inset-0 bg-black/80 backdrop-blur-sm"></div>
+      <div className="absolute inset-0 backdrop-blur-sm" style={{ backgroundColor: 'rgba(0, 0, 0, 0.8)' }}></div>
 
       <div
-        className="relative bg-zinc-900 border border-zinc-800 rounded-2xl p-6 max-w-md w-full shadow-2xl animate-in zoom-in-95 duration-200"
+        className="relative border rounded-2xl p-6 max-w-md w-full shadow-2xl animate-in zoom-in-95 duration-200"
+        style={{
+          backgroundColor: 'var(--bg-secondary)',
+          borderColor: 'var(--border-primary)',
+        }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
-            <div className="bg-emerald-500/10 p-2 rounded-xl border border-emerald-500/20">
-              <Zap size={20} className="text-emerald-500" />
+            <div
+              className="p-2 rounded-xl border"
+              style={{
+                backgroundColor: 'color-mix(in srgb, var(--accent-success) 10%, transparent)',
+                borderColor: 'color-mix(in srgb, var(--accent-success) 20%, transparent)',
+              }}
+            >
+              <Zap size={20} style={{ color: 'var(--accent-success)' }} />
             </div>
             <div>
-              <h3 className="text-lg font-bold text-white">Session Details</h3>
-              <p className="text-xs text-zinc-500">#{session.id.toString().slice(-6)}</p>
+              <h3 className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>Session Details</h3>
+              <p className="text-xs" style={{ color: 'var(--text-disabled)' }}>#{session.id.toString().slice(-6)}</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-zinc-800 rounded-lg transition-colors text-zinc-400 hover:text-white"
+            className="p-2 rounded-lg transition-colors"
+            style={{ color: 'var(--text-tertiary)' }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = 'var(--bg-tertiary)';
+              e.currentTarget.style.color = 'var(--text-primary)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'transparent';
+              e.currentTarget.style.color = 'var(--text-tertiary)';
+            }}
           >
             <X size={20} />
           </button>
@@ -37,93 +56,151 @@ export default function SessionDetailsModal({ session, onClose }) {
         {/* Content */}
         <div className="space-y-4">
           {/* Date & Time */}
-          <div className="bg-zinc-950 p-4 rounded-xl border border-zinc-800">
+          <div
+            className="p-4 rounded-xl border"
+            style={{
+              backgroundColor: 'var(--bg-primary)',
+              borderColor: 'var(--border-primary)',
+            }}
+          >
             <div className="flex items-center gap-2 mb-2">
-              <Calendar size={14} className="text-blue-500" />
-              <span className="text-xs text-zinc-500 uppercase font-bold">Zeitpunkt</span>
+              <Calendar size={14} style={{ color: 'var(--accent-info)' }} />
+              <span className="text-xs uppercase font-bold" style={{ color: 'var(--text-disabled)' }}>Zeitpunkt</span>
             </div>
             <div className="space-y-1">
-              <p className="text-white font-medium">{date.toLocaleDateString('de-DE', {
+              <p className="font-medium" style={{ color: 'var(--text-primary)' }}>{date.toLocaleDateString('de-DE', {
                 weekday: 'long',
                 year: 'numeric',
                 month: 'long',
                 day: 'numeric'
               })}</p>
-              <p className="text-2xl font-bold font-mono text-emerald-400">
+              <p className="text-2xl font-bold font-mono" style={{ color: 'var(--accent-success)' }}>
                 {date.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
               </p>
             </div>
           </div>
 
           {/* Strain */}
-          <div className="bg-zinc-950 p-4 rounded-xl border border-zinc-800">
+          <div
+            className="p-4 rounded-xl border"
+            style={{
+              backgroundColor: 'var(--bg-primary)',
+              borderColor: 'var(--border-primary)',
+            }}
+          >
             <div className="flex items-center gap-2 mb-2">
-              <Tag size={14} className="text-purple-500" />
-              <span className="text-xs text-zinc-500 uppercase font-bold">Sorte</span>
+              <Tag size={14} style={{ color: 'var(--accent-secondary)' }} />
+              <span className="text-xs uppercase font-bold" style={{ color: 'var(--text-disabled)' }}>Sorte</span>
             </div>
-            <p className="text-lg font-bold text-white">{session.strainName || 'Unbekannt'}</p>
+            <p className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>{session.strainName || 'Unbekannt'}</p>
             {session.strainPrice && (
-              <p className="text-xs text-zinc-500 mt-1">{session.strainPrice}€/g</p>
+              <p className="text-xs mt-1" style={{ color: 'var(--text-disabled)' }}>{session.strainPrice}€/g</p>
             )}
           </div>
 
           {/* Duration */}
           {session.duration > 0 && (
-            <div className="bg-zinc-950 p-4 rounded-xl border border-zinc-800">
+            <div
+              className="p-4 rounded-xl border"
+              style={{
+                backgroundColor: 'var(--bg-primary)',
+                borderColor: 'var(--border-primary)',
+              }}
+            >
               <div className="flex items-center gap-2 mb-2">
-                <Clock size={14} className="text-amber-500" />
-                <span className="text-xs text-zinc-500 uppercase font-bold">Dauer</span>
+                <Clock size={14} style={{ color: 'var(--accent-warning)' }} />
+                <span className="text-xs uppercase font-bold" style={{ color: 'var(--text-disabled)' }}>Dauer</span>
               </div>
               <div className="flex items-baseline gap-2">
-                <p className="text-2xl font-bold font-mono text-amber-400">{duration}</p>
-                <span className="text-sm text-zinc-500">Sekunden</span>
+                <p className="text-2xl font-bold font-mono" style={{ color: 'var(--accent-warning)' }}>{duration}</p>
+                <span className="text-sm" style={{ color: 'var(--text-disabled)' }}>Sekunden</span>
               </div>
-              <div className="mt-3 bg-zinc-900 rounded-full h-2 overflow-hidden">
+              <div className="mt-3 rounded-full h-2 overflow-hidden" style={{ backgroundColor: 'var(--bg-secondary)' }}>
                 <div
-                  className="bg-gradient-to-r from-amber-500 to-orange-500 h-full transition-all"
-                  style={{ width: `${Math.min(100, (parseFloat(duration) / 10) * 100)}%` }}
+                  className="h-full transition-all"
+                  style={{
+                    width: `${Math.min(100, (parseFloat(duration) / 10) * 100)}%`,
+                    background: 'linear-gradient(to right, var(--accent-warning), var(--accent-error))',
+                  }}
                 ></div>
               </div>
             </div>
           )}
 
           {/* Type */}
-          <div className="bg-zinc-950 p-4 rounded-xl border border-zinc-800">
+          <div
+            className="p-4 rounded-xl border"
+            style={{
+              backgroundColor: 'var(--bg-primary)',
+              borderColor: 'var(--border-primary)',
+            }}
+          >
             <div className="flex items-center gap-2 mb-2">
-              <TrendingUp size={14} className="text-green-500" />
-              <span className="text-xs text-zinc-500 uppercase font-bold">Typ</span>
+              <TrendingUp size={14} style={{ color: 'var(--accent-success)' }} />
+              <span className="text-xs uppercase font-bold" style={{ color: 'var(--text-disabled)' }}>Typ</span>
             </div>
-            <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold ${
-              session.type === 'Sensor'
-                ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'
-                : 'bg-blue-500/10 text-blue-500 border border-blue-500/20'
-            }`}>
+            <span
+              className="inline-block px-3 py-1 rounded-full text-xs font-bold border"
+              style={session.type === 'Sensor' ? {
+                backgroundColor: 'color-mix(in srgb, var(--accent-success) 10%, transparent)',
+                color: 'var(--accent-success)',
+                borderColor: 'color-mix(in srgb, var(--accent-success) 20%, transparent)',
+              } : {
+                backgroundColor: 'color-mix(in srgb, var(--accent-info) 10%, transparent)',
+                color: 'var(--accent-info)',
+                borderColor: 'color-mix(in srgb, var(--accent-info) 20%, transparent)',
+              }}
+            >
               {session.type || 'Manuell'}
             </span>
           </div>
 
           {/* Stats */}
           <div className="grid grid-cols-3 gap-2">
-            <div className="bg-zinc-950 p-3 rounded-xl border border-zinc-800 text-center">
-              <p className="text-[10px] text-zinc-600 uppercase mb-1">Stunde</p>
-              <p className="text-lg font-bold text-white font-mono">{date.getHours()}</p>
+            <div
+              className="p-3 rounded-xl border text-center"
+              style={{
+                backgroundColor: 'var(--bg-primary)',
+                borderColor: 'var(--border-primary)',
+              }}
+            >
+              <p className="text-[10px] uppercase mb-1" style={{ color: 'var(--text-tertiary)' }}>Stunde</p>
+              <p className="text-lg font-bold font-mono" style={{ color: 'var(--text-primary)' }}>{date.getHours()}</p>
             </div>
-            <div className="bg-zinc-950 p-3 rounded-xl border border-zinc-800 text-center">
-              <p className="text-[10px] text-zinc-600 uppercase mb-1">Wochentag</p>
-              <p className="text-lg font-bold text-white">{date.toLocaleDateString('de-DE', { weekday: 'short' })}</p>
+            <div
+              className="p-3 rounded-xl border text-center"
+              style={{
+                backgroundColor: 'var(--bg-primary)',
+                borderColor: 'var(--border-primary)',
+              }}
+            >
+              <p className="text-[10px] uppercase mb-1" style={{ color: 'var(--text-tertiary)' }}>Wochentag</p>
+              <p className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>{date.toLocaleDateString('de-DE', { weekday: 'short' })}</p>
             </div>
-            <div className="bg-zinc-950 p-3 rounded-xl border border-zinc-800 text-center">
-              <p className="text-[10px] text-zinc-600 uppercase mb-1">KW</p>
-              <p className="text-lg font-bold text-white font-mono">{getWeekNumber(date)}</p>
+            <div
+              className="p-3 rounded-xl border text-center"
+              style={{
+                backgroundColor: 'var(--bg-primary)',
+                borderColor: 'var(--border-primary)',
+              }}
+            >
+              <p className="text-[10px] uppercase mb-1" style={{ color: 'var(--text-tertiary)' }}>KW</p>
+              <p className="text-lg font-bold font-mono" style={{ color: 'var(--text-primary)' }}>{getWeekNumber(date)}</p>
             </div>
           </div>
         </div>
 
         {/* Footer */}
-        <div className="mt-6 pt-4 border-t border-zinc-800">
+        <div className="mt-6 pt-4 border-t" style={{ borderColor: 'var(--border-primary)' }}>
           <button
             onClick={onClose}
-            className="w-full bg-zinc-800 hover:bg-zinc-700 text-white py-3 rounded-xl font-medium transition-colors"
+            className="w-full py-3 rounded-xl font-medium transition-colors"
+            style={{
+              backgroundColor: 'var(--bg-tertiary)',
+              color: 'white',
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.opacity = '0.9'}
+            onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
           >
             Schließen
           </button>

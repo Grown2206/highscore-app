@@ -123,21 +123,50 @@ export default function DashboardView({
   return (
     <div className="space-y-6 animate-in fade-in pb-10">
       {/* Header */}
-      <div className="flex justify-between items-center bg-zinc-900/50 p-4 rounded-2xl border border-zinc-800 backdrop-blur sticky top-0 z-20 shadow-lg">
+      <div
+        className="flex justify-between items-center p-4 rounded-2xl border backdrop-blur sticky top-0 z-20 shadow-lg"
+        style={{
+          backgroundColor: 'color-mix(in srgb, var(--bg-secondary) 50%, transparent)',
+          borderColor: 'var(--border-primary)',
+        }}
+      >
         <div className="flex items-center gap-2">
-           {isGuestMode ? <Users className="text-amber-500" /> : <User className="text-emerald-500" />}
-           <div className="leading-tight"><h2 className="font-bold text-white">{isGuestMode ? "Gäste" : "Session"}</h2><p className="text-[10px] text-zinc-400 font-mono">{isGuestMode ? "Kein Tracking" : "Tracking Aktiv"}</p></div>
+           {isGuestMode ? <Users style={{ color: 'var(--accent-warning)' }} /> : <User style={{ color: 'var(--accent-success)' }} />}
+           <div className="leading-tight">
+             <h2 className="font-bold" style={{ color: 'var(--text-primary)' }}>{isGuestMode ? "Gäste" : "Session"}</h2>
+             <p className="text-[10px] font-mono" style={{ color: 'var(--text-tertiary)' }}>{isGuestMode ? "Kein Tracking" : "Tracking Aktiv"}</p>
+           </div>
         </div>
         {!isGuestMode && (
-          <div className="flex items-center gap-2 bg-zinc-950 rounded-lg px-2 py-1.5 border border-zinc-800">
-             <Tag size={14} className="text-zinc-500" />
-             <select value={currentStrainId} onChange={(e) => { if(navigator.vibrate) navigator.vibrate(10); setCurrentStrainId(e.target.value); }} className="bg-transparent text-xs text-white outline-none font-medium max-w-[100px] truncate">
+          <div
+            className="flex items-center gap-2 rounded-lg px-2 py-1.5 border"
+            style={{
+              backgroundColor: 'var(--bg-primary)',
+              borderColor: 'var(--border-primary)',
+            }}
+          >
+             <Tag size={14} style={{ color: 'var(--text-disabled)' }} />
+             <select
+               value={currentStrainId}
+               onChange={(e) => { if(navigator.vibrate) navigator.vibrate(10); setCurrentStrainId(e.target.value); }}
+               className="bg-transparent text-xs outline-none font-medium max-w-[100px] truncate"
+               style={{ color: 'var(--text-primary)' }}
+             >
                {settings.strains.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
              </select>
           </div>
         )}
-        <button onClick={() => { if(navigator.vibrate) navigator.vibrate(20); setIsGuestMode(!isGuestMode); }} className={`w-10 h-6 rounded-full relative transition-colors ${isGuestMode ? 'bg-amber-500' : 'bg-zinc-700'}`}>
-          <div className={`w-3 h-3 bg-white rounded-full absolute top-1.5 transition-all ${isGuestMode ? 'left-6' : 'left-1'}`}/>
+        <button
+          onClick={() => { if(navigator.vibrate) navigator.vibrate(20); setIsGuestMode(!isGuestMode); }}
+          className="w-10 h-6 rounded-full relative transition-colors"
+          style={{
+            backgroundColor: isGuestMode ? 'var(--accent-warning)' : 'var(--bg-tertiary)',
+          }}
+        >
+          <div
+            className={`w-3 h-3 rounded-full absolute top-1.5 transition-all ${isGuestMode ? 'left-6' : 'left-1'}`}
+            style={{ backgroundColor: 'white' }}
+          />
         </button>
       </div>
 
@@ -152,14 +181,26 @@ export default function DashboardView({
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
          {isGuestMode ? (
-            <div className="col-span-full bg-amber-500/10 border border-amber-500/20 rounded-2xl p-6">
+            <div
+              className="col-span-full border rounded-2xl p-6"
+              style={{
+                backgroundColor: 'color-mix(in srgb, var(--accent-warning) 10%, transparent)',
+                borderColor: 'color-mix(in srgb, var(--accent-warning) 20%, transparent)',
+              }}
+            >
                <div className="text-center mb-4">
-                  <span className="text-5xl font-bold text-amber-500 block">{guestHits}</span>
-                  <span className="text-xs uppercase font-bold text-amber-200">Gäste Hits</span>
+                  <span className="text-5xl font-bold block" style={{ color: 'var(--accent-warning)' }}>{guestHits}</span>
+                  <span className="text-xs uppercase font-bold" style={{ color: 'color-mix(in srgb, var(--accent-warning) 80%, white)' }}>Gäste Hits</span>
                </div>
                <button
                   onClick={resetGuestHits}
-                  className="w-full flex items-center justify-center gap-2 bg-amber-600 hover:bg-amber-700 active:bg-amber-800 text-white py-2 px-4 rounded-xl transition-colors font-medium text-sm"
+                  className="w-full flex items-center justify-center gap-2 py-2 px-4 rounded-xl transition-colors font-medium text-sm"
+                  style={{
+                    backgroundColor: 'var(--accent-warning)',
+                    color: 'white',
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.opacity = '0.9'}
+                  onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
                >
                   <RotateCcw size={16} />
                   Zurücksetzen
@@ -167,25 +208,37 @@ export default function DashboardView({
             </div>
          ) : (
            <>
-             <MetricCard label="Session" val={actualTodayCount} icon={<Wind size={16}/>} color="text-emerald-400" />
-             <MetricCard label="Menge" val={`${weedAmount.toFixed(2)}g`} icon={<Scale size={16}/>} color="text-lime-400" />
-             <MetricCard label="Kosten" val={`${cost.toFixed(2)}€`} icon={<Coins size={16}/>} color="text-amber-400" />
-             <MetricCard label="Gesamt" val={liveData.total} icon={<List size={16}/>} color="text-zinc-200" />
+             <MetricCard label="Session" val={actualTodayCount} icon={<Wind size={16}/>} variant="success" />
+             <MetricCard label="Menge" val={`${weedAmount.toFixed(2)}g`} icon={<Scale size={16}/>} variant="success" />
+             <MetricCard label="Kosten" val={`${cost.toFixed(2)}€`} icon={<Coins size={16}/>} variant="secondary" />
+             <MetricCard label="Gesamt" val={liveData.total} icon={<List size={16}/>} variant="tertiary" />
            </>
          )}
       </div>
 
-      <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
-        <div className="bg-zinc-950 px-4 py-3 border-b border-zinc-800 flex items-center gap-2">
-          <Clock size={14} className="text-zinc-500"/>
-          <span className="text-xs font-bold uppercase text-zinc-500">Heutige Hits</span>
+      <div
+        className="border rounded-xl overflow-hidden"
+        style={{
+          backgroundColor: 'var(--bg-secondary)',
+          borderColor: 'var(--border-primary)',
+        }}
+      >
+        <div
+          className="px-4 py-3 border-b flex items-center gap-2"
+          style={{
+            backgroundColor: 'var(--bg-primary)',
+            borderColor: 'var(--border-primary)',
+          }}
+        >
+          <Clock size={14} style={{ color: 'var(--text-disabled)' }} />
+          <span className="text-xs font-bold uppercase" style={{ color: 'var(--text-disabled)' }}>Heutige Hits</span>
 
           {/* Multi-Select Mode Controls */}
           {!selectMode ? (
-            <span className="text-[10px] text-zinc-600 ml-auto">← Wische zum Löschen</span>
+            <span className="text-[10px] ml-auto" style={{ color: 'var(--text-tertiary)' }}>← Wische zum Löschen</span>
           ) : (
             <div className="ml-auto flex items-center gap-2">
-              <span className="text-[10px] text-emerald-400 font-bold">
+              <span className="text-[10px] font-bold" style={{ color: 'var(--accent-success)' }}>
                 {selectedHits.size} ausgewählt
               </span>
             </div>
@@ -195,7 +248,13 @@ export default function DashboardView({
             {!selectMode ? (
               <button
                 onClick={toggleSelectMode}
-                className="flex items-center gap-1 px-2 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold transition-colors"
+                className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold transition-colors"
+                style={{
+                  backgroundColor: 'var(--accent-info)',
+                  color: 'white',
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.opacity = '0.9'}
+                onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
               >
                 <CheckSquare size={12} />
                 Auswählen
@@ -204,7 +263,13 @@ export default function DashboardView({
               <>
                 <button
                   onClick={() => selectAllHits(todayHits)}
-                  className="flex items-center gap-1 px-2 py-1 rounded-lg bg-zinc-700 hover:bg-zinc-600 text-white text-[10px] font-bold transition-colors"
+                  className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold transition-colors"
+                  style={{
+                    backgroundColor: 'var(--bg-tertiary)',
+                    color: 'var(--text-primary)',
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.opacity = '0.9'}
+                  onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
                 >
                   <Square size={12} />
                   Alle
@@ -212,14 +277,26 @@ export default function DashboardView({
                 <button
                   onClick={deleteSelectedHits}
                   disabled={selectedHits.size === 0}
-                  className="flex items-center gap-1 px-2 py-1 rounded-lg bg-red-600 hover:bg-red-700 disabled:bg-zinc-700 disabled:text-zinc-500 text-white text-[10px] font-bold transition-colors"
+                  className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold transition-colors"
+                  style={{
+                    backgroundColor: selectedHits.size === 0 ? 'var(--bg-tertiary)' : 'var(--accent-error)',
+                    color: selectedHits.size === 0 ? 'var(--text-disabled)' : 'white',
+                  }}
+                  onMouseEnter={(e) => { if (selectedHits.size > 0) e.currentTarget.style.opacity = '0.9'; }}
+                  onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
                 >
                   <Trash2 size={12} />
                   Löschen
                 </button>
                 <button
                   onClick={toggleSelectMode}
-                  className="flex items-center gap-1 px-2 py-1 rounded-lg bg-zinc-700 hover:bg-zinc-600 text-white text-[10px] font-bold transition-colors"
+                  className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold transition-colors"
+                  style={{
+                    backgroundColor: 'var(--bg-tertiary)',
+                    color: 'var(--text-primary)',
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.opacity = '0.9'}
+                  onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
                 >
                   <X size={12} />
                   Abbrechen
@@ -230,8 +307,8 @@ export default function DashboardView({
         </div>
         {todayHits.length > 0 ? (
           <div className="max-h-64 overflow-y-auto">
-            <table className="w-full text-left text-xs text-zinc-400">
-              <tbody className="divide-y divide-zinc-800">
+            <table className="w-full text-left text-xs" style={{ color: 'var(--text-tertiary)' }}>
+              <tbody style={{ borderColor: 'var(--border-primary)' }} className="divide-y">
                 {todayHits.map((hit, i) => (
                   <SwipeableHitRow
                     key={hit.id}
@@ -248,18 +325,30 @@ export default function DashboardView({
           </div>
         ) : (
           <div className="p-8 text-center">
-            <div className="text-zinc-600 text-sm">Noch keine Hits heute</div>
+            <div className="text-sm" style={{ color: 'var(--text-tertiary)' }}>Noch keine Hits heute</div>
           </div>
         )}
       </div>
 
       {settings.adminMode && (
-        <div className="bg-zinc-950 border border-zinc-800 rounded-xl overflow-hidden mt-8">
-          <div className="bg-zinc-900 px-4 py-2 border-b border-zinc-800 flex items-center gap-2">
-             <Shield size={14} className="text-rose-500" />
-             <span className="text-xs font-bold uppercase text-zinc-400">Admin Diagnose</span>
+        <div
+          className="border rounded-xl overflow-hidden mt-8"
+          style={{
+            backgroundColor: 'var(--bg-primary)',
+            borderColor: 'var(--border-primary)',
+          }}
+        >
+          <div
+            className="px-4 py-2 border-b flex items-center gap-2"
+            style={{
+              backgroundColor: 'var(--bg-secondary)',
+              borderColor: 'var(--border-primary)',
+            }}
+          >
+             <Shield size={14} style={{ color: 'var(--accent-error)' }} />
+             <span className="text-xs font-bold uppercase" style={{ color: 'var(--text-tertiary)' }}>Admin Diagnose</span>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-px bg-zinc-800">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-px" style={{ backgroundColor: 'var(--border-primary)' }}>
              <AdminMetric label="Flame Sensor" value={liveData.flame ? 'DETECTED' : 'Ready'} active={liveData.flame} icon={<Flame size={12}/>} />
              <AdminMetric label="Inhaling" value={isSensorInhaling ? 'YES' : 'NO'} active={isSensorInhaling} icon={<Zap size={12}/>} />
              <AdminMetric label="Session Hits" value={liveData.total} icon={<List size={12}/>} />
