@@ -225,19 +225,28 @@ function ESP32DebugView({
         {/* IP Eingabe (nur Sensor Mode) */}
         {!isSimulating && (
           <div className="space-y-2">
-            <label className="text-xs text-zinc-500 uppercase">ESP32 IP-Adresse</label>
+            <label className="text-xs uppercase" style={{ color: 'var(--text-tertiary)' }}>ESP32 IP-Adresse</label>
             <div className="flex gap-2">
               <input
                 type="text"
                 value={ip}
                 onChange={(e) => setIp(e.target.value)}
                 placeholder="192.168.178.XXX"
-                className="flex-1 bg-zinc-950 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-emerald-500"
+                className="flex-1 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none border"
+                style={{
+                  backgroundColor: 'var(--bg-primary)',
+                  borderColor: 'var(--border-primary)',
+                  color: 'var(--text-primary)',
+                }}
               />
               <button
                 onClick={testConnection}
                 disabled={testing}
-                className="bg-emerald-600 hover:bg-emerald-700 disabled:bg-zinc-700 text-white px-4 rounded-lg transition-colors flex items-center gap-2"
+                className="px-4 rounded-lg transition-colors flex items-center gap-2"
+                style={{
+                  backgroundColor: testing ? 'var(--bg-tertiary)' : 'var(--accent-success)',
+                  color: testing ? 'var(--text-tertiary)' : 'white',
+                }}
               >
                 <RefreshCw size={16} className={testing ? 'animate-spin' : ''}/>
                 Test
@@ -245,7 +254,11 @@ function ESP32DebugView({
               <button
                 onClick={forceSyncPendingHits}
                 disabled={isSyncing || !connected}
-                className="bg-blue-600 hover:bg-blue-700 disabled:bg-zinc-700 text-white px-4 rounded-lg transition-colors flex items-center gap-2"
+                className="px-4 rounded-lg transition-colors flex items-center gap-2"
+                style={{
+                  backgroundColor: (isSyncing || !connected) ? 'var(--bg-tertiary)' : 'var(--accent-info)',
+                  color: (isSyncing || !connected) ? 'var(--text-tertiary)' : 'white',
+                }}
                 title="Offline-Hits vom ESP32 synchronisieren"
               >
                 <RefreshCw size={16} className={isSyncing ? 'animate-spin' : ''}/>
@@ -253,7 +266,7 @@ function ESP32DebugView({
               </button>
             </div>
             {lastSyncTime && (
-              <p className="text-xs text-zinc-500">
+              <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
                 Letzter Sync: {new Date(lastSyncTime).toLocaleTimeString('de-DE')}
               </p>
             )}
@@ -262,11 +275,17 @@ function ESP32DebugView({
 
         {/* Fehler Anzeige */}
         {lastError && !isSimulating && (
-          <div className="bg-rose-500/10 border border-rose-500/20 rounded-xl p-3 flex items-start gap-2">
-            <AlertCircle size={14} className="text-rose-500 mt-0.5 flex-shrink-0"/>
+          <div
+            className="rounded-xl p-3 flex items-start gap-2 border"
+            style={{
+              backgroundColor: 'color-mix(in srgb, var(--accent-error) 10%, transparent)',
+              borderColor: 'color-mix(in srgb, var(--accent-error) 20%, transparent)',
+            }}
+          >
+            <AlertCircle size={14} className="mt-0.5 flex-shrink-0" style={{ color: 'var(--accent-error)' }} />
             <div className="flex-1">
-              <p className="text-xs font-bold text-rose-500">Verbindungsfehler</p>
-              <p className="text-[10px] text-rose-400 mt-1">{lastError}</p>
+              <p className="text-xs font-bold" style={{ color: 'var(--accent-error)' }}>Verbindungsfehler</p>
+              <p className="text-[10px] mt-1" style={{ color: 'var(--accent-error)', opacity: 0.8 }}>{lastError}</p>
             </div>
           </div>
         )}
@@ -274,29 +293,52 @@ function ESP32DebugView({
 
       {/* Live Metriken */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <div className="bg-zinc-900 border border-zinc-800 p-4 rounded-2xl">
-          <div className="flex items-center gap-2 text-zinc-500 text-xs font-bold uppercase mb-2">
+        <div
+          className="p-4 rounded-2xl border"
+          style={{
+            backgroundColor: 'var(--bg-secondary)',
+            borderColor: 'var(--border-primary)',
+          }}
+        >
+          <div className="flex items-center gap-2 text-xs font-bold uppercase mb-2" style={{ color: 'var(--text-tertiary)' }}>
             <Flame size={14}/> Flame Sensor
           </div>
-          <div className={`text-lg font-bold ${liveData.flame ? 'text-orange-500' : 'text-zinc-500'}`}>
+          <div className="text-lg font-bold" style={{ color: liveData.flame ? 'var(--accent-warning)' : 'var(--text-tertiary)' }}>
             {liveData.flame ? 'DETECTED' : 'Ready'}
           </div>
         </div>
 
-        <div className="bg-zinc-900 border border-zinc-800 p-4 rounded-2xl">
-          <div className="flex items-center gap-2 text-zinc-500 text-xs font-bold uppercase mb-2">
+        <div
+          className="p-4 rounded-2xl border"
+          style={{
+            backgroundColor: 'var(--bg-secondary)',
+            borderColor: 'var(--border-primary)',
+          }}
+        >
+          <div className="flex items-center gap-2 text-xs font-bold uppercase mb-2" style={{ color: 'var(--text-tertiary)' }}>
             <Activity size={14}/> Fehler
           </div>
-          <div className={`text-2xl font-bold ${errorCount > 5 ? 'text-rose-500' : errorCount > 0 ? 'text-amber-500' : 'text-emerald-400'}`}>
+          <div
+            className="text-2xl font-bold"
+            style={{
+              color: errorCount > 5 ? 'var(--accent-error)' : errorCount > 0 ? 'var(--accent-warning)' : 'var(--accent-success)',
+            }}
+          >
             {errorCount}
           </div>
         </div>
 
-        <div className="bg-zinc-900 border border-zinc-800 p-4 rounded-2xl">
-          <div className="flex items-center gap-2 text-zinc-500 text-xs font-bold uppercase mb-2">
+        <div
+          className="p-4 rounded-2xl border"
+          style={{
+            backgroundColor: 'var(--bg-secondary)',
+            borderColor: 'var(--border-primary)',
+          }}
+        >
+          <div className="flex items-center gap-2 text-xs font-bold uppercase mb-2" style={{ color: 'var(--text-tertiary)' }}>
             <Clock size={14}/> Uptime
           </div>
-          <div className="text-lg font-bold text-purple-400">
+          <div className="text-lg font-bold" style={{ color: 'var(--accent-secondary)' }}>
             {(() => {
               const uptimeSec = liveData.uptime || 0;
               const hours = Math.floor(uptimeSec / 3600);
@@ -308,28 +350,46 @@ function ESP32DebugView({
           </div>
         </div>
 
-        <div className="bg-zinc-900 border border-zinc-800 p-4 rounded-2xl">
-          <div className="flex items-center gap-2 text-zinc-500 text-xs font-bold uppercase mb-2">
+        <div
+          className="p-4 rounded-2xl border"
+          style={{
+            backgroundColor: 'var(--bg-secondary)',
+            borderColor: 'var(--border-primary)',
+          }}
+        >
+          <div className="flex items-center gap-2 text-xs font-bold uppercase mb-2" style={{ color: 'var(--text-tertiary)' }}>
             <Zap size={14}/> Status
           </div>
-          <div className={`text-sm font-bold ${connected ? 'text-emerald-400' : 'text-zinc-500'}`}>
+          <div className="text-sm font-bold" style={{ color: connected ? 'var(--accent-success)' : 'var(--text-tertiary)' }}>
             {connected ? 'ONLINE' : 'OFFLINE'}
           </div>
         </div>
       </div>
 
       {/* Flame Detection Timeline */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 space-y-4">
+      <div
+        className="rounded-2xl p-6 space-y-4 border"
+        style={{
+          backgroundColor: 'var(--bg-secondary)',
+          borderColor: 'var(--border-primary)',
+        }}
+      >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Flame size={16} className="text-orange-500"/>
-            <h3 className="text-sm font-bold text-zinc-400 uppercase">Flame Detection Timeline</h3>
+            <Flame size={16} style={{ color: 'var(--accent-warning)' }} />
+            <h3 className="text-sm font-bold uppercase" style={{ color: 'var(--text-secondary)' }}>Flame Detection Timeline</h3>
           </div>
-          <span className="text-xs text-zinc-500">Letzte {Math.min(recentFlameData.length, 60)} Messungen</span>
+          <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>Letzte {Math.min(recentFlameData.length, 60)} Messungen</span>
         </div>
 
         {/* Timeline Visualization */}
-        <div className="bg-zinc-950 rounded-xl p-4 border border-zinc-800 overflow-x-auto">
+        <div
+          className="rounded-xl p-4 border overflow-x-auto"
+          style={{
+            backgroundColor: 'var(--bg-primary)',
+            borderColor: 'var(--border-primary)',
+          }}
+        >
           {recentFlameData.length > 0 ? (
             <div className="space-y-3">
               {/* Status Bar */}
@@ -337,13 +397,14 @@ function ESP32DebugView({
                 {recentFlameData.map((point, i) => (
                   <div
                     key={i}
-                    className={`flex-1 h-full rounded-sm transition-colors ${
-                      point.inhaling
-                        ? 'bg-emerald-500'
+                    className="flex-1 h-full rounded-sm transition-colors"
+                    style={{
+                      backgroundColor: point.inhaling
+                        ? 'var(--accent-success)'
                         : point.flame
-                          ? 'bg-orange-500/50'
-                          : 'bg-zinc-800'
-                    }`}
+                          ? 'color-mix(in srgb, var(--accent-warning) 50%, transparent)'
+                          : 'var(--bg-tertiary)',
+                    }}
                     title={`${point.inhaling ? 'Inhaling' : point.flame ? 'Flame Detected' : 'No Flame'} - ${new Date(point.time).toLocaleTimeString()}`}
                   />
                 ))}
@@ -352,26 +413,35 @@ function ESP32DebugView({
               {/* Legend */}
               <div className="flex items-center justify-center gap-6 text-xs">
                 <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 bg-emerald-500 rounded-sm"></div>
-                  <span className="text-zinc-400">Inhaling (Session)</span>
+                  <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: 'var(--accent-success)' }}></div>
+                  <span style={{ color: 'var(--text-secondary)' }}>Inhaling (Session)</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 bg-orange-500/50 rounded-sm"></div>
-                  <span className="text-zinc-400">Flame Detected</span>
+                  <div
+                    className="w-3 h-3 rounded-sm"
+                    style={{ backgroundColor: 'color-mix(in srgb, var(--accent-warning) 50%, transparent)' }}
+                  ></div>
+                  <span style={{ color: 'var(--text-secondary)' }}>Flame Detected</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 bg-zinc-800 rounded-sm"></div>
-                  <span className="text-zinc-400">No Flame</span>
+                  <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: 'var(--bg-tertiary)' }}></div>
+                  <span style={{ color: 'var(--text-secondary)' }}>No Flame</span>
                 </div>
               </div>
 
               {/* Current Status */}
-              <div className="bg-zinc-900 rounded-lg p-3 border border-zinc-800">
+              <div
+                className="rounded-lg p-3 border"
+                style={{
+                  backgroundColor: 'var(--bg-secondary)',
+                  borderColor: 'var(--border-primary)',
+                }}
+              >
                 <div className="flex items-center justify-between">
-                  <span className="text-xs text-zinc-500">Aktueller Status:</span>
+                  <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>Aktueller Status:</span>
                   <div className="flex items-center gap-2">
-                    <Flame size={14} className={liveData.flame ? 'text-orange-500' : 'text-zinc-600'}/>
-                    <span className={`text-sm font-bold ${liveData.flame ? 'text-orange-400' : 'text-zinc-500'}`}>
+                    <Flame size={14} style={{ color: liveData.flame ? 'var(--accent-warning)' : 'var(--text-disabled)' }} />
+                    <span className="text-sm font-bold" style={{ color: liveData.flame ? 'var(--accent-warning)' : 'var(--text-tertiary)' }}>
                       {liveData.flame ? 'Flamme erkannt' : 'Keine Flamme'}
                     </span>
                   </div>
@@ -379,7 +449,7 @@ function ESP32DebugView({
               </div>
             </div>
           ) : (
-            <div className="h-32 flex items-center justify-center text-zinc-600 text-sm">
+            <div className="h-32 flex items-center justify-center text-sm" style={{ color: 'var(--text-disabled)' }}>
               Warte auf Daten...
             </div>
           )}
@@ -387,54 +457,96 @@ function ESP32DebugView({
       </div>
 
       {/* Sensor Information */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 space-y-4">
+      <div
+        className="rounded-2xl p-6 space-y-4 border"
+        style={{
+          backgroundColor: 'var(--bg-secondary)',
+          borderColor: 'var(--border-primary)',
+        }}
+      >
         <div className="flex items-center gap-2">
-          <SettingsIcon size={16} className="text-amber-500"/>
-          <h3 className="text-sm font-bold text-zinc-400 uppercase">B05 Flame Sensor Info</h3>
+          <SettingsIcon size={16} style={{ color: 'var(--accent-warning)' }} />
+          <h3 className="text-sm font-bold uppercase" style={{ color: 'var(--text-secondary)' }}>B05 Flame Sensor Info</h3>
         </div>
 
         {/* Sensor Status */}
         <div className="grid grid-cols-2 gap-3">
-          <div className="bg-zinc-950 rounded-lg p-4 border border-zinc-800">
-            <p className="text-xs text-zinc-500 mb-2">Sensor Typ</p>
-            <p className="text-sm font-bold text-white">B05 IR Flame</p>
-            <p className="text-[10px] text-zinc-600">760-1100nm</p>
+          <div
+            className="rounded-lg p-4 border"
+            style={{
+              backgroundColor: 'var(--bg-primary)',
+              borderColor: 'var(--border-primary)',
+            }}
+          >
+            <p className="text-xs mb-2" style={{ color: 'var(--text-tertiary)' }}>Sensor Typ</p>
+            <p className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>B05 IR Flame</p>
+            <p className="text-[10px]" style={{ color: 'var(--text-disabled)' }}>760-1100nm</p>
           </div>
 
-          <div className="bg-zinc-950 rounded-lg p-4 border border-zinc-800">
-            <p className="text-xs text-zinc-500 mb-2">Detection</p>
-            <p className={`text-sm font-bold ${liveData.flame ? 'text-orange-500' : 'text-zinc-500'}`}>
+          <div
+            className="rounded-lg p-4 border"
+            style={{
+              backgroundColor: 'var(--bg-primary)',
+              borderColor: 'var(--border-primary)',
+            }}
+          >
+            <p className="text-xs mb-2" style={{ color: 'var(--text-tertiary)' }}>Detection</p>
+            <p className="text-sm font-bold" style={{ color: liveData.flame ? 'var(--accent-warning)' : 'var(--text-tertiary)' }}>
               {liveData.flame ? 'ACTIVE' : 'Standby'}
             </p>
-            <p className="text-[10px] text-zinc-600">Digital Signal</p>
+            <p className="text-[10px]" style={{ color: 'var(--text-disabled)' }}>Digital Signal</p>
           </div>
 
-          <div className="bg-zinc-950 rounded-lg p-4 border border-zinc-800">
-            <p className="text-xs text-zinc-500 mb-2">Cooldown</p>
-            <p className="text-sm font-bold text-blue-400">3 Sekunden</p>
-            <p className="text-[10px] text-zinc-600">Nach Hit</p>
+          <div
+            className="rounded-lg p-4 border"
+            style={{
+              backgroundColor: 'var(--bg-primary)',
+              borderColor: 'var(--border-primary)',
+            }}
+          >
+            <p className="text-xs mb-2" style={{ color: 'var(--text-tertiary)' }}>Cooldown</p>
+            <p className="text-sm font-bold" style={{ color: 'var(--accent-info)' }}>3 Sekunden</p>
+            <p className="text-[10px]" style={{ color: 'var(--text-disabled)' }}>Nach Hit</p>
           </div>
 
-          <div className="bg-zinc-950 rounded-lg p-4 border border-zinc-800">
-            <p className="text-xs text-zinc-500 mb-2">GPIO Pin</p>
-            <p className="text-sm font-bold text-emerald-400">GPIO 1</p>
-            <p className="text-[10px] text-zinc-600">Digital Input</p>
+          <div
+            className="rounded-lg p-4 border"
+            style={{
+              backgroundColor: 'var(--bg-primary)',
+              borderColor: 'var(--border-primary)',
+            }}
+          >
+            <p className="text-xs mb-2" style={{ color: 'var(--text-tertiary)' }}>GPIO Pin</p>
+            <p className="text-sm font-bold" style={{ color: 'var(--accent-success)' }}>GPIO 1</p>
+            <p className="text-[10px]" style={{ color: 'var(--text-disabled)' }}>Digital Input</p>
           </div>
         </div>
 
         {/* Wiring Info */}
-        <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-3">
-          <p className="text-xs font-bold text-blue-300 mb-2">Verkabelung:</p>
-          <div className="grid grid-cols-3 gap-2 text-[10px] text-blue-200 font-mono">
-            <div><span className="text-blue-400">VCC</span> → 3.3V</div>
-            <div><span className="text-blue-400">GND</span> → GND</div>
-            <div><span className="text-blue-400">DO</span> → GPIO 1</div>
+        <div
+          className="rounded-xl p-3 border"
+          style={{
+            backgroundColor: 'color-mix(in srgb, var(--accent-info) 10%, transparent)',
+            borderColor: 'color-mix(in srgb, var(--accent-info) 20%, transparent)',
+          }}
+        >
+          <p className="text-xs font-bold mb-2" style={{ color: 'var(--accent-info)' }}>Verkabelung:</p>
+          <div className="grid grid-cols-3 gap-2 text-[10px] font-mono" style={{ color: 'color-mix(in srgb, var(--accent-info) 80%, white)' }}>
+            <div><span style={{ color: 'var(--accent-info)' }}>VCC</span> → 3.3V</div>
+            <div><span style={{ color: 'var(--accent-info)' }}>GND</span> → GND</div>
+            <div><span style={{ color: 'var(--accent-info)' }}>DO</span> → GPIO 1</div>
           </div>
         </div>
 
         {/* Hinweis */}
-        <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3">
-          <p className="text-[10px] text-amber-300 leading-relaxed">
+        <div
+          className="rounded-xl p-3 border"
+          style={{
+            backgroundColor: 'color-mix(in srgb, var(--accent-warning) 10%, transparent)',
+            borderColor: 'color-mix(in srgb, var(--accent-warning) 20%, transparent)',
+          }}
+        >
+          <p className="text-[10px] leading-relaxed" style={{ color: 'color-mix(in srgb, var(--accent-warning) 90%, white)' }}>
             <strong>Hinweis:</strong> Der B05 Flame Sensor erkennt IR-Licht (760-1100nm) von Feuerzeug-Flammen.
             Digital Output: LOW = Flamme erkannt, HIGH = keine Flamme. Der ESP32 verwaltet die komplette Logik
             inklusive Session-Erkennung und 3-Sekunden Cooldown.
@@ -443,27 +555,48 @@ function ESP32DebugView({
       </div>
 
       {/* Sensor Kalibrierung */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 space-y-4">
+      <div
+        className="rounded-2xl p-6 space-y-4 border"
+        style={{
+          backgroundColor: 'var(--bg-secondary)',
+          borderColor: 'var(--border-primary)',
+        }}
+      >
         <div className="flex items-center gap-2">
-          <SettingsIcon size={16} className="text-purple-500"/>
-          <h3 className="text-sm font-bold text-zinc-400 uppercase">Sensor Kalibrierung</h3>
+          <SettingsIcon size={16} style={{ color: 'var(--accent-secondary)' }} />
+          <h3 className="text-sm font-bold uppercase" style={{ color: 'var(--text-secondary)' }}>Sensor Kalibrierung</h3>
         </div>
 
         {/* Live Flame Status mit Visualisierung */}
-        <div className="bg-zinc-950 rounded-xl p-4 border border-zinc-800">
+        <div
+          className="rounded-xl p-4 border"
+          style={{
+            backgroundColor: 'var(--bg-primary)',
+            borderColor: 'var(--border-primary)',
+          }}
+        >
           <div className="flex items-center justify-between mb-3">
-            <span className="text-xs text-zinc-500 font-bold uppercase">Live Status</span>
+            <span className="text-xs font-bold uppercase" style={{ color: 'var(--text-tertiary)' }}>Live Status</span>
             <div className="flex items-center gap-2">
-              <div className={`w-3 h-3 rounded-full ${liveData.flame ? 'bg-orange-500 animate-pulse' : 'bg-zinc-700'}`}></div>
-              <span className={`text-sm font-bold ${liveData.flame ? 'text-orange-400' : 'text-zinc-500'}`}>
+              <div
+                className={`w-3 h-3 rounded-full ${liveData.flame ? 'animate-pulse' : ''}`}
+                style={{ backgroundColor: liveData.flame ? 'var(--accent-warning)' : 'var(--bg-tertiary)' }}
+              ></div>
+              <span className="text-sm font-bold" style={{ color: liveData.flame ? 'var(--accent-warning)' : 'var(--text-tertiary)' }}>
                 {liveData.flame ? 'FLAMME ERKANNT' : 'Bereit'}
               </span>
             </div>
           </div>
 
           {/* Test-Hinweis */}
-          <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3">
-            <p className="text-[10px] text-blue-300 leading-relaxed">
+          <div
+            className="rounded-lg p-3 border"
+            style={{
+              backgroundColor: 'color-mix(in srgb, var(--accent-info) 10%, transparent)',
+              borderColor: 'color-mix(in srgb, var(--accent-info) 20%, transparent)',
+            }}
+          >
+            <p className="text-[10px] leading-relaxed" style={{ color: 'color-mix(in srgb, var(--accent-info) 90%, white)' }}>
               <strong>Test-Modus:</strong> Halte ein Feuerzeug vor den Sensor (ca. 10-20cm Abstand).
               Die Anzeige oben sollte "FLAMME ERKANNT" zeigen. Falls nicht → Potentiometer justieren.
             </p>
@@ -471,34 +604,46 @@ function ESP32DebugView({
         </div>
 
         {/* Potentiometer Kalibrierung Anleitung */}
-        <div className="bg-zinc-950 rounded-xl p-4 border border-zinc-800 space-y-3">
-          <p className="text-xs font-bold text-purple-300 uppercase">Hardware-Kalibrierung (Potentiometer)</p>
+        <div
+          className="rounded-xl p-4 border space-y-3"
+          style={{
+            backgroundColor: 'var(--bg-primary)',
+            borderColor: 'var(--border-primary)',
+          }}
+        >
+          <p className="text-xs font-bold uppercase" style={{ color: 'var(--accent-secondary)' }}>Hardware-Kalibrierung (Potentiometer)</p>
 
-          <div className="space-y-2 text-xs text-zinc-400">
+          <div className="space-y-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
             <div className="flex items-start gap-2">
-              <span className="text-purple-400 font-bold">1.</span>
+              <span className="font-bold" style={{ color: 'var(--accent-secondary)' }}>1.</span>
               <p>Potentiometer am B05 Sensor finden (blaues Rädchen)</p>
             </div>
             <div className="flex items-start gap-2">
-              <span className="text-purple-400 font-bold">2.</span>
+              <span className="font-bold" style={{ color: 'var(--accent-secondary)' }}>2.</span>
               <p>Feuerzeug anzünden, 10-15cm vor Sensor halten</p>
             </div>
             <div className="flex items-start gap-2">
-              <span className="text-purple-400 font-bold">3.</span>
+              <span className="font-bold" style={{ color: 'var(--accent-secondary)' }}>3.</span>
               <p>Potentiometer drehen bis LED am Sensor aufleuchtet</p>
             </div>
             <div className="flex items-start gap-2">
-              <span className="text-purple-400 font-bold">4.</span>
+              <span className="font-bold" style={{ color: 'var(--accent-secondary)' }}>4.</span>
               <p>Feuerzeug wegnehmen → LED sollte ausgehen</p>
             </div>
             <div className="flex items-start gap-2">
-              <span className="text-purple-400 font-bold">5.</span>
+              <span className="font-bold" style={{ color: 'var(--accent-secondary)' }}>5.</span>
               <p>Mehrmals testen um Konsistenz sicherzustellen</p>
             </div>
           </div>
 
-          <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-2">
-            <p className="text-[10px] text-amber-300">
+          <div
+            className="rounded-lg p-2 border"
+            style={{
+              backgroundColor: 'color-mix(in srgb, var(--accent-warning) 10%, transparent)',
+              borderColor: 'color-mix(in srgb, var(--accent-warning) 20%, transparent)',
+            }}
+          >
+            <p className="text-[10px]" style={{ color: 'color-mix(in srgb, var(--accent-warning) 90%, white)' }}>
               <strong>Wichtig:</strong> Zu empfindlich → Viele Fehlauslösungen.
               Zu unempfindlich → Flamme wird nicht erkannt.
             </p>
@@ -506,14 +651,24 @@ function ESP32DebugView({
         </div>
 
         {/* False Trigger Prevention Einstellungen - **NEU v8.1**: Editierbar */}
-        <div className="bg-zinc-950 rounded-xl p-4 border border-zinc-800">
+        <div
+          className="rounded-xl p-4 border"
+          style={{
+            backgroundColor: 'var(--bg-primary)',
+            borderColor: 'var(--border-primary)',
+          }}
+        >
           <div className="flex items-center justify-between mb-3">
-            <p className="text-xs font-bold text-emerald-300 uppercase">False Trigger Prevention (v8.1)</p>
+            <p className="text-xs font-bold uppercase" style={{ color: 'var(--accent-success)' }}>False Trigger Prevention (v8.1)</p>
             {!editingTrigger ? (
               <button
                 onClick={() => setEditingTrigger(true)}
                 disabled={isSimulating}
-                className="flex items-center gap-1 px-2 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:bg-zinc-700 disabled:text-zinc-500 text-white text-xs transition-colors"
+                className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs transition-colors"
+                style={{
+                  backgroundColor: isSimulating ? 'var(--bg-tertiary)' : 'var(--accent-info)',
+                  color: isSimulating ? 'var(--text-tertiary)' : 'white',
+                }}
               >
                 <Edit3 size={12} />
                 Bearbeiten
@@ -526,7 +681,11 @@ function ESP32DebugView({
                     setMinDuration(liveData.minSessionDuration || DEFAULT_MIN_SESSION_DURATION_MS);
                     setMaxDuration(liveData.maxSessionDuration || DEFAULT_MAX_SESSION_DURATION_MS);
                   }}
-                  className="flex items-center gap-1 px-2 py-1 rounded-lg bg-zinc-700 hover:bg-zinc-600 text-white text-xs transition-colors"
+                  className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs transition-colors"
+                  style={{
+                    backgroundColor: 'var(--bg-tertiary)',
+                    color: 'var(--text-primary)',
+                  }}
                 >
                   <X size={12} />
                   Abbrechen
@@ -539,7 +698,11 @@ function ESP32DebugView({
                     minDuration < MIN_SESSION_DURATION_MS || minDuration > MAX_SESSION_DURATION_MS ||
                     maxDuration < MIN_SESSION_DURATION_MS || maxDuration > MAX_SESSION_DURATION_MS
                   }
-                  className="flex items-center gap-1 px-2 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 disabled:bg-zinc-700 disabled:text-zinc-500 text-white text-xs transition-colors"
+                  className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs transition-colors"
+                  style={{
+                    backgroundColor: (saving || minDuration >= maxDuration || minDuration < MIN_SESSION_DURATION_MS || minDuration > MAX_SESSION_DURATION_MS || maxDuration < MIN_SESSION_DURATION_MS || maxDuration > MAX_SESSION_DURATION_MS) ? 'var(--bg-tertiary)' : 'var(--accent-success)',
+                    color: (saving || minDuration >= maxDuration || minDuration < MIN_SESSION_DURATION_MS || minDuration > MAX_SESSION_DURATION_MS || maxDuration < MIN_SESSION_DURATION_MS || maxDuration > MAX_SESSION_DURATION_MS) ? 'var(--text-tertiary)' : 'white',
+                  }}
                 >
                   <Save size={12} />
                   {saving ? 'Speichern...' : 'Speichern'}
@@ -550,16 +713,28 @@ function ESP32DebugView({
 
           {!editingTrigger ? (
             <div className="grid grid-cols-2 gap-3 text-xs">
-              <div className="bg-zinc-900 rounded-lg p-3 border border-zinc-800">
-                <p className="text-[10px] text-zinc-600 uppercase mb-1">Min. Dauer</p>
-                <p className="text-lg font-bold text-emerald-400">{(minDuration / 1000).toFixed(1)}s</p>
-                <p className="text-[9px] text-zinc-600">Mindest-Session</p>
+              <div
+                className="rounded-lg p-3 border"
+                style={{
+                  backgroundColor: 'var(--bg-secondary)',
+                  borderColor: 'var(--border-primary)',
+                }}
+              >
+                <p className="text-[10px] uppercase mb-1" style={{ color: 'var(--text-disabled)' }}>Min. Dauer</p>
+                <p className="text-lg font-bold" style={{ color: 'var(--accent-success)' }}>{(minDuration / 1000).toFixed(1)}s</p>
+                <p className="text-[9px]" style={{ color: 'var(--text-disabled)' }}>Mindest-Session</p>
               </div>
 
-              <div className="bg-zinc-900 rounded-lg p-3 border border-zinc-800">
-                <p className="text-[10px] text-zinc-600 uppercase mb-1">Max. Dauer</p>
-                <p className="text-lg font-bold text-amber-400">{(maxDuration / 1000).toFixed(1)}s</p>
-                <p className="text-[9px] text-zinc-600">Maximum-Session</p>
+              <div
+                className="rounded-lg p-3 border"
+                style={{
+                  backgroundColor: 'var(--bg-secondary)',
+                  borderColor: 'var(--border-primary)',
+                }}
+              >
+                <p className="text-[10px] uppercase mb-1" style={{ color: 'var(--text-disabled)' }}>Max. Dauer</p>
+                <p className="text-lg font-bold" style={{ color: 'var(--accent-warning)' }}>{(maxDuration / 1000).toFixed(1)}s</p>
+                <p className="text-[9px]" style={{ color: 'var(--text-disabled)' }}>Maximum-Session</p>
               </div>
             </div>
           ) : (
@@ -567,8 +742,8 @@ function ESP32DebugView({
               {/* Min Duration Slider */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs text-zinc-400">Min. Dauer (ms)</label>
-                  <span className="text-sm font-bold text-emerald-400">{minDuration}ms ({(minDuration / 1000).toFixed(2)}s)</span>
+                  <label className="text-xs" style={{ color: 'var(--text-secondary)' }}>Min. Dauer (ms)</label>
+                  <span className="text-sm font-bold" style={{ color: 'var(--accent-success)' }}>{minDuration}ms ({(minDuration / 1000).toFixed(2)}s)</span>
                 </div>
                 <input
                   type="range"
@@ -577,16 +752,20 @@ function ESP32DebugView({
                   step="50"
                   value={minDuration}
                   onChange={(e) => setMinDuration(parseInt(e.target.value))}
-                  className="w-full h-2 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+                  className="w-full h-2 rounded-lg appearance-none cursor-pointer"
+                  style={{
+                    backgroundColor: 'var(--bg-tertiary)',
+                    accentColor: 'var(--accent-success)',
+                  }}
                 />
-                <p className="text-[9px] text-zinc-600">Zu kurze Sessions → Fehlauslösungen (Flackern)</p>
+                <p className="text-[9px]" style={{ color: 'var(--text-disabled)' }}>Zu kurze Sessions → Fehlauslösungen (Flackern)</p>
               </div>
 
               {/* Max Duration Slider */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs text-zinc-400">Max. Dauer (ms)</label>
-                  <span className="text-sm font-bold text-amber-400">{maxDuration}ms ({(maxDuration / 1000).toFixed(2)}s)</span>
+                  <label className="text-xs" style={{ color: 'var(--text-secondary)' }}>Max. Dauer (ms)</label>
+                  <span className="text-sm font-bold" style={{ color: 'var(--accent-warning)' }}>{maxDuration}ms ({(maxDuration / 1000).toFixed(2)}s)</span>
                 </div>
                 <input
                   type="range"
@@ -595,15 +774,25 @@ function ESP32DebugView({
                   step="100"
                   value={maxDuration}
                   onChange={(e) => setMaxDuration(parseInt(e.target.value))}
-                  className="w-full h-2 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-amber-500"
+                  className="w-full h-2 rounded-lg appearance-none cursor-pointer"
+                  style={{
+                    backgroundColor: 'var(--bg-tertiary)',
+                    accentColor: 'var(--accent-warning)',
+                  }}
                 />
-                <p className="text-[9px] text-zinc-600">Zu lange Sessions → Sensor hängt fest</p>
+                <p className="text-[9px]" style={{ color: 'var(--text-disabled)' }}>Zu lange Sessions → Sensor hängt fest</p>
               </div>
 
               {/* Validation Warning */}
               {minDuration >= maxDuration && (
-                <div className="bg-rose-500/10 border border-rose-500/20 rounded-lg p-2">
-                  <p className="text-[10px] text-rose-400">
+                <div
+                  className="rounded-lg p-2 border"
+                  style={{
+                    backgroundColor: 'color-mix(in srgb, var(--accent-error) 10%, transparent)',
+                    borderColor: 'color-mix(in srgb, var(--accent-error) 20%, transparent)',
+                  }}
+                >
+                  <p className="text-[10px]" style={{ color: 'var(--accent-error)' }}>
                     <strong>Warnung:</strong> Min. Dauer muss kleiner als Max. Dauer sein!
                   </p>
                 </div>
@@ -611,8 +800,14 @@ function ESP32DebugView({
             </div>
           )}
 
-          <div className="mt-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-2">
-            <p className="text-[10px] text-emerald-300 leading-relaxed">
+          <div
+            className="mt-3 rounded-lg p-2 border"
+            style={{
+              backgroundColor: 'color-mix(in srgb, var(--accent-success) 10%, transparent)',
+              borderColor: 'color-mix(in srgb, var(--accent-success) 20%, transparent)',
+            }}
+          >
+            <p className="text-[10px] leading-relaxed" style={{ color: 'color-mix(in srgb, var(--accent-success) 90%, white)' }}>
               Sessions außerhalb {(minDuration / 1000).toFixed(1)}-{(maxDuration / 1000).toFixed(1)}s werden als Fehlauslösungen verworfen.
               Zu kurz → Flackern, Zu lang → Sensor hängt fest.
             </p>
@@ -621,10 +816,16 @@ function ESP32DebugView({
       </div>
 
       {/* Stromverbrauch */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 space-y-4">
+      <div
+        className="rounded-2xl p-6 space-y-4 border"
+        style={{
+          backgroundColor: 'var(--bg-secondary)',
+          borderColor: 'var(--border-primary)',
+        }}
+      >
         <div className="flex items-center gap-2">
-          <Zap size={16} className="text-yellow-500"/>
-          <h3 className="text-sm font-bold text-zinc-400 uppercase">Stromverbrauch (geschätzt)</h3>
+          <Zap size={16} style={{ color: 'var(--accent-warning)' }} />
+          <h3 className="text-sm font-bold uppercase" style={{ color: 'var(--text-secondary)' }}>Stromverbrauch (geschätzt)</h3>
         </div>
 
         {(() => {
@@ -646,44 +847,87 @@ function ESP32DebugView({
           return (
             <>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <div className="bg-zinc-950 rounded-lg p-3 border border-zinc-800">
-                  <p className="text-[10px] text-zinc-600 uppercase mb-1">Aktuell</p>
-                  <p className="text-lg font-bold text-yellow-400">{currentMa}mA</p>
-                  <p className="text-[9px] text-zinc-600">{currentPowerW.toFixed(2)}W</p>
+                <div
+                  className="rounded-lg p-3 border"
+                  style={{
+                    backgroundColor: 'var(--bg-primary)',
+                    borderColor: 'var(--border-primary)',
+                  }}
+                >
+                  <p className="text-[10px] uppercase mb-1" style={{ color: 'var(--text-disabled)' }}>Aktuell</p>
+                  <p className="text-lg font-bold" style={{ color: 'var(--accent-warning)' }}>{currentMa}mA</p>
+                  <p className="text-[9px]" style={{ color: 'var(--text-disabled)' }}>{currentPowerW.toFixed(2)}W</p>
                 </div>
 
-                <div className="bg-zinc-950 rounded-lg p-3 border border-zinc-800">
-                  <p className="text-[10px] text-zinc-600 uppercase mb-1">Pro Tag</p>
-                  <p className="text-lg font-bold text-amber-400">{powerPerDay.toFixed(1)}</p>
-                  <p className="text-[9px] text-zinc-600">Wh</p>
+                <div
+                  className="rounded-lg p-3 border"
+                  style={{
+                    backgroundColor: 'var(--bg-primary)',
+                    borderColor: 'var(--border-primary)',
+                  }}
+                >
+                  <p className="text-[10px] uppercase mb-1" style={{ color: 'var(--text-disabled)' }}>Pro Tag</p>
+                  <p className="text-lg font-bold" style={{ color: 'var(--accent-warning)' }}>{powerPerDay.toFixed(1)}</p>
+                  <p className="text-[9px]" style={{ color: 'var(--text-disabled)' }}>Wh</p>
                 </div>
 
-                <div className="bg-zinc-950 rounded-lg p-3 border border-zinc-800">
-                  <p className="text-[10px] text-zinc-600 uppercase mb-1">Pro Jahr</p>
-                  <p className="text-lg font-bold text-emerald-400">{powerPerYear.toFixed(2)}</p>
-                  <p className="text-[9px] text-zinc-600">kWh</p>
+                <div
+                  className="rounded-lg p-3 border"
+                  style={{
+                    backgroundColor: 'var(--bg-primary)',
+                    borderColor: 'var(--border-primary)',
+                  }}
+                >
+                  <p className="text-[10px] uppercase mb-1" style={{ color: 'var(--text-disabled)' }}>Pro Jahr</p>
+                  <p className="text-lg font-bold" style={{ color: 'var(--accent-success)' }}>{powerPerYear.toFixed(2)}</p>
+                  <p className="text-[9px]" style={{ color: 'var(--text-disabled)' }}>kWh</p>
                 </div>
 
-                <div className="bg-zinc-950 rounded-lg p-3 border border-zinc-800">
-                  <p className="text-[10px] text-zinc-600 uppercase mb-1">Kosten/Jahr</p>
-                  <p className="text-lg font-bold text-rose-400">{costsPerYear.toFixed(2)}€</p>
-                  <p className="text-[9px] text-zinc-600">@ 0.35€/kWh</p>
+                <div
+                  className="rounded-lg p-3 border"
+                  style={{
+                    backgroundColor: 'var(--bg-primary)',
+                    borderColor: 'var(--border-primary)',
+                  }}
+                >
+                  <p className="text-[10px] uppercase mb-1" style={{ color: 'var(--text-disabled)' }}>Kosten/Jahr</p>
+                  <p className="text-lg font-bold" style={{ color: 'var(--accent-error)' }}>{costsPerYear.toFixed(2)}€</p>
+                  <p className="text-[9px]" style={{ color: 'var(--text-disabled)' }}>@ 0.35€/kWh</p>
                 </div>
               </div>
 
               {/* Status Indicator */}
-              <div className={`rounded-xl p-3 border ${connected ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-zinc-800/50 border-zinc-700'}`}>
+              <div
+                className="rounded-xl p-3 border"
+                style={{
+                  backgroundColor: connected
+                    ? 'color-mix(in srgb, var(--accent-success) 10%, transparent)'
+                    : 'color-mix(in srgb, var(--bg-tertiary) 50%, transparent)',
+                  borderColor: connected
+                    ? 'color-mix(in srgb, var(--accent-success) 20%, transparent)'
+                    : 'var(--border-primary)',
+                }}
+              >
                 <div className="flex items-center gap-2">
-                  <div className={`w-2 h-2 rounded-full ${connected ? 'bg-emerald-500 animate-pulse' : 'bg-zinc-600'}`}></div>
-                  <p className="text-xs text-zinc-400">
+                  <div
+                    className={`w-2 h-2 rounded-full ${connected ? 'animate-pulse' : ''}`}
+                    style={{ backgroundColor: connected ? 'var(--accent-success)' : 'var(--text-disabled)' }}
+                  ></div>
+                  <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
                     {connected ? 'Aktiver Betrieb (WiFi + Display + Sensor)' : 'Stand-by Modus (nur Sensor)'}
                   </p>
                 </div>
               </div>
 
               {/* Info */}
-              <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-3">
-                <p className="text-[10px] text-blue-300 leading-relaxed">
+              <div
+                className="rounded-xl p-3 border"
+                style={{
+                  backgroundColor: 'color-mix(in srgb, var(--accent-info) 10%, transparent)',
+                  borderColor: 'color-mix(in srgb, var(--accent-info) 20%, transparent)',
+                }}
+              >
+                <p className="text-[10px] leading-relaxed" style={{ color: 'color-mix(in srgb, var(--accent-info) 90%, white)' }}>
                   <strong>Info:</strong> Schätzung basiert auf ESP32-C3 (160mA), OLED Display (20mA) und B05 Flame Sensor (1.5mA).
                   Tatsächlicher Verbrauch kann je nach Konfiguration variieren.
                 </p>
@@ -694,32 +938,56 @@ function ESP32DebugView({
       </div>
 
       {/* Connection Log */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 space-y-4">
+      <div
+        className="rounded-2xl p-6 space-y-4 border"
+        style={{
+          backgroundColor: 'var(--bg-secondary)',
+          borderColor: 'var(--border-primary)',
+        }}
+      >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Activity size={16} className="text-blue-500"/>
-            <h3 className="text-sm font-bold text-zinc-400 uppercase">Connection Log</h3>
+            <Activity size={16} style={{ color: 'var(--accent-info)' }} />
+            <h3 className="text-sm font-bold uppercase" style={{ color: 'var(--text-secondary)' }}>Connection Log</h3>
           </div>
-          <span className="text-xs text-zinc-500">{connectionLog.length} Einträge</span>
+          <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>{connectionLog.length} Einträge</span>
         </div>
 
-        <div className="bg-zinc-950 rounded-xl border border-zinc-800 max-h-64 overflow-y-auto">
+        <div
+          className="rounded-xl border max-h-64 overflow-y-auto"
+          style={{
+            backgroundColor: 'var(--bg-primary)',
+            borderColor: 'var(--border-primary)',
+          }}
+        >
           {connectionLog.length === 0 ? (
-            <div className="p-4 text-center text-zinc-600 text-xs">Keine Log-Einträge</div>
+            <div className="p-4 text-center text-xs" style={{ color: 'var(--text-disabled)' }}>Keine Log-Einträge</div>
           ) : (
-            <div className="divide-y divide-zinc-800">
+            <div className="divide-y" style={{ borderColor: 'var(--border-primary)' }}>
               {connectionLog.map((log, i) => (
-                <div key={i} className="px-4 py-2 flex items-start gap-3 hover:bg-zinc-900/50">
+                <div
+                  key={i}
+                  className="px-4 py-2 flex items-start gap-3 transition-colors"
+                  style={{
+                    backgroundColor: 'transparent',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = 'color-mix(in srgb, var(--bg-secondary) 50%, transparent)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'transparent';
+                  }}
+                >
                   {log.type === 'success' ? (
-                    <CheckCircle size={14} className="text-emerald-500 mt-0.5 flex-shrink-0"/>
+                    <CheckCircle size={14} className="mt-0.5 flex-shrink-0" style={{ color: 'var(--accent-success)' }} />
                   ) : (
-                    <AlertCircle size={14} className="text-rose-500 mt-0.5 flex-shrink-0"/>
+                    <AlertCircle size={14} className="mt-0.5 flex-shrink-0" style={{ color: 'var(--accent-error)' }} />
                   )}
                   <div className="flex-1 min-w-0">
-                    <p className={`text-xs ${log.type === 'success' ? 'text-emerald-400' : 'text-rose-400'} truncate`}>
+                    <p className="text-xs truncate" style={{ color: log.type === 'success' ? 'var(--accent-success)' : 'var(--accent-error)' }}>
                       {log.message}
                     </p>
-                    <p className="text-[10px] text-zinc-600 mt-0.5">{log.timestamp}</p>
+                    <p className="text-[10px] mt-0.5" style={{ color: 'var(--text-disabled)' }}>{log.timestamp}</p>
                   </div>
                 </div>
               ))}
