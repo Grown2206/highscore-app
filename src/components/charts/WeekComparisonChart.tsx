@@ -28,33 +28,48 @@ export default function WeekComparisonChart({ comparisonStats }: WeekComparisonC
   };
 
   const getTrendColor = () => {
-    if (comparisonStats.trend === 'up') return 'rose';
-    if (comparisonStats.trend === 'down') return 'emerald';
-    return 'zinc';
+    if (comparisonStats.trend === 'up') return 'var(--accent-error)';
+    if (comparisonStats.trend === 'down') return 'var(--accent-success)';
+    return 'var(--text-tertiary)';
+  };
+
+  const getTrendBgColor = () => {
+    if (comparisonStats.trend === 'up') return 'color-mix(in srgb, var(--accent-error) 10%, transparent)';
+    if (comparisonStats.trend === 'down') return 'color-mix(in srgb, var(--accent-success) 10%, transparent)';
+    return 'var(--bg-tertiary)';
   };
 
   const TrendIcon = getTrendIcon();
   const trendColor = getTrendColor();
+  const trendBgColor = getTrendBgColor();
 
   return (
-    <div className="bg-gradient-to-br from-blue-900/10 to-zinc-900 border border-blue-500/20 rounded-2xl p-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div
+      className="rounded-2xl p-6 animate-in fade-in slide-in-from-bottom-4 duration-500 border"
+      style={{
+        background: 'linear-gradient(to bottom right, color-mix(in srgb, var(--accent-primary) 10%, transparent), var(--bg-secondary))',
+        borderColor: 'color-mix(in srgb, var(--accent-primary) 20%, transparent)',
+      }}
+    >
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-2">
-          <div className="bg-blue-500/20 p-2 rounded-lg">
-            <Calendar size={16} className="text-blue-400"/>
+          <div
+            className="p-2 rounded-lg"
+            style={{ backgroundColor: 'color-mix(in srgb, var(--accent-primary) 20%, transparent)' }}
+          >
+            <Calendar size={16} style={{ color: 'var(--accent-primary)' }} />
           </div>
           <div>
-            <h3 className="text-sm font-bold text-blue-300 uppercase">Wochenvergleich</h3>
-            <p className="text-xs text-zinc-500">7-Tage Trend</p>
+            <h3 className="text-sm font-bold uppercase" style={{ color: 'var(--accent-primary)' }}>Wochenvergleich</h3>
+            <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>7-Tage Trend</p>
           </div>
         </div>
-        <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg ${
-          trendColor === 'rose' ? 'bg-rose-500/10' :
-          trendColor === 'emerald' ? 'bg-emerald-500/10' :
-          'bg-zinc-800'
-        }`}>
-          <TrendIcon size={16} className={`text-${trendColor}-400`}/>
-          <span className={`text-lg font-bold text-${trendColor}-400`}>
+        <div
+          className="flex items-center gap-2 px-3 py-1.5 rounded-lg"
+          style={{ backgroundColor: trendBgColor }}
+        >
+          <TrendIcon size={16} style={{ color: trendColor }} />
+          <span className="text-lg font-bold" style={{ color: trendColor }}>
             {comparisonStats.change > 0 ? '+' : ''}{comparisonStats.change}%
           </span>
         </div>
@@ -65,13 +80,16 @@ export default function WeekComparisonChart({ comparisonStats }: WeekComparisonC
         {/* Last 7 days */}
         <div className="group">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs text-zinc-500 uppercase font-medium">Letzte 7 Tage</span>
-            <span className="text-xl font-bold text-blue-400">{comparisonStats.last7}</span>
+            <span className="text-xs uppercase font-medium" style={{ color: 'var(--text-tertiary)' }}>Letzte 7 Tage</span>
+            <span className="text-xl font-bold" style={{ color: 'var(--accent-primary)' }}>{comparisonStats.last7}</span>
           </div>
-          <div className="h-8 bg-zinc-900 rounded-lg overflow-hidden relative">
+          <div className="h-8 rounded-lg overflow-hidden relative" style={{ backgroundColor: 'var(--bg-secondary)' }}>
             <div
-              className="h-full bg-gradient-to-r from-blue-600 to-blue-400 transition-all duration-500 group-hover:from-blue-500 group-hover:to-blue-300"
-              style={{ width: `${last7Percent}%` }}
+              className="h-full transition-all duration-500 relative"
+              style={{
+                width: `${last7Percent}%`,
+                background: `linear-gradient(to right, var(--chart-gradient1), var(--chart-gradient2))`,
+              }}
             >
               <div className="absolute inset-0 bg-gradient-to-t from-white/10 to-transparent"></div>
             </div>
@@ -81,13 +99,16 @@ export default function WeekComparisonChart({ comparisonStats }: WeekComparisonC
         {/* Previous 7 days */}
         <div className="group">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs text-zinc-500 uppercase font-medium">Vorherige 7 Tage</span>
-            <span className="text-xl font-bold text-purple-400">{comparisonStats.prev7}</span>
+            <span className="text-xs uppercase font-medium" style={{ color: 'var(--text-tertiary)' }}>Vorherige 7 Tage</span>
+            <span className="text-xl font-bold" style={{ color: 'var(--accent-secondary)' }}>{comparisonStats.prev7}</span>
           </div>
-          <div className="h-8 bg-zinc-900 rounded-lg overflow-hidden relative">
+          <div className="h-8 rounded-lg overflow-hidden relative" style={{ backgroundColor: 'var(--bg-secondary)' }}>
             <div
-              className="h-full bg-gradient-to-r from-purple-600 to-purple-400 transition-all duration-500 group-hover:from-purple-500 group-hover:to-purple-300"
-              style={{ width: `${prev7Percent}%` }}
+              className="h-full transition-all duration-500 relative"
+              style={{
+                width: `${prev7Percent}%`,
+                background: `linear-gradient(to right, var(--accent-secondary), color-mix(in srgb, var(--accent-secondary) 80%, white))`,
+              }}
             >
               <div className="absolute inset-0 bg-gradient-to-t from-white/10 to-transparent"></div>
             </div>
@@ -96,15 +117,23 @@ export default function WeekComparisonChart({ comparisonStats }: WeekComparisonC
       </div>
 
       {/* Stats footer */}
-      <div className="flex items-center justify-center gap-4 pt-4 border-t border-zinc-800">
+      <div className="flex items-center justify-center gap-4 pt-4 border-t" style={{ borderColor: 'var(--border-primary)' }}>
         <div className="flex items-center gap-2 text-xs">
-          <div className="w-3 h-3 rounded bg-gradient-to-r from-blue-600 to-blue-400"></div>
-          <span className="text-zinc-500">Aktuell</span>
+          <div
+            className="w-3 h-3 rounded"
+            style={{ background: 'linear-gradient(to right, var(--chart-gradient1), var(--chart-gradient2))' }}
+          ></div>
+          <span style={{ color: 'var(--text-tertiary)' }}>Aktuell</span>
         </div>
-        <ArrowRight size={12} className="text-zinc-600"/>
+        <ArrowRight size={12} style={{ color: 'var(--text-disabled)' }} />
         <div className="flex items-center gap-2 text-xs">
-          <div className="w-3 h-3 rounded bg-gradient-to-r from-purple-600 to-purple-400"></div>
-          <span className="text-zinc-500">Vorherig</span>
+          <div
+            className="w-3 h-3 rounded"
+            style={{
+              background: `linear-gradient(to right, var(--accent-secondary), color-mix(in srgb, var(--accent-secondary) 80%, white))`,
+            }}
+          ></div>
+          <span style={{ color: 'var(--text-tertiary)' }}>Vorherig</span>
         </div>
       </div>
     </div>
