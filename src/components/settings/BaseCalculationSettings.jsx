@@ -28,18 +28,33 @@ export default function BaseCalculationSettings({
 
   // Sync False Trigger Settings vom ESP32
   useEffect(() => {
-    if (esp32LiveData?.minSessionDuration !== undefined && esp32LiveData?.minSessionDuration !== null) {
-      setMinDuration(esp32LiveData.minSessionDuration);
+    // Don't overwrite in-progress user edits
+    if (editingTrigger) {
+      return;
     }
-    if (esp32LiveData?.maxSessionDuration !== undefined && esp32LiveData?.maxSessionDuration !== null) {
-      setMaxDuration(esp32LiveData.maxSessionDuration);
+
+    const minFromDevice = esp32LiveData?.minSessionDuration;
+    const maxFromDevice = esp32LiveData?.maxSessionDuration;
+
+    if (typeof minFromDevice === 'number') {
+      setMinDuration((prev) => (prev !== minFromDevice ? minFromDevice : prev));
     }
-  }, [esp32LiveData?.minSessionDuration, esp32LiveData?.maxSessionDuration]);
+
+    if (typeof maxFromDevice === 'number') {
+      setMaxDuration((prev) => (prev !== maxFromDevice ? maxFromDevice : prev));
+    }
+  }, [editingTrigger, esp32LiveData?.minSessionDuration, esp32LiveData?.maxSessionDuration]);
 
   // False Trigger Einstellungen an ESP32 senden
   const saveTriggerSettings = async () => {
     if (isSimulating) {
       alert('Im Demo Modus nicht verfügbar');
+      return;
+    }
+
+    // IP-Validierung
+    if (!esp32Ip || typeof esp32Ip !== 'string' || !/^(\d{1,3}\.){3}\d{1,3}$/.test(esp32Ip.trim())) {
+      alert('Fehler: ESP32 IP-Adresse ist ungültig oder nicht gesetzt. Bitte prüfen Sie die Verbindung.');
       return;
     }
 
@@ -61,7 +76,7 @@ export default function BaseCalculationSettings({
 
     setSaving(true);
     try {
-      const response = await fetch(`http://${esp32Ip}/api/settings`, {
+      const response = await fetch(`http://${esp32Ip.trim()}/api/settings`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
