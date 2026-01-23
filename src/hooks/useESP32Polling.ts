@@ -301,7 +301,7 @@ export function useESP32Polling({
           return {
             id: hit.id || `fallback_${fallbackIdSuffix}`,
             timestamp: realTimestamp,
-            type: 'Sensor',
+            type: 'Offline',
             strainName: strain.name,
             strainPrice: strain.price,
             strainId: strain.id,

@@ -141,17 +141,23 @@ export default function SessionDetailsModal({ session, onClose }) {
             </div>
             <span
               className="inline-block px-3 py-1 rounded-full text-xs font-bold border"
-              style={session.type === 'Sensor' ? {
-                backgroundColor: 'color-mix(in srgb, var(--accent-success) 10%, transparent)',
-                color: 'var(--accent-success)',
-                borderColor: 'color-mix(in srgb, var(--accent-success) 20%, transparent)',
-              } : {
-                backgroundColor: 'color-mix(in srgb, var(--accent-info) 10%, transparent)',
-                color: 'var(--accent-info)',
-                borderColor: 'color-mix(in srgb, var(--accent-info) 20%, transparent)',
-              }}
+              style={
+                session.type === 'Offline' ? {
+                  backgroundColor: 'color-mix(in srgb, var(--accent-warning) 10%, transparent)',
+                  color: 'var(--accent-warning)',
+                  borderColor: 'color-mix(in srgb, var(--accent-warning) 20%, transparent)',
+                } : session.type === 'Sensor' ? {
+                  backgroundColor: 'color-mix(in srgb, var(--accent-success) 10%, transparent)',
+                  color: 'var(--accent-success)',
+                  borderColor: 'color-mix(in srgb, var(--accent-success) 20%, transparent)',
+                } : {
+                  backgroundColor: 'color-mix(in srgb, var(--accent-info) 10%, transparent)',
+                  color: 'var(--accent-info)',
+                  borderColor: 'color-mix(in srgb, var(--accent-info) 20%, transparent)',
+                }
+              }
             >
-              {session.type || 'Manuell'}
+              {session.type === 'Offline' ? 'Offline (ESP32)' : session.type || 'Manuell'}
             </span>
           </div>
 

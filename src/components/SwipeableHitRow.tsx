@@ -139,7 +139,7 @@ export default function SwipeableHitRow({
                   })}
                 </span>
                 <span className="text-[10px]" style={{ color: 'rgba(255, 255, 255, 0.8)' }}>
-                  Typ: {hit.type === 'Sensor' ? 'Offline (ESP32)' : 'Manuell'}
+                  Typ: {hit.type === 'Offline' ? 'Offline (ESP32)' : hit.type === 'Sensor' ? 'Sensor' : 'Manuell'}
                 </span>
               </div>
             </div>
@@ -220,18 +220,19 @@ export default function SwipeableHitRow({
               </div>
               <div className="flex-1 text-xs px-2 flex items-center gap-1" style={{ color: 'var(--text-secondary)' }}>
                 {hit.strainName}
-                {/* **NEW**: Offline/Sensor Hit Indicator */}
-                {hit.type === 'Sensor' && (
+                {/* **NEW**: Offline Hit Indicator */}
+                {hit.type === 'Offline' && (
                   <span
                     className="inline-flex items-center gap-0.5 px-1 py-0.5 rounded text-[9px] font-bold border"
                     style={{
-                      backgroundColor: 'color-mix(in srgb, var(--accent-info) 10%, transparent)',
-                      color: 'var(--accent-info)',
-                      borderColor: 'color-mix(in srgb, var(--accent-info) 30%, transparent)',
+                      backgroundColor: 'color-mix(in srgb, var(--accent-warning) 10%, transparent)',
+                      color: 'var(--accent-warning)',
+                      borderColor: 'color-mix(in srgb, var(--accent-warning) 30%, transparent)',
                     }}
+                    title="Offline vom ESP32 synchronisiert"
                   >
                     <WifiOff size={9} />
-                    O
+                    OFFLINE
                   </span>
                 )}
               </div>
