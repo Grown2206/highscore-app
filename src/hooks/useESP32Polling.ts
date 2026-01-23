@@ -280,10 +280,12 @@ export function useESP32Polling({
           if (timeSync) {
             // ESP32 mit NTP sendet echte Unix timestamps (Millisekunden)
             realTimestamp = hit.timestamp;
+            console.log(`📅 Offline-Hit mit NTP: ${new Date(realTimestamp).toLocaleString('de-DE')}`);
           } else {
             // ESP32 ohne NTP sendet millis() → konvertiere mit espUptime
             const hitAgeMs = espUptime - hit.timestamp;
             realTimestamp = now - hitAgeMs;
+            console.log(`📅 Offline-Hit ohne NTP: Hit war vor ${(hitAgeMs/1000).toFixed(0)}s → ${new Date(realTimestamp).toLocaleString('de-DE')}`);
           }
 
           // Stabiler Hash-basierter Fallback für ID
