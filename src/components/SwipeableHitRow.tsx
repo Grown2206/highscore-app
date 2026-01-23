@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Trash2, Info, WifiOff } from 'lucide-react';
+import { HIT_TYPES, getHitTypeLabel, getOfflineBadgeStyle } from '../utils/hitTypeHelpers';
 
 // Z-index constants for layer stacking
 const Z_INDEX = {
@@ -139,7 +140,7 @@ export default function SwipeableHitRow({
                   })}
                 </span>
                 <span className="text-[10px]" style={{ color: 'rgba(255, 255, 255, 0.8)' }}>
-                  Typ: {hit.type === 'Offline' ? 'Offline (ESP32)' : hit.type === 'Sensor' ? 'Sensor' : 'Manuell'}
+                  Typ: {getHitTypeLabel(hit.type || '')}
                 </span>
               </div>
             </div>
@@ -221,20 +222,23 @@ export default function SwipeableHitRow({
               <div className="flex-1 text-xs px-2 flex items-center gap-1" style={{ color: 'var(--text-secondary)' }}>
                 {hit.strainName}
                 {/* **NEW**: Offline Hit Indicator */}
-                {hit.type === 'Offline' && (
-                  <span
-                    className="inline-flex items-center gap-0.5 px-1 py-0.5 rounded text-[9px] font-bold border"
-                    style={{
-                      backgroundColor: 'color-mix(in srgb, var(--accent-warning) 10%, transparent)',
-                      color: 'var(--accent-warning)',
-                      borderColor: 'color-mix(in srgb, var(--accent-warning) 30%, transparent)',
-                    }}
-                    title="Offline vom ESP32 synchronisiert"
-                  >
-                    <WifiOff size={9} />
-                    OFFLINE
-                  </span>
-                )}
+                {hit.type === HIT_TYPES.OFFLINE && (() => {
+                  const badgeStyle = getOfflineBadgeStyle();
+                  return (
+                    <span
+                      className="inline-flex items-center gap-0.5 px-1 py-0.5 rounded text-[9px] font-bold border"
+                      style={{
+                        backgroundColor: badgeStyle.backgroundColor,
+                        color: badgeStyle.color,
+                        borderColor: badgeStyle.borderColor,
+                      }}
+                      title={badgeStyle.title}
+                    >
+                      <WifiOff size={9} />
+                      {badgeStyle.text}
+                    </span>
+                  );
+                })()}
               </div>
               <div className="flex-none text-right flex items-center gap-2">
                 {hit.duration > 0 && (

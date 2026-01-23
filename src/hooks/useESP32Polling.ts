@@ -3,6 +3,7 @@ import { RefreshCw } from 'lucide-react';
 import { HistoryDataEntry } from '../utils/historyDataHelpers';
 import { Hit } from './useHitSelection';
 import { Settings, Notification } from './useHitManagement';
+import { HIT_TYPES } from '../utils/hitTypeHelpers';
 
 // Type Definitions
 export interface LiveData {
@@ -301,7 +302,7 @@ export function useESP32Polling({
           return {
             id: hit.id || `fallback_${fallbackIdSuffix}`,
             timestamp: realTimestamp,
-            type: 'Offline',
+            type: HIT_TYPES.OFFLINE,
             strainName: strain.name,
             strainPrice: strain.price,
             strainId: strain.id,
