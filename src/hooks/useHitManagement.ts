@@ -3,6 +3,7 @@ import { Bell, Trash2, LucideIcon } from 'lucide-react';
 import { HistoryDataEntry } from '../utils/historyDataHelpers';
 import { Hit } from './useHitSelection';
 import { Settings, Goals } from './useAutoBackup';
+import { HIT_TYPES } from '../utils/hitTypeHelpers';
 
 export interface Notification {
   type: 'success' | 'warning' | 'error' | 'info';
@@ -85,7 +86,7 @@ export function useHitManagement({
     const newHit: Hit = {
       id: now,
       timestamp: now,
-      type: isManual ? 'Manuell' : 'Sensor',
+      type: isManual ? HIT_TYPES.MANUAL : HIT_TYPES.SENSOR,
       strainName: strain.name,
       strainPrice: strain.price,
       strainId: strain.id,
